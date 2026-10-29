@@ -2,6 +2,8 @@
 
 Last changed: 2026-10-29. Experimental M0 baseline.
 
+M1 first increment adds feature-gated portable SiteConfig files and validation; see PROJECT_FILES.md. The numbered list records inherited baseline gaps, many still present in the normal workflow. M1 is not complete.
+
 1. Export requires online Tailwind/Google Fonts; offline browser test fails. Editor also loads remote fonts; templates can use external media.
 2. Static exporter handles 13 of 19 types. Divider, banner, content, image, video and gallery become comments, losing visible output.
 3. Export uses top-level blocks, not all pages; the list can reflect the last edited page rather than Home. Navigation lacks validated page references.

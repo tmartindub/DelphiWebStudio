@@ -20,6 +20,8 @@ import { useConfigStore } from '@/store/configStore'
 import { useProjectsStore } from '@/store/projectsStore'
 import type { PageConfig } from '@/blocks/types'
 import { exportToHTML, downloadHTML } from '@/lib/export-html'
+import { ProjectFileCommands } from '@/project/ProjectFileCommands'
+import { portableProjectsEnabled } from '@/project/project-file'
 
 const viewports: { value: Viewport; icon: typeof Monitor; label: string }[] = [
   { value: 'desktop', icon: Monitor, label: 'Desktop' },
@@ -194,7 +196,9 @@ export function CanvasToolbar() {
   }
 
   return (
-    <div className="h-10 bg-bg-1 border-b border-border-default flex items-center px-3 gap-1">
+    <>
+    {portableProjectsEnabled && <div className="bg-bg-1 border-b border-border-default px-3 py-1"><ProjectFileCommands /></div>}
+    <div className="min-h-10 bg-bg-1 border-b border-border-default flex flex-wrap items-center px-3 py-1 gap-1">
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-xs text-text-3 shrink-0">
         <span
@@ -362,5 +366,6 @@ export function CanvasToolbar() {
         </button>
       </div>
     </div>
+    </>
   )
 }

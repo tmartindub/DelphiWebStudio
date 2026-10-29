@@ -20,6 +20,10 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - name: Build experimental portable-project mode
+        run: npm run build
+        env:
+          VITE_WEBSTUDIO_PROJECTS: 'true'
   dependency-audit:
     runs-on: ubuntu-latest
     continue-on-error: true
