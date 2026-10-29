@@ -26,3 +26,21 @@ dist-ssr
 test-results/
 GTM.md
 WORKPLAN-*.md
+
+# Secrets and generated/user-owned content
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.key
+*.gguf
+*.safetensors
+bin/*
+!bin/.gitkeep
+dcu/*
+!dcu/.gitkeep
+export/*
+!export/.gitkeep
+source distributions/*
+!source distributions/.gitkeep

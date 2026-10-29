@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { MousePointer2 } from 'lucide-react'
 import { useEditorStore } from '@/store/editorStore'
 import { useConfigStore } from '@/store/configStore'
@@ -16,21 +16,22 @@ export function RightSidebar() {
     return page.blocks
   })
   const selectedBlock = blocks.find((b) => b.id === selectedBlockId)
-  const [tab, setTab] = useState<Tab>('properties')
-
-  // Auto-switch to Properties when a block is selected
-  useEffect(() => {
-    if (selectedBlock) setTab('properties')
-  }, [selectedBlock?.id]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const activeTab = tab
+  const [selection, setSelection] = useState<{ blockId: string | null; tab: Tab }>({
+    blockId: null, tab: 'properties',
+  })
+  if (selection.blockId !== selectedBlockId) {
+    setSelection({ blockId: selectedBlockId, tab: selectedBlock ? 'properties' : selection.tab })
+  }
+  const activeTab = selectedBlock && selection.blockId !== selectedBlock.id
+    ? 'properties'
+    : selection.tab
 
   return (
     <div className="hidden md:flex w-[280px] bg-bg-1 border-l border-border-default flex-col shrink-0">
       {/* Tabs */}
       <div className="flex border-b border-border-default shrink-0">
         <button
-          onClick={() => setTab('properties')}
+          onClick={() => setSelection({ blockId: selectedBlockId, tab: 'properties' })}
           className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
             activeTab === 'properties'
               ? 'text-text-0 border-b border-green'
@@ -40,7 +41,7 @@ export function RightSidebar() {
           Properties
         </button>
         <button
-          onClick={() => setTab('design')}
+          onClick={() => setSelection({ blockId: selectedBlockId, tab: 'design' })}
           className={`flex-1 py-2 text-[11px] font-medium transition-colors ${
             activeTab === 'design'
               ? 'text-text-0 border-b border-green'
