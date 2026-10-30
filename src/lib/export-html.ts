@@ -334,13 +334,13 @@ function renderFeaturesGrid(block: BlockConfig): string {
     )
     .join('\n')
 
-  return `  <section class="px-6 md:px-10 py-16 md:py-20">
+  return `  <section class="px-6 @md:px-10 py-16 @md:py-20">
       <div class="text-center mb-10">
 ${labelHtml}
-        <h2 class="text-2xl md:text-3xl font-bold tracking-tight mb-2">${title}</h2>
+        <h2 class="text-2xl @md:text-3xl font-bold tracking-tight mb-2">${title}</h2>
 ${subtitleHtml}
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 @lg:grid-cols-2 @3xl:grid-cols-3 gap-4">
 ${cards}
       </div>
   </section>`
@@ -377,10 +377,10 @@ function renderFeaturesList(block: BlockConfig): string {
     )
     .join('\n')
 
-  return `  <section class="px-6 md:px-10 py-16 md:py-20">
+  return `  <section class="px-6 @md:px-10 py-16 @md:py-20">
       <div class="text-center mb-10">
 ${labelHtml}
-        <h2 class="text-2xl md:text-3xl font-bold tracking-tight mb-2">${title}</h2>
+        <h2 class="text-2xl @md:text-3xl font-bold tracking-tight mb-2">${title}</h2>
 ${subtitleHtml}
       </div>
       <div class="max-w-2xl mx-auto space-y-4">
@@ -393,6 +393,8 @@ function renderFeatures(block: BlockConfig): string {
   switch (block.variant) {
     case 'list':
       return renderFeaturesList(block)
+    case 'alternating':
+      return renderToStaticMarkup(createElement(RenderBlock, { block }))
     default:
       return renderFeaturesGrid(block)
   }
