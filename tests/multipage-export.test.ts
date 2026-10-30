@@ -63,4 +63,17 @@ describe('multi-page export', () => {
     expect(await zip.file('assets/photo.png')!.async('string')).toBe('image')
     expect(await zip.file('community/news.html')!.async('string')).toContain('src="../assets/photo.png"')
   })
+
+  it('rewrites links to project pages to portable relative HTML paths', async () => {
+    const site = structuredClone(config)
+    site.pages![0].blocks = [{ id: 'hero', type: 'hero', variant: 'centered', props: { headline: 'Home', primaryCta: 'About', primaryCtaUrl: '/about?x=1&y=2#team', secondaryCta: 'External', secondaryCtaUrl: 'https://example.com/about' } }]
+    site.pages![1].blocks = [{ id: 'cta', type: 'cta', variant: 'simple', props: { headline: 'News', buttonText: 'Home', buttonUrl: '/#welcome' } }]
+    site.blocks = site.pages![0].blocks
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site)).arrayBuffer())
+    const home = await zip.file('index.html')!.async('string')
+    const news = await zip.file('community/news.html')!.async('string')
+    expect(home).toContain('href="about.html?x=1&amp;y=2#team"')
+    expect(home).toContain('href="https://example.com/about"')
+    expect(news).toContain('href="../index.html#welcome"')
+  })
 })

@@ -1424,6 +1424,14 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     const html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, options)
       .replace('<body>', `<body>\n<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav}</nav>`)
       .replace(/\b(src|href|data)="assets\//g, `$1="${prefix}assets/`)
+      .replace(/(<a\s[^>]*?\bhref=")([^"]*)(")/gi, (match, start: string, href: string, end: string) => {
+        const separator = href.search(/[?#]/)
+        const path = separator < 0 ? href : href.slice(0, separator)
+        const suffix = separator < 0 ? '' : href.slice(separator)
+        const normalized = path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path
+        const targetIndex = pages.findIndex(target => normalized === escapeHtml(target.path) || normalized === escapeHtml(encodeURI(target.path)))
+        return targetIndex < 0 ? match : `${start}${escapeHtml(prefix + encodeURI(paths[targetIndex]))}${suffix}${end}`
+      })
     zip.file(paths[index], html, { date: new Date('1980-01-01T00:00:00Z') })
   }
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
