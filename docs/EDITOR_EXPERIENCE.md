@@ -9,3 +9,9 @@ The description box selects a starter locally; it does not claim to be AI or sen
 The editor has Beginner, Designer and Professional (JSON) views using the same site model. The Professional option opens the existing JSON editor. JSON changes are validated and undoable. These controls do not yet provide the complete advanced visual and source editing capabilities described in the handoff.
 
 M2 still requires full page navigation editing, reusable headers/footers and sections, advanced responsive layout controls, direct HTML/CSS/JS editing, deeper keyboard/accessibility testing and all specified templates/features before the milestone is complete.
+
+## Responsive preview checks
+
+Desktop preview can expand to 1,200 pixels; tablet and phone previews use 768 and 375 pixels. On a narrower editor window, the fixed device previews can be scrolled horizontally. A sample centered hero, image, and PDF block were compared with exported HTML at those three widths; their measured widths matched and the sample did not horizontally overflow. The centered hero uses the same root font size and container breakpoint in preview and export. The PDF preview uses the browser's PDF object while export uses the bundled viewer, so their controls differ.
+
+Other component types and variants still have separate preview and export renderers. Navigation and arbitrary user content have not all been verified for matching layout or overflow. These checks do not guarantee every page, device, browser, or screen size.
