@@ -66,6 +66,7 @@ export function Canvas() {
     >
       {pages && <nav aria-label="Site pages" className="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">
         {pages.filter(page => page.webstudioArticle?.status !== 'draft').map(page => <a key={page.id} href={page.path} aria-current={page.id === activePageId ? 'page' : undefined} className="min-w-0 [overflow-wrap:anywhere] hover:text-text-0" onClick={event => { event.preventDefault(); setActivePage(page.id); selectBlock(null) }}>{page.name}</a>)}
+        {pages.some(page => page.webstudioArticle?.status === 'ready') && <a href="#article-index" className="min-w-0 [overflow-wrap:anywhere] hover:text-text-0" onClick={event => { event.preventDefault(); toast('The article list is available in the exported website ZIP.') }}>Articles</a>}
         {searchEnabled && <a href="#site-search" className="min-w-0 [overflow-wrap:anywhere] hover:text-text-0" onClick={event => { event.preventDefault(); toast('Site search is available in the exported website ZIP.') }}>Search</a>}
       </nav>}
       {activeArticle && (activeArticle.author || activeArticle.summary) && <header className="px-6 py-3 text-text-1">
