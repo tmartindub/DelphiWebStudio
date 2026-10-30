@@ -158,6 +158,11 @@ export function validateProjectMedia(config: SiteConfig, assets: unknown[]): voi
   const blocks = config.pages ? config.pages.flatMap(page => page.blocks) : config.blocks
   for (const block of blocks) {
     if (!knownTypes.has(block.type)) continue
+    if (block.type === 'content' && typeof block.props.body === 'string') {
+      for (const match of block.props.body.matchAll(/\]\((assets\/[a-zA-Z0-9._-]+)(?:[?#][^)\s]*)?\)/g)) {
+        if (!assetPaths.has(match[1])) throw new Error(`Missing project media file: ${match[1]}.`)
+      }
+    }
     if (['image', 'pdfViewer', 'document', 'audio', 'mediaVideo'].includes(block.type) && typeof block.props.assetId === 'string' && pathsById.has(block.props.assetId) && block.props.src !== pathsById.get(block.props.assetId)) {
       throw new Error(`Media ID and path do not match: ${block.props.assetId}.`)
     }

@@ -357,15 +357,16 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
   const [media, setMedia] = useState<{ projectId: string; revision: number; images: MediaAsset[] } | null>(null)
   const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image')) || (field.key === 'items' && block.type === 'features') || (field.key === 'members' && block.type === 'team'))
   const imageKey = block.type === 'features' ? 'image' : block.type === 'team' ? 'avatar' : 'src'
+  const contentMedia = block.type === 'content' && field.key === 'body' && field.type === 'textarea'
 
   useEffect(() => {
-    if (!portableProjectsEnabled || (field.type !== 'image' && !imageItems) || !projectId) return
+    if (!portableProjectsEnabled || (field.type !== 'image' && !imageItems && !contentMedia) || !projectId) return
     let active = true
     new ProjectMediaLibrary().list(projectId).then(assets => {
-      if (active) setMedia({ projectId, revision: mediaRevision, images: assets.filter(asset => asset.mime.startsWith('image/')) })
+      if (active) setMedia({ projectId, revision: mediaRevision, images: contentMedia ? assets : assets.filter(asset => asset.mime.startsWith('image/')) })
     }).catch(() => { if (active) setMedia({ projectId, revision: mediaRevision, images: [] }) })
     return () => { active = false }
-  }, [field.type, imageItems, projectId, mediaRevision])
+  }, [field.type, imageItems, contentMedia, projectId, mediaRevision])
 
   // For variant field, it's on the block itself
   const value = field.key === 'variant'
@@ -447,6 +448,17 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
             rows={3}
             className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-2 text-text-0 text-xs outline-none focus:border-green resize-y"
           />
+          {contentMedia && <p className="mt-1 text-[10px] text-text-3">For a link, write [label](/page) or [label](https://example.com).</p>}
+          {contentMedia && portableProjectsEnabled && media?.projectId === projectId && media.revision === mediaRevision && media.images.length > 0 && <select aria-label="Insert media link in Body" value="" onChange={event => {
+            const asset = media.images.find(item => item.path === event.target.value)
+            if (!asset) return
+            const label = asset.name.replace(/[\x5b\x5d\r\n]/g, ' ').trim() || 'Open file'
+            const current = String(value || '')
+            onChange(`${current}${current ? '\n\n' : ''}[${label}](${asset.path})`)
+          }} className="mt-1 w-full rounded border border-border-default bg-bg-2 px-2 py-1.5 text-xs text-text-0">
+            <option value="">Insert a link to Media...</option>
+            {media.images.map(asset => <option key={asset.id} value={asset.path}>{asset.name}</option>)}
+          </select>}
         </div>
       )
 
