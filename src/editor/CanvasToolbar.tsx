@@ -25,6 +25,7 @@ import { exportToHTML, downloadHTML, exportSiteZip } from '@/lib/export-html'
 import { ProjectFileCommands } from '@/project/ProjectFileCommands'
 import { portableProjectsEnabled } from '@/project/project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
+import { PlanPages } from './PlanPages'
 
 const viewports: { value: Viewport; icon: typeof Monitor; label: string }[] = [
   { value: 'desktop', icon: Monitor, label: 'Desktop' },
@@ -169,6 +170,7 @@ export function CanvasToolbar() {
   const configName = useConfigStore((s) => s.config.name)
   const config = useConfigStore((s) => s.config)
   const [showAddPage, setShowAddPage] = useState(false)
+  const [showPlanPages, setShowPlanPages] = useState(false)
   const [exporting, setExporting] = useState(false)
 
   const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) : null
@@ -195,6 +197,7 @@ export function CanvasToolbar() {
 
   return (
     <>
+    {showPlanPages && <PlanPages onClose={() => setShowPlanPages(false)} />}
     {portableProjectsEnabled && <div className="bg-bg-1 border-b border-border-default px-3 py-1"><ProjectFileCommands /></div>}
     <div className="min-h-10 bg-bg-1 border-b border-border-default flex flex-wrap items-center px-3 py-1 gap-1">
       {/* Breadcrumb */}
@@ -244,6 +247,7 @@ export function CanvasToolbar() {
 
       {/* Right side */}
       <div className="ml-auto flex flex-wrap justify-end items-center gap-1 min-w-0">
+        {portableProjectsEnabled && <button type="button" onClick={() => setShowPlanPages(true)} className="px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3">Plan pages</button>}
         <label className="text-xs text-text-1 flex items-center gap-1">
           Mode
           <select aria-label="Editor mode" value={mode} onChange={event => setMode(event.target.value as EditorMode)} className="rounded bg-bg-2 border border-border-default px-1 py-1 text-text-0">

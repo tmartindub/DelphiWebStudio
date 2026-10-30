@@ -63,8 +63,9 @@ describe('site action previews', () => {
   it('can apply a reviewed snapshot as one undoable editor change', () => {
     useConfigStore.getState().setConfig(config)
     const preview = previewSiteActions(config, proposal([{ op: 'modifyBlockProps', pageId: 'home', blockId: 'original', props: { body: 'Approved' } }]))
-    useConfigStore.getState().replaceConfig(acceptSiteActions(useConfigStore.getState().config, preview))
+    useConfigStore.getState().replaceConfig(acceptSiteActions(useConfigStore.getState().config, preview), 'Add planned pages')
     expect(useConfigStore.getState().config.blocks[0].props.body).toBe('Approved')
+    expect(useConfigStore.getState().undoStack.at(-1)?.label).toBe('Add planned pages')
     useConfigStore.getState().undo()
     expect(useConfigStore.getState().config.blocks[0].props.body).toBe('Original')
   })
