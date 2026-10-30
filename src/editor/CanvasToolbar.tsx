@@ -19,7 +19,7 @@ import { useEditorStore, type Viewport } from '@/store/editorStore'
 import { useConfigStore } from '@/store/configStore'
 import { useProjectsStore } from '@/store/projectsStore'
 import type { PageConfig } from '@/blocks/types'
-import { exportToHTML, downloadHTML, exportSiteZip, downloadSiteZip } from '@/lib/export-html'
+import { exportToHTML, downloadHTML, exportSiteZip } from '@/lib/export-html'
 import { ProjectFileCommands } from '@/project/ProjectFileCommands'
 import { portableProjectsEnabled } from '@/project/project-file'
 
@@ -31,7 +31,7 @@ const viewports: { value: Viewport; icon: typeof Monitor; label: string }[] = [
 
 function AddPagePopover({ onAdd, onClose }: { onAdd: (name: string, path: string) => void; onClose: () => void }) {
   const [name, setName] = useState('')
-  const [path, setPath] = useState('/')
+  const [path, setPath] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
@@ -56,10 +56,7 @@ function AddPagePopover({ onAdd, onClose }: { onAdd: (name: string, path: string
           <input
             ref={inputRef}
             value={name}
-            onChange={(e) => {
-              setName(e.target.value)
-              if (!path || path === '/') setPath(`/${e.target.value.toLowerCase().replace(/\s+/g, '-')}`)
-            }}
+            onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') onClose() }}
             placeholder="About"
             className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-3 text-text-0 text-[11.5px] outline-none focus:border-green"
@@ -190,7 +187,7 @@ export function CanvasToolbar() {
     try {
       const filename = (activeProject?.name || config.name || 'site').toLowerCase().replace(/[^a-z0-9-]+/g, '-')
       if (portableProjectsEnabled) {
-        downloadSiteZip(await exportSiteZip(config, { settings: activeProject?.settings }), `${filename}.zip`)
+        downloadHTML(await exportSiteZip(config, { settings: activeProject?.settings }), `${filename}.zip`)
         toast('Website ZIP exported')
       } else {
         downloadHTML(await exportToHTML(config, { settings: activeProject?.settings }), `${filename}.html`)

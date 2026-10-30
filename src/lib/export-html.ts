@@ -1431,17 +1431,8 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
 }
 
-export function downloadSiteZip(zip: Blob, filename: string): void {
-  const url = URL.createObjectURL(zip)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(url)
-}
-
-export function downloadHTML(html: string, filename: string): void {
-  const blob = new Blob([html], { type: 'text/html' })
+export function downloadHTML(html: string | Blob, filename: string): void {
+  const blob = typeof html === 'string' ? new Blob([html], { type: 'text/html' }) : html
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
