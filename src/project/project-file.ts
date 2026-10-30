@@ -105,6 +105,7 @@ export function validateProjectConfig(value: unknown): SiteConfig {
         for (const field of ['author', 'summary', 'createdAt', 'modifiedAt']) {
           if (typeof article[field] !== 'string') throw new Error(`Invalid article ${field}.`)
         }
+        if (article.tags !== undefined && (!Array.isArray(article.tags) || article.tags.some(tag => typeof tag !== 'string' || !tag.trim()))) throw new Error('Article tags must be nonempty text.')
       }
       return { ...structuredClone(page), id, name: page.name as string, path, blocks: readBlocks(page.blocks) }
     })
