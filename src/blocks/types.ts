@@ -71,6 +71,7 @@ export interface PageConfig {
     status: 'draft' | 'ready'
     author: string
     summary: string
+    tags?: string[]
     createdAt: string
     modifiedAt: string
   }

@@ -155,4 +155,11 @@ describe('portable project files', () => {
     expect(() => validateProjectConfig(config)).toThrow('must be text')
     expect(config.pages[0].webstudioSeo.title).toBe(42)
   })
+
+  it('preserves article tags and rejects malformed values', () => {
+    const config = { name: 'Site', pages: [{ id: 'home', name: 'Home', path: '/', blocks: [] }, { id: 'news', name: 'News', path: '/news', blocks: [], webstudioArticle: { status: 'ready', author: '', summary: '', createdAt: '', modifiedAt: '', tags: ['Events', 'Community'] } }], blocks: [] }
+    expect(validateProjectConfig(config).pages![1].webstudioArticle?.tags).toEqual(['Events', 'Community'])
+    config.pages[1].webstudioArticle!.tags = ['']
+    expect(() => validateProjectConfig(config)).toThrow('Article tags')
+  })
 })
