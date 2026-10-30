@@ -3,7 +3,7 @@ program LocalAIProcessSmoke;
 {$APPTYPE CONSOLE}
 
 uses
-  Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils, System.Net.HttpClient, System.Net.URLClient,
+  Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils, System.Hash, System.Net.HttpClient, System.Net.URLClient,
   WebStudio.LocalAIProcess in '..\..\desktop\ai\WebStudio.LocalAIProcess.pas';
 
 var
@@ -14,25 +14,42 @@ var
   BaseURL: string;
   Ready: Boolean;
   Rejected: Boolean;
+  ServerHash, ModelHash: string;
 begin
-  if not (ParamCount in [4, 5]) then
-    raise Exception.Create('Expected runtime, model, protected key file, port, and optional crash test.');
+  if not (ParamCount in [5, 6]) then
+    raise Exception.Create('Expected runtime, model, protected key file, port, model checksum, and optional crash test.');
   Port := StrToInt(ParamStr(4));
   if (Port < 1) or (Port > 65535) then raise Exception.Create('Invalid port.');
+  ServerHash := THashSHA2.GetHashStringFromFile(ParamStr(1));
+  ModelHash := ParamStr(5);
   LocalAI := TLocalAIProcess.Create;
   try
     Rejected := False;
     try
-      LocalAI.Start(ParamStr(1), ParamStr(2), ParamStr(3), 0);
+      LocalAI.Start(ParamStr(1), ParamStr(2), ParamStr(3), ServerHash, ModelHash, 0);
     except
       on E: EArgumentException do Rejected := True;
     end;
     if not Rejected then raise Exception.Create('Invalid port was accepted.');
-    LocalAI.Start(ParamStr(1), ParamStr(2), ParamStr(3), Word(Port));
+    Rejected := False;
+    try
+      LocalAI.Start(ParamStr(1), ParamStr(2), ParamStr(3), StringOfChar('0', 64), ModelHash, Word(Port));
+    except
+      on E: EArgumentException do Rejected := True;
+    end;
+    if not Rejected then raise Exception.Create('Invalid runtime checksum was accepted.');
+    Rejected := False;
+    try
+      LocalAI.Start(ParamStr(1), ParamStr(2), ParamStr(3), ServerHash, StringOfChar('0', 64), Word(Port));
+    except
+      on E: EArgumentException do Rejected := True;
+    end;
+    if not Rejected then raise Exception.Create('Invalid model checksum was accepted.');
+    LocalAI.Start(ParamStr(1), ParamStr(2), ParamStr(3), ServerHash, ModelHash, Word(Port));
     if not LocalAI.IsRunning then raise Exception.Create('Process did not start.');
     Rejected := False;
     try
-      LocalAI.Start(ParamStr(1), ParamStr(2), ParamStr(3), Word(Port));
+      LocalAI.Start(ParamStr(1), ParamStr(2), ParamStr(3), ServerHash, ModelHash, Word(Port));
     except
       on E: EInvalidOpException do Rejected := True;
     end;
@@ -69,7 +86,7 @@ begin
     finally
       Client.Free;
     end;
-    if (ParamCount = 5) and (ParamStr(5) = 'crash') then
+    if (ParamCount = 6) and (ParamStr(6) = 'crash') then
       TerminateProcess(GetCurrentProcess, 99);
     LocalAI.Stop;
     if LocalAI.IsRunning then raise Exception.Create('Process did not stop.');
