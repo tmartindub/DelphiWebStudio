@@ -50,6 +50,14 @@ RAD Studio 37.0 also includes the VCL `TEdgeBrowser` control. Unlike the FMX bro
 
 This is a promising simpler candidate for the desktop host, but not a finished shell or security review. IDE form editing and runtime redistribution have not been verified, and the test deliberately navigated to the untrusted origin. A real host must prevent untrusted navigation, constrain capabilities and test subframes, redirects, malformed messages and clean installation. The choice of shell framework remains open until its requirements are met.
 
+## Experimental VCL shell increment
+
+The first project shell uses the built-in VCL `TEdgeBrowser` on a `.dfm` form. This is the documented VCL fallback: the evaluated FMX binding requires runtime creation of its native parent, while the built-in VCL control lets the browser be declared on the form. The form contains a status panel and browser, with dimensions and browser settings available in the form definition. Startup initializes the declared WebView2 control; it does not construct the form or its controls at runtime.
+
+The prototype maps an `editor` folder beside the executable to `https://webstudio.local`, disables web messages, blocks nonlocal top-level and frame navigation, blocks new windows and denies browser permission requests. It has no native file or AI bridge and no publishing capability. This strict frame policy may prevent blob-based PDF previews and requires further work. It does not prevent all external resource requests, and it is not a security sign-off.
+
+`desktop/DelphiWebStudio/DelphiWebStudio.dproj` built for Win64 with RAD Studio 37.0 MSBuild. A hidden test using the same form code and a test-only `.dfm` cache path loaded a staged local editor, verified web messages were disabled, and confirmed a file-URL navigation attempt did not change the editor's origin. The test staged a WebView2 loader DLL from the temporary evaluation, not a redistributable package. IDE form editing, package layout, loader licensing, installer, native storage integration, PDF compatibility, hostile subframes and redirects, and clean-machine testing remain open. The executable alone is not a ready-to-run distribution and M7 is not complete.
+
 ## Native request validation increment
 
 `desktop/bridge/WebStudio.Bridge.pas` now validates a small version-1 native request envelope against the actual sender URL supplied by its caller, a native session and project identity, and an explicit capability set. It rejects unknown fields and operations, invalid IDs, malformed or oversized messages and project-scoped requests without a project. The native validator accepts the canonical integer representation `1` for the version and requires the sender string to start with `https://webstudio.local/`; it is deliberately stricter than the TypeScript prototype's URL normalization.
