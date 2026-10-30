@@ -146,13 +146,16 @@ export function validateProjectMedia(config: SiteConfig, assets: unknown[]): voi
   const blocks = config.pages ? config.pages.flatMap(page => page.blocks) : config.blocks
   for (const block of blocks) {
     if (!knownTypes.has(block.type)) continue
+    if (['image', 'pdfViewer', 'document', 'audio', 'mediaVideo'].includes(block.type) && typeof block.props.assetId === 'string' && pathsById.has(block.props.assetId) && block.props.src !== pathsById.get(block.props.assetId)) {
+      throw new Error(`Media ID and path do not match: ${block.props.assetId}.`)
+    }
     const pending: unknown[] = [block.props]
     while (pending.length) {
       const value = pending.pop()
       if (!value || typeof value !== 'object') continue
       if (!Array.isArray(value)) {
         const entry = value as Record<string, unknown>
-        if (typeof entry.assetId === 'string' && typeof entry.src === 'string' && entry.src.startsWith('assets/') && pathsById.has(entry.assetId) && pathsById.get(entry.assetId) !== entry.src) {
+        if (typeof entry.assetId === 'string' && typeof entry.src === 'string' && pathsById.has(entry.assetId) && pathsById.get(entry.assetId) !== entry.src) {
           throw new Error(`Media ID and path do not match: ${entry.assetId}.`)
         }
       }
