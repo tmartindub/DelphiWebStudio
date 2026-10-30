@@ -1011,17 +1011,10 @@ interface TeamMember {
   avatar?: string
 }
 
-const defaultMembers: TeamMember[] = [
-  { name: 'Alex Rivera', role: 'CEO & Founder' },
-  { name: 'Jordan Lee', role: 'CTO' },
-  { name: 'Sam Patel', role: 'Head of Design' },
-  { name: 'Casey Morgan', role: 'Lead Engineer' },
-]
-
 function renderTeam(block: BlockConfig): string {
   const title = escapeHtml(prop(block.props, 'title', 'Meet the Team'))
   const subtitle = prop<string>(block.props, 'subtitle', '')
-  const members = prop<TeamMember[]>(block.props, 'members', defaultMembers)
+  const members = prop<TeamMember[]>(block.props, 'members', [])
 
   const subtitleHtml = subtitle
     ? `        <p class="text-text-2 text-sm max-w-lg mx-auto">${escapeHtml(subtitle)}</p>`

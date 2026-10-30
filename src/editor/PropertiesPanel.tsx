@@ -355,8 +355,8 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
   const projectId = useEditorStore((s) => s.activeProjectId)
   const mediaRevision = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.mediaRevision ?? 0)
   const [media, setMedia] = useState<{ projectId: string; revision: number; images: MediaAsset[] } | null>(null)
-  const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image')) || (field.key === 'items' && block.type === 'features'))
-  const imageKey = block.type === 'features' ? 'image' : 'src'
+  const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image')) || (field.key === 'items' && block.type === 'features') || (field.key === 'members' && block.type === 'team'))
+  const imageKey = block.type === 'features' ? 'image' : block.type === 'team' ? 'avatar' : 'src'
 
   useEffect(() => {
     if (!portableProjectsEnabled || (field.type !== 'image' && !imageItems) || !projectId) return
@@ -540,7 +540,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                   Remove
                 </button>
               </div>
-              {Object.entries(imageItems && imageKey === 'image' && !('image' in item) ? { ...item, image: '' } : item).filter(([key]) => !(imageItems && key === 'assetId')).map(([key, val]) => (
+              {Object.entries(imageItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(imageItems && key === 'assetId')).map(([key, val]) => (
                 <div key={key} className="mb-1">
                   <label className="block text-[10px] text-text-3 mb-0.5">{key}</label>
                   <input
