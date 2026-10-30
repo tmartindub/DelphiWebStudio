@@ -607,10 +607,10 @@ function renderCtaSimple(block: BlockConfig): string {
     ? `        <p class="text-text-2 text-sm mb-6 max-w-md mx-auto">${escapeHtml(subheadline)}</p>`
     : ''
 
-  return `  <section class="px-6 md:px-10 py-16 md:py-20 text-center relative overflow-hidden">
+  return `  <section class="px-6 @md:px-10 py-16 @md:py-20 text-center relative overflow-hidden">
       <div class="absolute inset-0 bg-gradient-to-b from-green/[0.06] via-green/[0.03] to-transparent pointer-events-none"></div>
       <div class="relative z-10">
-        <h2 class="text-2xl md:text-3xl font-bold tracking-tight mb-3">${headline}</h2>
+        <h2 class="text-2xl @md:text-3xl font-bold tracking-tight mb-3">${headline}</h2>
 ${subHtml}
         ${renderLink(buttonText, buttonUrl, 'px-8 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all inline-flex items-center gap-2')}
       </div>
@@ -627,11 +627,11 @@ function renderCtaSplit(block: BlockConfig): string {
     ? `          <p class="text-text-2 text-sm">${escapeHtml(subheadline)}</p>`
     : ''
 
-  return `  <section class="px-6 md:px-10 py-12 md:py-16">
-      <div class="flex flex-col md:flex-row items-center justify-between gap-6 p-8 rounded-xl bg-bg-2 border border-border-default relative overflow-hidden">
+  return `  <section class="px-6 @md:px-10 py-12 @md:py-16">
+      <div class="flex flex-col @lg:flex-row items-center justify-between gap-6 p-8 rounded-xl bg-bg-2 border border-border-default relative overflow-hidden">
         <div class="absolute inset-0 bg-gradient-to-r from-green/5 to-transparent pointer-events-none"></div>
         <div class="relative z-10">
-          <h2 class="text-xl md:text-2xl font-bold tracking-tight mb-1">${headline}</h2>
+          <h2 class="text-xl @md:text-2xl font-bold tracking-tight mb-1">${headline}</h2>
 ${subHtml}
         </div>
         ${renderLink(buttonText, buttonUrl, 'relative z-10 px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all shrink-0 inline-flex items-center gap-2')}
@@ -883,15 +883,15 @@ function renderStatsGrid(block: BlockConfig): string {
   const cards = items
     .map(
       (item) => `        <div class="text-center p-4 rounded-xl bg-bg-2 border border-border-default">
-          <div class="text-3xl md:text-4xl font-bold tracking-tight text-green mb-1">${escapeHtml(item.value)}</div>
+          <div class="text-3xl @md:text-4xl font-bold tracking-tight text-green mb-1">${escapeHtml(item.value)}</div>
           <div class="text-[12px] text-text-2 font-medium">${escapeHtml(item.label)}</div>
         </div>`
     )
     .join('\n')
 
-  return `  <section class="px-6 md:px-10 py-12 md:py-16">
+  return `  <section class="px-6 @md:px-10 py-12 @md:py-16">
 ${titleHtml}
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-2 @2xl:grid-cols-4 gap-4">
 ${cards}
       </div>
   </section>`
@@ -903,14 +903,14 @@ function renderStatsBar(block: BlockConfig): string {
   const statsHtml = items
     .map(
       (item) => `          <div class="text-center">
-            <div class="text-2xl md:text-3xl font-bold tracking-tight text-text-0 mb-0.5">${escapeHtml(item.value)}</div>
+            <div class="text-2xl @md:text-3xl font-bold tracking-tight text-text-0 mb-0.5">${escapeHtml(item.value)}</div>
             <div class="text-[11px] text-text-3 font-medium uppercase tracking-wider">${escapeHtml(item.label)}</div>
           </div>`
     )
     .join('\n')
 
-  return `  <section class="px-6 md:px-10 py-10">
-      <div class="flex flex-wrap items-center justify-center gap-8 md:gap-12 py-6 px-4 rounded-xl bg-bg-2 border border-border-default">
+  return `  <section class="px-6 @md:px-10 py-10">
+      <div class="flex flex-wrap items-center justify-center gap-8 @md:gap-12 py-6 px-4 rounded-xl bg-bg-2 border border-border-default">
 ${statsHtml}
       </div>
   </section>`
@@ -920,6 +920,8 @@ function renderStats(block: BlockConfig): string {
   switch (block.variant) {
     case 'bar':
       return renderStatsBar(block)
+    case 'counter':
+      return renderToStaticMarkup(createElement(RenderBlock, { block }))
     default:
       return renderStatsGrid(block)
   }
