@@ -25,3 +25,7 @@ The page navigation generated for multi-page ZIP export is also shown in the edi
 CTA simple/split and statistics grid/bar/counter examples were compared at 375, 768 and 1,200 pixels. Tested text sizes, split directions and grid column counts matched, and the samples had no horizontal overflow. The statistics counter export now retains its selected variant. This does not establish full visual parity or verify arbitrary content.
 
 Long unbroken text now wraps within the editor's page preview and exported page rather than being clipped at the edge. An isolated browser check exercised a long headline at 375, 768 and 1,200 pixels and a long button label at phone width. Components with explicit fixed sizes or preformatted content still need separate testing.
+
+## New content blocks
+
+New Features, Testimonials, Stats, FAQ, Team and Logo Cloud blocks start without made-up entries. Add your own entries in Properties. Existing project data is retained. Check site identifies explicitly empty blocks before export.
