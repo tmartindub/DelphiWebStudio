@@ -140,7 +140,7 @@ function renderNavbar(block: BlockConfig): string {
   const logo = escapeHtml(prop(block.props, 'logo', 'Brand'))
   const logoImage = prop<string>(block.props, 'logoImage', '')
   const links = prop<string[]>(block.props, 'links', [])
-  const ctaText = escapeHtml(prop(block.props, 'ctaText', 'Get Started'))
+  const ctaText = escapeHtml(prop(block.props, 'ctaText', ''))
 
   const navLinks = links.map(l =>
     `          <span class="text-[13px] text-text-2 hover:text-text-0 transition-colors cursor-pointer">${escapeHtml(l)}</span>`
