@@ -11,7 +11,7 @@ export interface MediaAsset {
   width?: number
   height?: number
   content: Blob
-  previousVersion?: { content: Blob; sha256: string; size: number }
+  previousVersion?: { content: Blob; sha256: string; size: number; width?: number; height?: number }
   previousName?: string
 }
 
@@ -165,7 +165,7 @@ export class ProjectMediaLibrary {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-') || `file.${extension}`
     const folder = restored?.folder ?? (file.webkitRelativePath ?? '').split('/').slice(0, -1).join('/')
     if (folder && (folder.includes('\\') || folder.split('/').some(part => part === '..' || part === '.'))) throw new Error(`${file.name}: invalid folder path.`)
-    const asset: MediaAsset = { id, projectId, name: file.name, path: restored?.path ?? `assets/${id}-${safeName}`, mime, size: file.size, sha256: hash, importedAt: restored?.importedAt ?? Date.now(), ...(folder ? { folder } : {}), ...(width && height ? { width, height } : {}), content: new Blob([bytes], { type: mime }), ...(previous ? { previousVersion: { content: previous.content, sha256: previous.sha256, size: previous.size } } : {}) }
+    const asset: MediaAsset = { id, projectId, name: file.name, path: restored?.path ?? `assets/${id}-${safeName}`, mime, size: file.size, sha256: hash, importedAt: restored?.importedAt ?? Date.now(), ...(folder ? { folder } : {}), ...(width && height ? { width, height } : {}), content: new Blob([bytes], { type: mime }), ...(previous ? { previousVersion: { content: previous.content, sha256: previous.sha256, size: previous.size, width: previous.width, height: previous.height } } : {}) }
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction('assetsV2', 'readwrite')
       if (replacing) transaction.objectStore('assetsV2').put(asset)
@@ -186,11 +186,33 @@ export class ProjectMediaLibrary {
     })
     if (!asset?.previousVersion) throw new Error('No previous media version is available.')
     const previous = asset.previousVersion
+    let width = previous.width
+    let height = previous.height
+    if ((!width || !height) && asset.mime.startsWith('image/') && asset.mime !== 'image/svg+xml' && typeof createImageBitmap === 'function') {
+      try {
+        const bitmap = await createImageBitmap(previous.content)
+        width = bitmap.width || undefined
+        height = bitmap.height || undefined
+        bitmap.close()
+      } catch { width = undefined; height = undefined }
+    }
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction('assetsV2', 'readwrite')
-      transaction.objectStore('assetsV2').put({ ...asset, ...previous, previousVersion: undefined })
+      const store = transaction.objectStore('assetsV2')
+      let changed = false
+      const request = store.get([projectId, id])
+      request.onsuccess = () => {
+        const current = request.result as MediaAsset | undefined
+        if (!current || current.sha256 !== asset.sha256 || current.previousVersion?.sha256 !== previous.sha256) {
+          changed = true
+          transaction.abort()
+          return
+        }
+        store.put({ ...current, ...previous, width, height, previousVersion: undefined })
+      }
       transaction.oncomplete = () => resolve()
       transaction.onerror = () => reject(transaction.error ?? new Error('Media replacement could not be undone.'))
+      transaction.onabort = () => reject(changed ? new Error('Media changed while the replacement was being undone. Try again.') : transaction.error ?? new Error('Media replacement could not be undone.'))
     })
   }
 
