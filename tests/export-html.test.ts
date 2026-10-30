@@ -98,4 +98,18 @@ describe('exportSiteToHTML', () => {
     expect(alternating).toContain('src="assets/photo.png"')
     expect(alternating).toContain('alt="Photo"')
   })
+
+  it('preserves CTA and statistics variants and responsive breakpoints', () => {
+    const cta = { id: 'cta', type: 'cta' as const, variant: 'split', props: { headline: 'Contact us', buttonText: 'About', buttonUrl: '/about' } }
+    const split = exportSiteToHTML({ name: 'Test', blocks: [cta] })
+    expect(split).toContain('@lg:flex-row')
+    expect(split).toContain('href="/about"')
+
+    const stats = { id: 'stats', type: 'stats' as const, variant: 'counter', props: { items: [{ value: '12', label: 'Members' }] } }
+    const counter = exportSiteToHTML({ name: 'Test', blocks: [stats] })
+    expect(counter).toContain('@2xl:grid-cols-4')
+    expect(counter).toContain('12')
+    expect(counter).toContain('Members')
+    expect(counter).toContain('bg-green/8')
+  })
 })
