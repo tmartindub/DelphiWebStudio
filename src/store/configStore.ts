@@ -40,7 +40,7 @@ interface ConfigState {
   addPage: (name: string, path: string) => string
   removePage: (id: string) => void
   renamePage: (id: string, name: string) => void
-  changePagePath: (id: string, path: string) => void
+  changePagePath: (id: string, path: string, updateLinks?: boolean) => void
   setTheme: (theme: Partial<ThemeConfig>) => void
   updateTheme: (partial: Partial<ThemeConfig>) => void
   previewTheme: (partial: Partial<ThemeConfig>) => void
@@ -224,12 +224,27 @@ export const useConfigStore = create<ConfigState>()(
           }),
         })),
 
-      changePagePath: (id, path) => set(state => {
+      changePagePath: (id, path, updateLinks = false) => set(state => {
         const pages = ensurePages(state.config)
         const page = pages.find(item => item.id === id)
         if (!page || page.path === '/') throw new Error('The Home page address cannot be changed.')
         if (page.path === path) return state
-        const config = validateProjectConfig({ ...state.config, pages: pages.map(item => item.id === id ? { ...item, path } : item) })
+        const changed = produce(withPages(state.config), draft => {
+          draft.pages!.find(item => item.id === id)!.path = path
+          if (updateLinks) for (const item of draft.pages!) for (const block of item.blocks) {
+            const keys = block.type === 'hero' ? ['primaryCtaUrl', 'secondaryCtaUrl'] : block.type === 'cta' ? ['buttonUrl'] : block.type === 'banner' ? ['linkUrl'] : block.type === 'navbar' ? ['ctaUrl'] : []
+            for (const key of keys) {
+              const value = block.props[key]
+              if (typeof value !== 'string') continue
+              const trimmed = value.trim()
+              const split = trimmed.search(/[?#]/)
+              const originalPath = (split < 0 ? trimmed : trimmed.slice(0, split)).replace(/\/$/, '') || '/'
+              if (originalPath === page.path || originalPath === encodeURI(page.path)) block.props[key] = path + (split < 0 ? '' : trimmed.slice(split))
+            }
+          }
+          draft.blocks = draft.pages!.find(item => item.path === '/')!.blocks
+        })
+        const config = validateProjectConfig(changed)
         return { ...pushUndo(state, 'Change page address'), config }
       }),
 
