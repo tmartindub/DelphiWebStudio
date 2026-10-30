@@ -15,6 +15,13 @@ export function checkSite(config: SiteConfig): SiteIssue[] {
   for (const page of pages) {
     for (const block of page.blocks) {
       const add = (message: string) => issues.push({ pageId: page.id, pageName: page.name, blockId: block.id, message })
+      if (block.type === 'navbar' || block.type === 'footer') {
+        const links = Array.isArray(block.props.links) ? block.props.links : []
+        const columns = block.type === 'footer' && block.variant === 'multi-column' && Array.isArray(block.props.columns) ? block.props.columns : []
+        const hasColumnLinks = columns.some(column => column && typeof column === 'object' && Array.isArray(column.links) && column.links.some((link: unknown) => typeof link === 'string' && link.trim()))
+        if (links.some(link => typeof link === 'string' && link.trim()) || hasColumnLinks) add('This block contains text-only navigation labels that do not link to pages. Use the site page navigation for working links.')
+        if (block.type === 'navbar' && typeof block.props.ctaText === 'string' && block.props.ctaText.trim()) add('This navigation button has no action in the exported site. Use a button or banner block with a destination instead.')
+      }
       const links = block.type === 'hero' ? [['primaryCta', 'primaryCtaUrl'], ['secondaryCta', 'secondaryCtaUrl']]
         : block.type === 'cta' ? [['buttonText', 'buttonUrl']]
         : block.type === 'banner' ? [['linkText', 'linkUrl']] : []

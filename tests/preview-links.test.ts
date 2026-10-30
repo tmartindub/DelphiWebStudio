@@ -43,6 +43,12 @@ describe('preview link and image fidelity', () => {
     expect(emptyHtml.slice(emptyHtml.indexOf('<nav'), emptyHtml.indexOf('</nav>'))).not.toContain('<button')
   })
 
+  it.each(['default', 'centered'])('does not invent a navbar button when its text is absent in %s', async variant => {
+    const block: BlockConfig = { id: 'nav', type: 'navbar', variant, props: { logo: 'Community', links: [] } }
+    const html = await exportToHTML({ name: 'Site', blocks: [block] })
+    expect(html.slice(html.indexOf('<nav'), html.indexOf('</nav>'))).not.toContain('<button')
+  })
+
   it('renders only supplied multi-column footer content in preview and export', async () => {
     const block: BlockConfig = { id: 'footer', type: 'footer', variant: 'multi-column', props: { logo: 'Community', copyright: '', links: [] } }
     const render = () => renderToStaticMarkup(createElement(FooterBlock, { block }))
