@@ -84,6 +84,12 @@ function GeneralPanel({ settings }: { settings: ReturnType<typeof useSettingsSta
       <FieldGroup label="Site Name"><ControlledInput settingsKey="siteName" settings={settings} /></FieldGroup>
       <FieldGroup label="Site Description"><ControlledTextarea settingsKey="siteDescription" settings={settings} /></FieldGroup>
       <FieldGroup label="Favicon URL"><ControlledInput settingsKey="faviconUrl" placeholder="https://example.com/favicon.ico" settings={settings} /></FieldGroup>
+      <FieldGroup label="Site search">
+        <select aria-label="Site search" value={settings.data.siteSearch || 'off'} onChange={event => settings.update('siteSearch', event.target.value)} className="w-full px-3 py-2 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green">
+          <option value="off">Off</option><option value="on">Include in website ZIP</option>
+        </select>
+        <p className="text-[11px] text-text-3 mt-1.5">Searches page titles and supported text in the exported site. It does not search inside PDFs.</p>
+      </FieldGroup>
       <FieldGroup label="Language">
         <select
           value={settings.data.language || 'English'}
