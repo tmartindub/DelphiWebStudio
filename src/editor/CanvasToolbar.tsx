@@ -260,6 +260,11 @@ export function CanvasToolbar() {
       const path = match[2].split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
       return path === pageToDelete.path || path === encodeURI(pageToDelete.path)
     })) return true
+    if (block.type === 'navbar' && Array.isArray(block.props.navItems) && block.props.navItems.some(item => {
+      if (!item || typeof item.url !== 'string') return false
+      const path = item.url.trim().split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
+      return path === pageToDelete.path || path === encodeURI(pageToDelete.path)
+    })) return true
     const keys = block.type === 'hero' ? ['primaryCtaUrl', 'secondaryCtaUrl'] : block.type === 'cta' ? ['buttonUrl'] : block.type === 'banner' ? ['linkUrl'] : block.type === 'navbar' ? ['ctaUrl'] : []
     return keys.some(key => {
       const value = block.props[key]

@@ -21,6 +21,21 @@ export function checkSite(config: SiteConfig): SiteIssue[] {
         const hasColumnLinks = columns.some(column => column && typeof column === 'object' && Array.isArray(column.links) && column.links.some((link: unknown) => typeof link === 'string' && link.trim()))
         if (links.some(link => typeof link === 'string' && link.trim()) || hasColumnLinks) add('This block contains text-only navigation labels that do not link to pages. Use the site page navigation for working links.')
       }
+      if (block.type === 'navbar' && Array.isArray(block.props.navItems)) {
+        for (const item of block.props.navItems) {
+          if (!item || typeof item !== 'object') { add('A navigation destination is invalid.'); continue }
+          const label = typeof item.label === 'string' ? item.label.trim() : ''
+          const url = typeof item.url === 'string' ? item.url.trim() : ''
+          if (!label || !url) { add('A navigation destination needs both a label and a URL.'); continue }
+          if (/[\\\p{Cc}]/u.test(url) || url.startsWith('//') || (/^[a-z][a-z\d+.-]*:/i.test(url) && !/^(https?:|mailto:|tel:)/i.test(url))) { add(`${label}: unsupported link address; it will be shown as text in the export.`); continue }
+          if (url.startsWith('/')) {
+            const path = url.split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
+            const target = pages.find(page => page.path === path || encodeURI(page.path) === path)
+            if (!target) add(`${url}: does not match a site page; it may point to a separate file or host resource.`)
+            else if (target.webstudioArticle?.status === 'draft') add(`${url}: points to a draft article that is omitted from export.`)
+          }
+        }
+      }
       const links = block.type === 'hero' ? [['primaryCta', 'primaryCtaUrl'], ['secondaryCta', 'secondaryCtaUrl']]
         : block.type === 'cta' ? [['buttonText', 'buttonUrl']]
         : block.type === 'navbar' ? [['ctaText', 'ctaUrl']]

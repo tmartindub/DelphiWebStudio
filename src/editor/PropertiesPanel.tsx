@@ -31,7 +31,8 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
           { key: 'logoImage', label: 'Logo Image URL', type: 'image' },
           { key: 'ctaText', label: 'CTA Button', type: 'text' },
           { key: 'ctaUrl', label: 'CTA Destination', type: 'link' },
-          { key: 'links', label: 'Nav Links', type: 'array-strings' },
+          { key: 'links', label: 'Legacy text-only labels', type: 'array-strings' },
+          { key: 'navItems', label: 'Navigation destinations', type: 'array-items' },
         ],
       },
       {
@@ -526,6 +527,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
         }
         // Fallback templates by block type + field key
         const blockTemplates: Partial<Record<string, Record<string, Record<string, string>>>> = {
+          navbar: { navItems: { label: '', url: '' } },
           testimonials: { items: { name: '', role: '', quote: '' } },
           stats: { items: { value: '', label: '' } },
           faq: { items: { question: '', answer: '' } },
@@ -567,6 +569,19 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                     }}
                     className="w-full px-1.5 py-1 rounded border border-border-subtle bg-bg-3 text-text-0 text-[11px] outline-none focus:border-green"
                   />
+                  {block.type === 'navbar' && field.key === 'navItems' && key === 'url' && portableProjectsEnabled && (pages ?? []).some(page => page.webstudioArticle?.status !== 'draft') && <select
+                    aria-label={`Choose a page for ${field.label} item ${i + 1}`}
+                    value={(pages ?? []).some(page => page.path === val && page.webstudioArticle?.status !== 'draft') ? val : ''}
+                    onChange={event => {
+                      if (!event.target.value) return
+                      const updated = [...items]
+                      updated[i] = { ...updated[i], url: event.target.value }
+                      onChange(updated)
+                    }}
+                    className="mt-1 w-full px-1.5 py-1 rounded border border-border-subtle bg-bg-3 text-text-0 text-[11px] outline-none focus:border-green">
+                    <option value="">Choose a site page...</option>
+                    {(pages ?? []).filter(page => page.webstudioArticle?.status !== 'draft').map(page => <option key={page.id} value={page.path}>{page.name} ({page.path})</option>)}
+                  </select>}
                   {imageItems && key === imageKey && portableProjectsEnabled && images.length > 0 && <select
                     aria-label={`Choose image for ${field.label} item ${i + 1}`}
                     value={images.some(image => image.path === val) ? val : ''}

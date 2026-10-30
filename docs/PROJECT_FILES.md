@@ -70,7 +70,7 @@ Before opening or saving, known block media IDs and local `assets/` paths are ch
 
 ## Page links in ZIP exports
 
-When a button or link uses an exact project page path such as `/about`, website ZIP export rewrites it to the correct relative HTML file for the page it appears on. Query strings and fragment identifiers are preserved. Links to unknown paths and external sites are unchanged; broken-link checks and the separate legacy Navbar block remain unfinished. An isolated browser test followed a button from a nested page to another page and then Home while the site was served under a subdirectory.
+When a button or link uses an exact project page path such as `/about`, website ZIP export rewrites it to the correct relative HTML file for the page it appears on. Query strings and fragment identifiers are preserved. Links to unknown paths and external sites are unchanged; full broken-link checks remain unfinished. An isolated browser test followed a button from a nested page to another page and then Home while the site was served under a subdirectory.
 
 For Hero, CTA and Banner links, the Properties panel also offers **Choose a site page** below the URL field. Selecting a page fills in its path; the URL field remains editable for external addresses or anchors. Draft articles are omitted from the chooser. The chooser does not yet cover the separate legacy Navbar block, arbitrary links inside content, or automatically update references when a page is removed.
 
@@ -82,7 +82,7 @@ In Preview mode, links to existing site pages switch the visible page without le
 
 New Footer blocks start without prefilled legal links or copyright claims. The multi-column layout uses the description and columns actually present in the project instead of generating product or legal placeholder content. Existing saved values are preserved; projects that previously relied on generated placeholder columns will no longer display those placeholders unless the content was explicitly saved.
 
-New Navbar blocks start without placeholder links or a call-to-action label. Existing labels remain intact. The legacy Navbar's text labels and mobile menu are not yet wired as navigable links; the separately generated site-page navigation is the functional navigation for a multi-page export. The centered Navbar layout and its logo now appear in both the editor and export.
+New Navbar blocks start without placeholder links or a call-to-action label. Existing labels remain intact. Legacy Navbar text labels remain text-only. To add working links, select the Navbar, choose Navigation destinations in Properties, and add a label and URL for each link (for example, /about). Use the page selector to choose an existing non-draft page, or type an external address. These links appear on desktop and in a scrollable mobile menu; the separate site-page navigation also remains available. A browser check exercised a 25-link menu on a phone-sized viewport and checked desktop link boundaries. The centered Navbar layout and its logo appear in both the editor and export.
 
 ZIP export checks page filenames against already packaged files and folders, including case-insensitive collisions and file/folder conflicts. If a page would overwrite a bundled PDF viewer file, export stops and identifies the conflicting page; the project remains open. Rename that page path before retrying.
 
