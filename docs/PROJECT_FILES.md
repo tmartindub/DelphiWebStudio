@@ -40,6 +40,12 @@ With the feature enabled, Export produces a ZIP containing a separate HTML file 
 
 Native safe save/recovery and portable assets remain outstanding. Existing footer/navbar links are not yet bound to page IDs. The feature gate remains experimental until the complete acceptance tests pass.
 
+## Native create-only save increment
+
+`desktop/project/WebStudio.ProjectSave.pas` can write a caller-supplied byte snapshot to a uniquely named temporary file beside a new target, flush it, and move it into place without a replace flag. It rejects relative paths and does not overwrite an existing target. The caller must choose the destination and validate the snapshot; this unit is not connected to the editor or a file dialog. It does not implement Save over an existing project, crash recovery, conflict detection, a transactional multi-file project, or protection against a hostile process changing the destination directory.
+
+The Win64 `tests/native/ProjectSaveSmoke.dpr` test compiled and ran with RAD Studio 37.0. It checked a multi-chunk file, an empty file, failure to overwrite an existing file, relative and missing-directory rejection, and temporary-file cleanup. The implementation relies on Windows file APIs; see Microsoft's [MoveFileEx documentation](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw) for platform semantics. This is an initial native storage increment, not a completed save or recovery workflow.
+
 ## M3 update
 
 Projects with imported media now save as `.webstudio.zip` files, containing the manifest and media; projects without media save as JSON. Opening a ZIP validates and restores its media into a separate browser project. See MEDIA_LIBRARY.md for details and limitations. The earlier statement that assets are not integrated describes M1 only.
