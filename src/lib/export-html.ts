@@ -18,6 +18,7 @@ export interface ExportSiteSettings {
   language?: string
   seoTitle?: string
   seoDescription?: string
+  siteBaseUrl?: string
   ogImageUrl?: string
   gaId?: string
   posthogKey?: string
@@ -1397,6 +1398,23 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     throw new Error('Page paths produce conflicting file and folder names.')
   }
   const zip = new JSZip()
+  const siteBaseUrl = options?.settings?.siteBaseUrl?.trim()
+  if (siteBaseUrl) {
+    let base: URL
+    try {
+      if (/[\\\p{Cc}\s]/u.test(siteBaseUrl) || !/^https?:\/\//i.test(siteBaseUrl)) throw new Error('Invalid URL')
+      base = new URL(siteBaseUrl)
+      if (!['http:', 'https:'].includes(base.protocol) || base.username || base.password || base.search || base.hash) throw new Error('Invalid URL')
+    } catch {
+      throw new Error('Public site URL must be an absolute http or https address without credentials, query, or fragment.')
+    }
+    if (pages.length > 50_000) throw new Error('The site has too many pages for one sitemap.')
+    if (!base.pathname.endsWith('/')) base.pathname += '/'
+    const locations = paths.map(path => `  <url><loc>${escapeHtml(new URL(encodeURI(path), base).href)}</loc></url>`).join('\n')
+    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${locations}\n</urlset>\n`
+    if (new TextEncoder().encode(sitemap).length > 50 * 1024 * 1024) throw new Error('The sitemap is too large to export.')
+    zip.file('sitemap.xml', sitemap, { date: new Date('1980-01-01T00:00:00Z') })
+  }
   if (pages.some(page => page.blocks.some(block => block.type === 'pdfViewer'))) {
     const [{ default: pdfModule }, { default: pdfWorker }] = await Promise.all([
       import('pdfjs-dist/build/pdf.min.mjs?raw'),
