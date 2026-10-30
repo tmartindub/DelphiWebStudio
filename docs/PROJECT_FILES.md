@@ -50,7 +50,7 @@ New exports embed generated Tailwind styles and use installed system font fallba
 
 ## Page addresses
 
-Page addresses can be changed with the link icon beside the active page. Home stays at `/`; other paths are validated and the change can be undone. The dialog offers to update known Hero, CTA, Banner and Navbar button links in the same undoable change. External bookmarks and links in other content are not rewritten, so check them after changing an address.
+Page addresses can be changed with the link icon beside the active page. Home stays at `/`; other paths are validated and the change can be undone. The dialog offers to update Content text links and known Hero, CTA, Banner and Navbar button links in the same undoable change. External bookmarks and links in other content are not rewritten, so check them after changing an address.
 
 Use the magnifying glass beside the active page to set its search title and description. The exported page uses these for HTML and sharing metadata; blank fields fall back to the site-wide settings. These edits are saved with the project and can be undone.
 
@@ -66,9 +66,9 @@ When a button or link uses an exact project page path such as `/about`, website 
 
 For Hero, CTA and Banner links, the Properties panel also offers **Choose a site page** below the URL field. Selecting a page fills in its path; the URL field remains editable for external addresses or anchors. Draft articles are omitted from the chooser. The chooser does not yet cover the separate legacy Navbar block, arbitrary links inside content, or automatically update references when a page is removed.
 
-Before deleting a page, the editor lists other pages with Hero, CTA or Banner link settings that point to it. Deletion is explicitly confirmed and can be undone; it does not automatically remove those link settings. Links in other block types or custom content are not checked, so this is not a complete broken-link audit.
+Before deleting a page, the editor lists other pages with Content text links or Hero, CTA, Banner or Navbar button links that point to it. Deletion is explicitly confirmed and can be undone; it does not automatically remove those links. Links in other block types or custom content are not checked, so this is not a complete broken-link audit.
 
-**Check site** runs local checks for project media references, known Hero, CTA and Banner destinations, missing image descriptions, and unconfigured Contact or Newsletter forms. Select **Open this block** to go to a link, image or form finding. A missing media reference is shown separately. Unknown root-relative paths are flagged for review because they might instead name a separate hosted file. The media check compares known IDs and paths; it does not verify media bytes. External links, in-page anchors, custom content, visual layout and overall accessibility are not verified. A clean result is not a certification; inspect the exported site separately.
+**Check site** runs local checks for project media references, Content text links, known Hero, CTA, Banner and Navbar button destinations, missing media or image descriptions, and unconfigured Contact or Newsletter forms. Select **Open this block** to go to a finding. A missing media reference is shown separately. Unknown root-relative paths are flagged for review because they might instead name a separate hosted file. The media check compares known IDs and paths; it does not verify media bytes. External links, in-page anchors, custom content, visual layout and overall accessibility are not verified. A clean result is not a certification; inspect the exported site separately.
 
 In Preview mode, links to existing site pages switch the visible page without leaving the editor. Other links are not followed there; use the exported website to test external addresses and anchors. In editing mode, clicking a link selects its block instead of navigating away. The split Hero preview also shows its configured image when available.
 

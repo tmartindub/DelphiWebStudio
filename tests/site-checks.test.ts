@@ -66,6 +66,18 @@ describe('local site checks', () => {
     expect(checkSite(copy)).toEqual([])
   })
 
+  it('reports missing or draft destinations and unsafe protocols in content links', () => {
+    const copy = structuredClone(config)
+    copy.pages![0].blocks.push({ id: 'text', type: 'content', variant: 'prose', props: { body: '[Missing](/missing) [Draft](/news#top) [Unsafe](javascript:alert) [Web](https://example.test)' } })
+    copy.pages![1].webstudioArticle = { status: 'draft', author: '', summary: '', createdAt: '', modifiedAt: '' }
+    copy.blocks = copy.pages![0].blocks
+    const issues = checkSite(copy).filter(issue => issue.blockId === 'text')
+    expect(issues).toHaveLength(3)
+    expect(issues.some(issue => issue.message.includes('does not match'))).toBe(true)
+    expect(issues.some(issue => issue.message.includes('draft article'))).toBe(true)
+    expect(issues.some(issue => issue.message.includes('unsupported link address'))).toBe(true)
+  })
+
   it('warns about nonfunctional legacy navigation without altering it', () => {
     const copy = structuredClone(config)
     copy.pages![0].blocks.push({ id: 'nav', type: 'navbar', variant: 'default', props: { links: ['About'], ctaText: 'Join' } })
