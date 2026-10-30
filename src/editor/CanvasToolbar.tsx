@@ -26,6 +26,7 @@ import { ProjectFileCommands } from '@/project/ProjectFileCommands'
 import { portableProjectsEnabled } from '@/project/project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
 import { PlanPages } from './PlanPages'
+import { SiteChecks } from './SiteChecks'
 
 const viewports: { value: Viewport; icon: typeof Monitor; label: string }[] = [
   { value: 'desktop', icon: Monitor, label: 'Desktop' },
@@ -198,6 +199,7 @@ export function CanvasToolbar() {
   const config = useConfigStore((s) => s.config)
   const [showAddPage, setShowAddPage] = useState(false)
   const [showPlanPages, setShowPlanPages] = useState(false)
+  const [showSiteChecks, setShowSiteChecks] = useState(false)
   const [deletingPage, setDeletingPage] = useState<{ id: string; projectId: string | null } | null>(null)
   const [exporting, setExporting] = useState(false)
 
@@ -236,6 +238,7 @@ export function CanvasToolbar() {
   return (
     <>
     {showPlanPages && <PlanPages onClose={() => setShowPlanPages(false)} />}
+    {showSiteChecks && <SiteChecks onClose={() => setShowSiteChecks(false)} />}
     {pageToDelete && <DeletePageDialog page={pageToDelete} linkedPages={linkedPages} onCancel={() => setDeletingPage(null)} onConfirm={() => { removePage(pageToDelete.id); setDeletingPage(null) }} />}
     {portableProjectsEnabled && <div className="bg-bg-1 border-b border-border-default px-3 py-1"><ProjectFileCommands /></div>}
     <div className="min-h-10 bg-bg-1 border-b border-border-default flex flex-wrap items-center px-3 py-1 gap-1">
@@ -287,6 +290,7 @@ export function CanvasToolbar() {
       {/* Right side */}
       <div className="ml-auto flex flex-wrap justify-end items-center gap-1 min-w-0">
         {portableProjectsEnabled && <button type="button" onClick={() => setShowPlanPages(true)} className="px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3">Plan pages</button>}
+        {portableProjectsEnabled && <button type="button" onClick={() => setShowSiteChecks(true)} className="px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3">Check site</button>}
         <label className="text-xs text-text-1 flex items-center gap-1">
           Mode
           <select aria-label="Editor mode" value={mode} onChange={event => setMode(event.target.value as EditorMode)} className="rounded bg-bg-2 border border-border-default px-1 py-1 text-text-0">
