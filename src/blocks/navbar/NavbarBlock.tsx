@@ -25,7 +25,7 @@ function NavbarDefault({ props }: { props: NavbarProps }) {
       </div>
 
       {/* Desktop nav links */}
-      <div className="hidden @2xl:flex items-center gap-6">
+      <div className="hidden @2xl:flex flex-wrap items-center gap-6">
         {links.map((link, i) => (
           <span
             key={i}
@@ -42,7 +42,7 @@ function NavbarDefault({ props }: { props: NavbarProps }) {
         {ctaText && <a href={ctaUrl || undefined} className="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors">
           {ctaText}
         </a>}
-        {navItems.length > 0 && <details className="@2xl:hidden relative"><summary aria-label="Navigation menu" className="w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 cursor-pointer"><Menu size={16} /></summary><div className="absolute right-0 z-10 min-w-40 p-3 bg-bg-1 border border-border-default rounded-lg flex flex-col gap-3">{navItems.map((item, i) => <a key={i} href={item.url || undefined} className="text-sm text-text-2">{item.label}</a>)}</div></details>}
+        {navItems.length > 0 && <details className="@2xl:hidden relative"><summary aria-label="Navigation menu" className="w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 cursor-pointer"><Menu size={16} /></summary><div className="absolute right-0 z-10 w-56 max-h-[60vh] overflow-y-auto [overflow-wrap:anywhere] p-3 bg-bg-1 border border-border-default rounded-lg flex flex-col gap-3">{navItems.map((item, i) => <a key={i} href={item.url || undefined} className="text-sm text-text-2">{item.label}</a>)}</div></details>}
       </div>
     </nav>
   )
@@ -58,7 +58,7 @@ function NavbarCentered({ props }: { props: NavbarProps }) {
   return (
     <nav className="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
       {/* Left links */}
-      <div className="hidden @2xl:flex items-center gap-6 flex-1">
+      <div className="hidden @2xl:flex flex-wrap items-center gap-6 flex-1">
         {leftLinks.map((link, i) => (
           <span key={i} className="text-[13px] text-text-2 hover:text-text-0 transition-colors cursor-pointer">
             {link}
@@ -75,7 +75,7 @@ function NavbarCentered({ props }: { props: NavbarProps }) {
       </div>
 
       {/* Right links + CTA */}
-      <div className="hidden @2xl:flex items-center gap-6 flex-1 justify-end">
+      <div className="hidden @2xl:flex flex-wrap items-center gap-6 flex-1 justify-end">
         {rightLinks.map((link, i) => (
           <span key={i} className="text-[13px] text-text-2 hover:text-text-0 transition-colors cursor-pointer">
             {link}
@@ -89,7 +89,7 @@ function NavbarCentered({ props }: { props: NavbarProps }) {
 
       {ctaText && <a href={ctaUrl || undefined} className="@2xl:hidden px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold">{ctaText}</a>}
       {/* Mobile menu */}
-      {navItems.length > 0 && <details className="@2xl:hidden relative"><summary aria-label="Navigation menu" className="w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 cursor-pointer"><Menu size={16} /></summary><div className="absolute right-0 z-10 min-w-40 p-3 bg-bg-1 border border-border-default rounded-lg flex flex-col gap-3">{navItems.map((item, i) => <a key={i} href={item.url || undefined} className="text-sm text-text-2">{item.label}</a>)}</div></details>}
+      {navItems.length > 0 && <details className="@2xl:hidden relative"><summary aria-label="Navigation menu" className="w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 cursor-pointer"><Menu size={16} /></summary><div className="absolute right-0 z-10 w-56 max-h-[60vh] overflow-y-auto [overflow-wrap:anywhere] p-3 bg-bg-1 border border-border-default rounded-lg flex flex-col gap-3">{navItems.map((item, i) => <a key={i} href={item.url || undefined} className="text-sm text-text-2">{item.label}</a>)}</div></details>}
     </nav>
   )
 }
