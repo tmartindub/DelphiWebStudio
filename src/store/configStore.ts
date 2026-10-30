@@ -28,7 +28,7 @@ interface ConfigState {
   undoStack: UndoEntry[]
   redoStack: UndoEntry[]
   setConfig: (config: SiteConfig) => void
-  replaceConfig: (config: SiteConfig) => void
+  replaceConfig: (config: SiteConfig, label?: string) => void
   setActivePage: (id: string) => void
   getActivePageBlocks: () => BlockConfig[]
   updateBlock: (id: string, updates: Partial<BlockConfig>) => void
@@ -104,8 +104,8 @@ export const useConfigStore = create<ConfigState>()(
         const pages = ensurePages(config)
         set({ config: { ...config, pages }, activePageId: pages[0]?.id ?? 'page-home', undoStack: [], redoStack: [] })
       },
-      replaceConfig: (config) => set(state => ({
-        ...pushUndo(state, 'Edit project JSON'),
+      replaceConfig: (config, label = 'Edit project JSON') => set(state => ({
+        ...pushUndo(state, label),
         config,
         activePageId: config.pages?.some(page => page.id === state.activePageId) ? state.activePageId : config.pages?.[0]?.id ?? 'page-home',
       })),
