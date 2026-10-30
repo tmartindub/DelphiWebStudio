@@ -13,15 +13,15 @@ function FooterSimple({ props }: { props: FooterProps }) {
   return (
     <footer className="px-6 @md:px-10 py-8 border-t border-border-subtle">
       <div className="flex flex-col @lg:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           {props.logoImage ? (
-            <img src={props.logoImage} alt={props.logo} className="h-6 w-auto object-contain" />
+            <img src={props.logoImage} alt={props.logo} className="h-6 w-auto max-w-[96px] shrink-0 object-contain" />
           ) : (
             <div className="w-6 h-6 rounded-md bg-green/10 flex items-center justify-center">
               <div className="w-3 h-3 rounded-full bg-green" />
             </div>
           )}
-          <span className="text-sm font-semibold text-text-1">{props.logo}</span>
+          <span className="min-w-0 text-sm font-semibold text-text-1">{props.logo}</span>
         </div>
 
         <div className="flex items-center gap-4">
@@ -49,15 +49,15 @@ function FooterMultiColumn({ props }: { props: FooterProps }) {
       <div className="grid grid-cols-2 @2xl:grid-cols-5 gap-8 mb-10">
         {/* Brand column */}
         <div className="col-span-2 @2xl:col-span-1">
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex min-w-0 items-center gap-2 mb-3">
             {props.logoImage ? (
-              <img src={props.logoImage} alt={props.logo} className="h-7 w-auto object-contain" />
+              <img src={props.logoImage} alt={props.logo} className="h-7 w-auto max-w-[96px] shrink-0 object-contain" />
             ) : (
               <div className="w-7 h-7 rounded-md bg-green/10 flex items-center justify-center">
                 <div className="w-3.5 h-3.5 rounded-full bg-green" />
               </div>
             )}
-            <span className="text-sm font-semibold">{props.logo}</span>
+            <span className="min-w-0 text-sm font-semibold">{props.logo}</span>
           </div>
           {props.description && <p className="text-[12px] text-text-3 leading-relaxed max-w-[200px]">{props.description}</p>}
         </div>

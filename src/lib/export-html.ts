@@ -147,14 +147,14 @@ function renderNavbar(block: BlockConfig): string {
   )
 
   const logoHtml = logoImage
-    ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-8 w-auto object-contain" />`
-    : `<div class="w-8 h-8 rounded-lg bg-green/10 flex items-center justify-center"><div class="w-4 h-4 rounded-full bg-green"></div></div>`
+    ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-8 w-auto max-w-[96px] shrink-0 object-contain" />`
+    : `<div class="w-8 h-8 shrink-0 rounded-lg bg-green/10 flex items-center justify-center"><div class="w-4 h-4 rounded-full bg-green"></div></div>`
 
   if (block.variant === 'centered') {
     const mid = Math.ceil(navLinks.length / 2)
     return `  <nav class="px-6 @md:px-10 py-4 flex items-center justify-between">
     <div class="hidden @2xl:flex items-center gap-6 flex-1">${navLinks.slice(0, mid).join('\n')}</div>
-    <div class="flex items-center gap-2">${logoHtml}<span class="font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span></div>
+    <div class="flex min-w-0 items-center gap-2">${logoHtml}<span class="min-w-0 font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span></div>
     <div class="hidden @2xl:flex items-center gap-6 flex-1 justify-end">${navLinks.slice(mid).join('\n')}
       ${ctaText ? `<button class="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors ml-2">${ctaText}</button>` : ''}
     </div>
@@ -163,9 +163,9 @@ function renderNavbar(block: BlockConfig): string {
   }
 
   return `  <nav class="px-6 @md:px-10 py-4 flex items-center justify-between">
-    <div class="flex items-center gap-2">
+    <div class="flex min-w-0 items-center gap-2">
       ${logoHtml}
-      <span class="font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span>
+      <span class="min-w-0 font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span>
     </div>
     <div class="hidden @2xl:flex items-center gap-6">
 ${navLinks.join('\n')}
@@ -677,14 +677,14 @@ function renderFooterSimple(block: BlockConfig): string {
     .join('\n')
 
   const footerLogoHtml = logoImage
-    ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-6 w-auto object-contain" />`
+    ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-6 w-auto max-w-[96px] shrink-0 object-contain" />`
     : `<div class="w-6 h-6 rounded-md bg-green/10 flex items-center justify-center"><div class="w-3 h-3 rounded-full bg-green"></div></div>`
 
   return `  <footer class="px-6 @md:px-10 py-8 border-t border-border-subtle">
       <div class="flex flex-col @lg:flex-row items-center justify-between gap-4">
-        <div class="flex items-center gap-2">
+        <div class="flex min-w-0 items-center gap-2">
           ${footerLogoHtml}
-          <span class="text-sm font-semibold text-text-1">${logo}</span>
+          <span class="min-w-0 text-sm font-semibold text-text-1">${logo}</span>
         </div>
         <div class="flex items-center gap-4">
 ${linksHtml}
@@ -731,15 +731,15 @@ ${colLinks}
     .join('\n')
 
   const mcLogoHtml = logoImage
-    ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-7 w-auto object-contain" />`
+    ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-7 w-auto max-w-[96px] shrink-0 object-contain" />`
     : `<div class="w-7 h-7 rounded-md bg-green/10 flex items-center justify-center"><div class="w-3.5 h-3.5 rounded-full bg-green"></div></div>`
 
   return `  <footer class="px-6 @md:px-10 py-12 border-t border-border-subtle">
       <div class="grid grid-cols-2 @2xl:grid-cols-5 gap-8 mb-10">
         <div class="col-span-2 @2xl:col-span-1">
-          <div class="flex items-center gap-2 mb-3">
+          <div class="flex min-w-0 items-center gap-2 mb-3">
             ${mcLogoHtml}
-            <span class="text-sm font-semibold">${logo}</span>
+            <span class="min-w-0 text-sm font-semibold">${logo}</span>
           </div>
           ${description ? `<p class="text-[12px] text-text-3 leading-relaxed max-w-[200px]">${escapeHtml(description)}</p>` : ''}
         </div>

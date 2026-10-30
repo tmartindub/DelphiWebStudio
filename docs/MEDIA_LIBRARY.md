@@ -6,7 +6,7 @@ Import individual files or folders in the Media tab. Files are copied into the b
 
 After importing an image, select a Hero, Image, Navbar or Footer block and use its image chooser in Properties to select an image from this project's Media library. For a Gallery or Image grid, add image items and choose a Media image for each item. URL fields remain available for external image addresses. Hero images are shown in the split Hero layout; other nested image fields do not yet have this chooser.
 
-Navbar logos appear in the editor and exported site. Footer logos are used in the simple and multi-column layouts; the minimal footer does not display a logo.
+Navbar logos appear in the editor and exported site. Footer logos are used in the simple and multi-column layouts; the minimal footer does not display a logo. These logo layouts constrain very wide images to 96 CSS pixels so the site name retains room on narrow screens. Other image blocks can be used for larger artwork.
 
 Duplicating a project also copies its media into the new project's library. Media references remain intact, and later changes to the copy do not change the original.
 
