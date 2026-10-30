@@ -109,7 +109,13 @@ export function ProjectFileCommands() {
       if (assets.length) {
         const zip = new JSZip()
         zip.file('project.webstudio.json', contents)
-        for (const asset of assets) zip.file(asset.path, asset.content)
+        for (const asset of assets) {
+          if (!(asset.content instanceof Blob) || asset.content.size !== asset.size || !/^[a-f0-9]{64}$/i.test(asset.sha256)) throw new Error(`Media integrity check failed for ${asset.name}. Restore or replace the file before saving.`)
+          const digest = await crypto.subtle.digest('SHA-256', await asset.content.arrayBuffer())
+          const checksum = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+          if (checksum !== asset.sha256.toLowerCase()) throw new Error(`Media integrity check failed for ${asset.name}. Restore or replace the file before saving.`)
+          zip.file(asset.path, asset.content)
+        }
         download = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
         filename = `${basename}.webstudio.zip`
       } else {
