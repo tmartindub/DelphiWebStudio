@@ -19,6 +19,7 @@ export interface ExportSiteSettings {
   seoTitle?: string
   seoDescription?: string
   siteBaseUrl?: string
+  siteSearch?: string
   ogImageUrl?: string
   gaId?: string
   posthogKey?: string
@@ -1436,6 +1437,45 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     if (new TextEncoder().encode(sitemap).length > 50 * 1024 * 1024) throw new Error('The sitemap is too large to export.')
     zip.file('sitemap.xml', sitemap, { date: new Date('1980-01-01T00:00:00Z') })
   }
+  if (options?.settings?.siteSearch === 'on') {
+    const searchIndex = pages.map((page, pageIndex) => {
+      const text: string[] = [page.name]
+      const pending: unknown[] = page.blocks.map(block => block.props)
+      while (pending.length) {
+        const value = pending.pop()
+        if (!value || typeof value !== 'object') continue
+        for (const [key, child] of Object.entries(value)) {
+          if (typeof child === 'string' && /^(title|headline|subtitle|subheadline|body|text|description|question|answer|caption|label|name|alt)$/i.test(key)) text.push(child)
+          else if (child && typeof child === 'object') pending.push(child)
+        }
+      }
+      return { title: page.name, href: encodeURI(paths[pageIndex]), text: text.join(' ') }
+    })
+    const searchData = JSON.stringify(searchIndex).replace(/</g, '\\u003c')
+    const nav = pages.map((page, index) => `<a href="${escapeHtml(encodeURI(paths[index]))}" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(page.name)}</a>`).join(' ')
+    const searchContent = `<main class="@container"><div class="max-w-3xl mx-auto px-6 py-12"><h1 class="text-3xl font-bold mb-4">Search</h1><form id="site-search-form"><label for="site-search-query" class="block mb-2">Search this site</label><input id="site-search-query" type="search" maxlength="200" class="w-full px-3 py-2 rounded-lg border border-border-default bg-bg-2 text-text-0" /><button type="submit" class="mt-3 px-4 py-2 rounded-lg bg-green text-black font-semibold">Search</button></form><p id="site-search-status" role="status" class="mt-4"></p><ul id="site-search-results" class="mt-4 space-y-2"></ul><noscript>JavaScript is required for site search.</noscript></div></main>`
+    const searchScript = `<script type="application/json" id="site-search-data">${searchData}</script><script>
+      document.getElementById('site-search-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        var query = document.getElementById('site-search-query').value.trim().toLocaleLowerCase();
+        var results = document.getElementById('site-search-results');
+        var status = document.getElementById('site-search-status');
+        results.replaceChildren();
+        if (!query) { status.textContent = 'Enter a search term.'; return; }
+        var words = query.split(/\\s+/);
+        var pages = JSON.parse(document.getElementById('site-search-data').textContent);
+        var matches = pages.filter(function(page) { var content = page.text.toLocaleLowerCase(); return words.every(function(word) { return content.includes(word); }); });
+        status.textContent = matches.length ? matches.length + (matches.length === 1 ? ' page found.' : ' pages found.') : 'No matching pages.';
+        matches.forEach(function(page) { var item = document.createElement('li'); var link = document.createElement('a'); link.href = page.href; link.textContent = page.title; link.className = 'text-green hover:underline'; item.appendChild(link); results.appendChild(item); });
+      });
+    </script>`
+    const searchPage = exportSiteToHTML({ ...validated, name: 'Search', blocks: [] }, { settings: { ...options.settings, seoTitle: 'Search' } })
+      .replace('</head>', '<meta name="robots" content="noindex" />\n</head>')
+      .replace('<body>', `<body>\n<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav} <a href="search.html" aria-current="page" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a></nav>`)
+      .replace('<main class="@container"></main>', searchContent)
+      .replace('</body>', `${searchScript}\n</body>`)
+    zip.file('search.html', searchPage, { date: new Date('1980-01-01T00:00:00Z') })
+  }
   if (pages.some(page => page.blocks.some(block => block.type === 'pdfViewer'))) {
     const [{ default: pdfModule }, { default: pdfWorker }] = await Promise.all([
       import('pdfjs-dist/build/pdf.min.mjs?raw'),
@@ -1464,7 +1504,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     })) throw new Error(`Page ${page.name} conflicts with an exported asset or folder: ${paths[index]}.`)
     const depth = paths[index].split('/').length - 1
     const prefix = '../'.repeat(depth)
-    const nav = pages.map((target, targetIndex) => `<a href="${escapeHtml(prefix + encodeURI(paths[targetIndex]))}"${target.id === page.id ? ' aria-current="page"' : ''} class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(target.name)}</a>`).join(' ')
+    const nav = pages.map((target, targetIndex) => `<a href="${escapeHtml(prefix + encodeURI(paths[targetIndex]))}"${target.id === page.id ? ' aria-current="page"' : ''} class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(target.name)}</a>`).join(' ') + (options?.settings?.siteSearch === 'on' ? ` <a href="${prefix}search.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a>` : '')
     const html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, options)
       .replace('<body>', `<body>\n<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav}</nav>`)
       .replace(/\b(src|href|data)="assets\//g, `$1="${prefix}assets/`)
