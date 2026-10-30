@@ -1,4 +1,3 @@
-import { toast } from 'sonner'
 import type { BlockConfig } from '../types'
 import { Mail } from 'lucide-react'
 
@@ -25,25 +24,22 @@ export function NewsletterBlock({ block }: { block: BlockConfig }) {
           {props.subtitle || 'Get updates on new features and releases. No spam, ever.'}
         </p>
 
-        <div className="reveal-fade-up reveal-d4 flex gap-2 max-w-sm mx-auto">
+        <fieldset disabled className="reveal-fade-up reveal-d4 flex gap-2 max-w-sm mx-auto">
           <input
             type="email"
             placeholder="you@example.com"
-            className="flex-1 px-4 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 transition-colors"
+            className="min-w-0 flex-1 px-4 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 transition-colors"
           />
           <button
-            onClick={() => toast("You're subscribed!")}
             className="px-5 py-2.5 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all shrink-0"
           >
             {props.buttonText || 'Subscribe'}
           </button>
-        </div>
+        </fieldset>
+        <p className="text-text-1 text-sm mt-3">This form is not connected yet.</p>
 
         {props.socialProof && (
           <p className="text-[11px] text-text-3 mt-3">{props.socialProof}</p>
-        )}
-        {!props.socialProof && (
-          <p className="text-[11px] text-text-3 mt-3">Join 2,000+ developers and designers</p>
         )}
       </div>
     </section>
