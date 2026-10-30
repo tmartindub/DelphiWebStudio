@@ -35,3 +35,5 @@ Media rename and undo-rename now read and update each current record within the 
 Concurrent imports now check for matching media and add a new record in the same database transaction. An isolated Edge test imported eight identical files concurrently and retained one record; restored project packages still retain distinct asset IDs when their bytes match.
 
 Before undoing a media replacement, the editor verifies the saved previous version's size and SHA-256 checksum. If the previous bytes are corrupt, undo stops and keeps the current file and previous record for inspection. Large files can take longer to verify.
+
+The editor's PDF Viewer block has zoom controls from 50% to 300% of its fitted page width. Enlarging a page can require horizontal scrolling; the starting fit remains responsive. An isolated Edge test exercised zoom in, zoom out, repeated zoom changes, two-page navigation and the Mobile, Tablet and Desktop preview sizes. A separate desktop test confirmed the sample PDF still imports and renders with the updated editor; zoom controls have not yet been independently exercised in that desktop test.

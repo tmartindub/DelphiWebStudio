@@ -15,11 +15,13 @@ export function PdfBlock({ block }: { block: BlockConfig }) {
   const [width, setWidth] = useState(0)
   const [documentState, setDocumentState] = useState<{ src: string; pdf?: PDFDocumentProxy; error?: string } | null>(null)
   const [pageState, setPageState] = useState<{ src: string; number: number } | null>(null)
-  const [rendered, setRendered] = useState<{ src: string; number: number; width: number } | null>(null)
+  const [zoomState, setZoomState] = useState<{ src: string; value: number } | null>(null)
+  const [rendered, setRendered] = useState<{ src: string; number: number; width: number; zoom: number } | null>(null)
   const pdf = documentState?.src === src ? documentState.pdf : undefined
   const error = documentState?.src === src ? documentState.error : undefined
   const pageNumber = pageState?.src === src ? pageState.number : 1
-  const pageRendered = rendered?.src === src && rendered.number === pageNumber && rendered.width === width
+  const zoom = zoomState?.src === src ? zoomState.value : 1
+  const pageRendered = rendered?.src === src && rendered.number === pageNumber && rendered.width === width && rendered.zoom === zoom
 
   useEffect(() => {
     const element = areaRef.current
@@ -56,18 +58,18 @@ export function PdfBlock({ block }: { block: BlockConfig }) {
       const canvas = canvasRef.current
       if (!active || !canvas) return
       const original = page.getViewport({ scale: 1 })
-      const viewport = page.getViewport({ scale: Math.min(1, width / original.width) })
+      const viewport = page.getViewport({ scale: Math.min(1, width / original.width) * zoom })
       canvas.width = Math.ceil(viewport.width)
       canvas.height = Math.ceil(viewport.height)
       const context = canvas.getContext('2d')
       if (!context) throw new Error('Canvas is unavailable.')
       renderTask = page.render({ canvas, canvasContext: context, viewport })
-      return renderTask.promise.then(() => { if (active) setRendered({ src, number: pageNumber, width }) })
+      return renderTask.promise.then(() => { if (active) setRendered({ src, number: pageNumber, width, zoom }) })
     }).catch(cause => {
       if (active && cause?.name !== 'RenderingCancelledException') setDocumentState({ src, error: `Unable to render PDF: ${cause instanceof Error ? cause.message : String(cause)}` })
     })
     return () => { active = false; renderTask?.cancel() }
-  }, [pdf, pageNumber, width, src])
+  }, [pdf, pageNumber, width, zoom, src])
 
   return (
     <section className="p-6">
@@ -77,6 +79,9 @@ export function PdfBlock({ block }: { block: BlockConfig }) {
           <button type="button" disabled={!pdf || pageNumber <= 1} onClick={() => setPageState({ src, number: pageNumber - 1 })}>Previous</button>
           <span>Page {pageNumber} of {pdf?.numPages ?? '…'}</span>
           <button type="button" disabled={!pdf || pageNumber >= pdf.numPages} onClick={() => setPageState({ src, number: pageNumber + 1 })}>Next</button>
+          <button type="button" aria-label="Zoom out" disabled={!pdf || zoom <= 0.5} onClick={() => setZoomState({ src, value: Math.max(0.5, zoom - 0.25) })}>−</button>
+          <span>Fit {Math.round(zoom * 100)}%</span>
+          <button type="button" aria-label="Zoom in" disabled={!pdf || zoom >= 3} onClick={() => setZoomState({ src, value: Math.min(3, zoom + 0.25) })}>+</button>
           <a href={src} download className="text-green">Open or download PDF</a>
         </div>
         {error && <p role="status" className="text-sm">{error}</p>}
