@@ -16,4 +16,4 @@ Last changed: 2026-10-29. Milestones are acceptance gates, not completed-feature
 
 Use small feature branches and PRs. M0 includes docs/evidence/CI and minimal lint fixes; M1 follows behind a feature gate. Browser prototype does not complete the required Delphi product. Translation is deferred. Formal guides/help remain separate requested deliverables.
 
-Tracking: [issues 1–9](https://github.com/tmartindub/openpage/issues) correspond to M0–M8, each assigned to its matching GitHub milestone.
+Tracking: [issues 1–9](https://github.com/tmartindub/DelphiWebStudio/issues) correspond to M0–M8, each assigned to its matching GitHub milestone.

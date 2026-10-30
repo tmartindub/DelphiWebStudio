@@ -2,6 +2,8 @@
 
 ## Unreleased — 2026-10-29
 
+- Rename the GitHub fork to `tmartindub/DelphiWebStudio`, retaining its OpenPage upstream relationship and history.
+
 - Start M1 behind VITE_WEBSTUDIO_PROJECTS: portable schema-2 JSON Open/Save, lossless unknown-content preservation, input/path validation and five-page fixture.
 - Preserve imported document metadata in independent local drafts; assign UUIDs for project creation/duplication and fresh portable identity to duplicates.
 - Separate project-file commands from the crowded canvas toolbar row; verify five-page browser save/reopen and rejection without replacement.

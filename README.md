@@ -2,6 +2,8 @@
 
 WebStudio is being developed as a free, offline-first visual website designer for Windows, extending [OpenPage](https://github.com/buildingopen/openpage). This repository currently contains the upstream browser editor and M0 engineering baseline. It is not a finished desktop application.
 
+Project repository: [tmartindub/DelphiWebStudio](https://github.com/tmartindub/DelphiWebStudio).
+
 The intended application combines a React/TypeScript canvas with an IDE-editable Delphi shell. Users own their projects and exported sites. Save, Preview and Publish remain separate. No ecommerce, payments, subscriptions, forced account, injected advertising or automatic publishing is in the WebStudio scope.
 
 ## Current status

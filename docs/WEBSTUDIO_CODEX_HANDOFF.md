@@ -1,5 +1,7 @@
 # WEBSTUDIO — MASTER CODEX IMPLEMENTATION HANDOFF
 
+> **Repository update, 2026-10-29:** The fork originally named `tmartindub/openpage` was renamed at the owner's request to [tmartindub/DelphiWebStudio](https://github.com/tmartindub/DelphiWebStudio). References to the original fork name below are retained as historical handoff context; use the renamed repository for current work. Its upstream remains `buildingopen/openpage`.
+
 **Document version:** 1.0 • **Prepared:** 2026-10-29  
 **Owner / target GitHub account:** `tmartindub`  
 **Upstream:** https://github.com/buildingopen/openpage  
