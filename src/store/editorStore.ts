@@ -7,6 +7,7 @@ interface EditorState {
   selectedBlockId: string | null
   viewport: Viewport
   mode: EditorMode
+  mediaImporting: boolean
   jsonDrawerOpen: boolean
   historyOpen: boolean
   shortcutsModalOpen: boolean
@@ -19,6 +20,7 @@ interface EditorState {
   selectBlock: (id: string | null) => void
   setViewport: (vp: Viewport) => void
   setMode: (mode: EditorMode) => void
+  setMediaImporting: (importing: boolean) => void
   toggleJsonDrawer: () => void
   toggleHistory: () => void
   toggleShortcutsModal: () => void
@@ -33,6 +35,7 @@ export const useEditorStore = create<EditorState>()((set) => ({
   selectedBlockId: null,
   viewport: 'desktop',
   mode: 'beginner',
+  mediaImporting: false,
   jsonDrawerOpen: false,
   historyOpen: false,
   shortcutsModalOpen: false,
@@ -44,6 +47,7 @@ export const useEditorStore = create<EditorState>()((set) => ({
   selectBlock: (id) => set({ selectedBlockId: id }),
   setViewport: (vp) => set({ viewport: vp }),
   setMode: (mode) => set({ mode, jsonDrawerOpen: mode === 'professional' }),
+  setMediaImporting: (mediaImporting) => set({ mediaImporting }),
   toggleJsonDrawer: () => set((s) => ({ jsonDrawerOpen: !s.jsonDrawerOpen })),
   toggleHistory: () => set((s) => ({ historyOpen: !s.historyOpen })),
   toggleShortcutsModal: () => set((s) => ({ shortcutsModalOpen: !s.shortcutsModalOpen })),

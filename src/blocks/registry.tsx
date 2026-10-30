@@ -20,6 +20,8 @@ import { ContentBlock } from './content/ContentBlock'
 import { ImageBlock } from './image/ImageBlock'
 import { VideoBlock } from './video/VideoBlock'
 import { GalleryBlock } from './gallery/GalleryBlock'
+import { PdfBlock } from './pdf/PdfBlock'
+import { MediaBlock } from './media/MediaBlock'
 
 // Error boundary for individual blocks
 class BlockErrorBoundary extends Component<
@@ -78,6 +80,10 @@ const blockRenderers: Record<string, React.ComponentType<{ block: BlockConfig }>
   image: ImageBlock,
   video: VideoBlock,
   gallery: GalleryBlock,
+  pdfViewer: PdfBlock,
+  document: MediaBlock,
+  audio: MediaBlock,
+  mediaVideo: MediaBlock,
 }
 
 export function RenderBlock({ block }: { block: BlockConfig }): ReactNode {

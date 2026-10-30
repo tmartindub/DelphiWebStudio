@@ -8,12 +8,9 @@ The intended application combines a React/TypeScript canvas with an IDE-editable
 
 ## Current status
 
-Upstream baseline: `9818eb43a88e01b23cb55752e19902d8285a853b`, branch master. Editor includes 19 block types, 42 catalog variants, 10 themes, basic page tabs and localStorage. Export currently needs online fonts/Tailwind, exports one block list and omits six editor types. PDF, local AI, native saves and the Delphi shell are not implemented.
+The experimental browser editor includes portable multi-page projects, page-aware undo, local starter designs, an IndexedDB media library and a bundled PDF viewer. Enable these project features with `VITE_WEBSTUDIO_PROJECTS=true`. See [project files](docs/PROJECT_FILES.md), [editor experience](docs/EDITOR_EXPERIENCE.md), and [media library](docs/MEDIA_LIBRARY.md).
 
-Eight upstream tests and production build pass. M0 corrects two inherited lint errors. Baseline audit reports 29 vulnerabilities, including two critical; this is not release-ready software.
-
-The first M1 increment adds experimental Open/Save project-file commands, lossless versioned JSON validation and a five-page sample. The current suite has 35 passing tests. Enable with `VITE_WEBSTUDIO_PROJECTS=true`; see [project-file behavior, tests and limits](docs/PROJECT_FILES.md). Complete multi-page HTML export and native safe saving remain outstanding.
-
+The website export still uses online fonts and Tailwind. Local AI, native safe saves and the Delphi shell are not yet implemented. The inherited dependency audit reports 29 vulnerabilities, including two critical; this is not release-ready software.
 See [baseline evidence](docs/UPSTREAM_BASELINE.md), [architecture](docs/WEBSTUDIO_ARCHITECTURE.md), [limitations](docs/KNOWN_LIMITATIONS.md), [compatibility](docs/COMPATIBILITY.md) and [roadmap](docs/ROADMAP.md).
 
 ## Development

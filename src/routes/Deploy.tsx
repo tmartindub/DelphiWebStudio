@@ -16,6 +16,7 @@ import { useEditorStore } from '@/store/editorStore'
 import { useProjectsStore } from '@/store/projectsStore'
 import { exportToHTML, downloadHTML, previewHTML, exportSiteZip } from '@/lib/export-html'
 import { portableProjectsEnabled } from '@/project/project-file'
+import { ProjectMediaLibrary } from '@/media/media-library'
 import { publishSite } from '@/lib/publish-site'
 
 const readyOptions = [
@@ -60,7 +61,8 @@ export function Deploy() {
     try {
       if (action === 'html' && portableProjectsEnabled) {
         const filename = (project?.name || config.name || 'site').toLowerCase().replace(/[^a-z0-9-]+/g, '-')
-        downloadHTML(await exportSiteZip(config, { settings: project?.settings }), `${filename}.zip`)
+        const media = activeProjectId ? await new ProjectMediaLibrary().list(activeProjectId) : []
+        downloadHTML(await exportSiteZip(config, { settings: project?.settings }, media), `${filename}.zip`)
         toast('Website ZIP exported')
         return
       }

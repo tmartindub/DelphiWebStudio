@@ -1,10 +1,13 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { CanvasEmpty } from './CanvasEmpty'
 import { BlockWrapper } from '@/blocks/BlockWrapper'
 import { RenderBlock } from '@/blocks/registry'
 import { resolveTheme, themeToCSS } from '@/lib/theme-presets'
+import { useProjectsStore } from '@/store/projectsStore'
+import { ProjectMediaLibrary } from '@/media/media-library'
+import { toast } from 'sonner'
 
 export function Canvas() {
   const blocks = useConfigStore((s) => {
@@ -14,18 +17,31 @@ export function Canvas() {
     return page.blocks
   })
   const theme = useConfigStore((s) => s.config.theme)
-  const { selectedBlockId, selectBlock, viewport } = useEditorStore()
+  const { selectedBlockId, selectBlock, viewport, activeProjectId } = useEditorStore()
+  const revision = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.mediaRevision ?? 0)
+  const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
+  const referencedAssets = blocks.map(block => typeof block.props.assetId === 'string' ? block.props.assetId : '').filter(Boolean).join(',')
+
+  useEffect(() => {
+    if (!activeProjectId) return
+    let active = true
+    const urls: string[] = []
+    new ProjectMediaLibrary().list(activeProjectId).then(assets => {
+      if (!active) return
+      const mapped: Record<string, string> = {}
+      const referenced = new Set(referencedAssets.split(','))
+      for (const asset of assets) if (referenced.has(asset.id)) { mapped[asset.id] = URL.createObjectURL(asset.content); urls.push(mapped[asset.id]) }
+      setAssetUrls(mapped)
+    }).catch(() => { if (active) setAssetUrls({}) })
+    return () => { active = false; urls.forEach(url => URL.revokeObjectURL(url)) }
+  }, [activeProjectId, revision, referencedAssets])
 
   const resolved = useMemo(() => resolveTheme(theme), [theme])
   const cssVars = useMemo(() => themeToCSS(resolved), [resolved])
 
   const maxWidth = viewport === 'desktop' ? '880px' : viewport === 'tablet' ? '768px' : '375px'
 
-  if (blocks.length === 0) {
-    return <CanvasEmpty />
-  }
-
-  const canvasContent = (
+  const canvasContent = blocks.length === 0 ? <CanvasEmpty /> : (
     <div
       className="@container border rounded-xl min-h-[400px] relative z-[1] overflow-hidden transition-all duration-300"
       style={{ width: '100%', maxWidth, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', borderColor: 'var(--color-border-default)' } as React.CSSProperties}
@@ -42,14 +58,31 @@ export function Canvas() {
           isSelected={selectedBlockId === block.id}
           onSelect={() => selectBlock(block.id)}
         >
-          <RenderBlock block={block} />
+          <RenderBlock block={typeof block.props.assetId === 'string' && assetUrls[block.props.assetId]
+            ? { ...block, props: { ...block.props, src: assetUrls[block.props.assetId] } }
+            : block} />
         </BlockWrapper>
       ))}
     </div>
   )
 
   return (
-    <div className="flex-1 flex items-start justify-center p-6 overflow-auto relative">
+    <div className="flex-1 flex items-start justify-center p-6 overflow-auto relative" onDragOver={event => {
+      if (event.dataTransfer.types.includes('application/x-webstudio-asset')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy' }
+    }} onDrop={event => {
+      const assetId = event.dataTransfer.getData('application/x-webstudio-asset')
+      if (!assetId || !activeProjectId) return
+      event.preventDefault()
+      void new ProjectMediaLibrary().list(activeProjectId).then(assets => {
+        const asset = assets.find(item => item.id === assetId)
+        if (!asset || useEditorStore.getState().activeProjectId !== activeProjectId) throw new Error('The media file is no longer available.')
+        const id = `block-${crypto.randomUUID()}`
+        const type = asset.mime === 'application/pdf' ? 'pdfViewer' : asset.mime.startsWith('image/') ? 'image' : asset.mime.startsWith('audio/') ? 'audio' : asset.mime.startsWith('video/') ? 'mediaVideo' : 'document'
+        useConfigStore.getState().addBlock({ id, type, variant: type === 'image' ? 'hero-image' : 'default', props: { assetId: asset.id, src: asset.path, title: asset.name, alt: asset.name } })
+        useEditorStore.getState().selectBlock(id)
+        toast('Added to page')
+      }).catch(error => toast.error(error instanceof Error ? error.message : 'Media could not be added.'))
+    }}>
       {/* Dot grid background */}
       <div
         className="absolute inset-0 opacity-40 pointer-events-none"

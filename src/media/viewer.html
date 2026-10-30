@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PDF viewer</title>
+  <style>
+    body{margin:0;background:#10223a;color:#fff;font:14px system-ui,sans-serif}
+    header{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;padding:.6rem;background:#17395f}
+    button,input,a{font:inherit} button,input{padding:.35rem} a{color:#fff} #status{padding:.4rem}
+    main{height:calc(100vh - 7rem);overflow:auto;text-align:center;padding:1rem}
+    canvas{background:#fff;max-width:none} button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #f28a25}
+  </style>
+</head>
+<body>
+  <header>
+    <button id="previous" type="button">Previous</button>
+    <label>Page <input id="page" type="number" min="1" value="1" style="width:4em"></label><span id="total"></span>
+    <button id="next" type="button">Next</button>
+    <button id="zoom-out" type="button" aria-label="Zoom out">−</button><span id="zoom">100%</span><button id="zoom-in" type="button" aria-label="Zoom in">+</button>
+    <label>Search <input id="query" type="search"></label><button id="search" type="button">Find</button>
+    <a id="download" download>Download</a><a id="print" target="_blank" rel="noopener">Open PDF to print</a>
+    <button id="fullscreen" type="button">Fullscreen</button>
+  </header>
+  <div id="status" role="status">Loading document…</div>
+  <main><canvas id="page-canvas" aria-label="PDF page"></canvas></main>
+  <script type="module" src="./viewer.js"></script>
+</body>
+</html>

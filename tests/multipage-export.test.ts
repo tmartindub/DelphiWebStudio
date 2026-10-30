@@ -35,4 +35,16 @@ describe('multi-page export', () => {
     invalid.pages![1].path = '/index'
     await expect(exportSiteZip(invalid)).rejects.toThrow('duplicate export filenames')
   })
+
+  it('packages referenced PDF bytes and uses the correct nested relative path', async () => {
+    const site = structuredClone(config)
+    site.pages![1].blocks = [{ id: 'pdf', type: 'pdfViewer', variant: 'default', props: { title: 'Bulletin', src: 'assets/example.pdf' } }]
+    const media = [{ id: 'example', projectId: 'p', name: 'bulletin.pdf', path: 'assets/example.pdf', mime: 'application/pdf', size: 9, sha256: 'x', content: new Blob(['%PDF-test'], { type: 'application/pdf' }) }]
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site, undefined, media)).arrayBuffer())
+    expect(await zip.file('assets/example.pdf')!.async('string')).toBe('%PDF-test')
+    expect(await zip.file('community/news.html')!.async('string')).toContain('src="../assets/pdfjs/viewer.html?file=..%2Fexample.pdf"')
+    expect(zip.file('assets/pdfjs/pdf.worker.min.js')).not.toBeNull()
+    expect(zip.file('assets/pdfjs/viewer.js')).not.toBeNull()
+    await expect(exportSiteZip(site)).rejects.toThrow('Missing media file')
+  })
 })
