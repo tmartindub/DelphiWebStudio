@@ -137,4 +137,29 @@ describe('multi-page export', () => {
     site.pages![1].path = '/SEARCH'
     await expect(exportSiteZip(site, { settings: { siteSearch: 'on' } })).rejects.toThrow('conflicts with an exported asset or folder')
   })
+
+  it('omits draft article pages and their media from site, navigation, search and sitemap', async () => {
+    const site = structuredClone(config)
+    site.pages![1].webstudioArticle = { status: 'draft', author: 'Author', summary: 'Private draft', createdAt: '2026-01-01', modifiedAt: '2026-01-01' }
+    site.pages![1].blocks = [{ id: 'img', type: 'image', variant: 'hero-image', props: { src: 'assets/draft.png' } }]
+    site.pages![2].webstudioArticle = { status: 'ready', author: 'Ada', summary: 'Public article', createdAt: '2026-01-01', modifiedAt: '2026-01-01' }
+    const media = [{ id: 'draft', projectId: 'p', name: 'draft.png', path: 'assets/draft.png', mime: 'image/png', size: 5, sha256: 'x', content: new Blob(['image'], { type: 'image/png' }) }]
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site, { settings: { siteSearch: 'on', siteBaseUrl: 'https://example.com/' } }, media)).arrayBuffer())
+    expect(zip.file('community/news.html')).toBeNull()
+    expect(zip.file('assets/draft.png')).toBeNull()
+    expect(await zip.file('index.html')!.async('string')).not.toContain('community/news.html')
+    expect(await zip.file('search.html')!.async('string')).not.toContain('Private draft')
+    expect(await zip.file('sitemap.xml')!.async('string')).not.toContain('community/news.html')
+    const article = await zip.file('about.html')!.async('string')
+    expect(article).toContain('By Ada')
+    expect(article).toContain('Public article')
+  })
+
+  it('rejects an exported page link to a draft article', async () => {
+    const site = structuredClone(config)
+    site.pages![1].webstudioArticle = { status: 'draft', author: '', summary: '', createdAt: '', modifiedAt: '' }
+    site.pages![0].blocks = [{ id: 'cta', type: 'cta', variant: 'simple', props: { headline: 'News', buttonText: 'Read', buttonUrl: '/community/news' } }]
+    site.blocks = site.pages![0].blocks
+    await expect(exportSiteZip(site)).rejects.toThrow('links to the draft article')
+  })
 })

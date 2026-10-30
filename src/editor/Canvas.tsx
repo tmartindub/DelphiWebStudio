@@ -19,6 +19,7 @@ export function Canvas() {
   const theme = useConfigStore((s) => s.config.theme)
   const pages = useConfigStore((s) => s.config.pages)
   const activePageId = useConfigStore((s) => s.activePageId)
+  const activeArticle = pages?.find(page => page.id === activePageId)?.webstudioArticle
   const setActivePage = useConfigStore((s) => s.setActivePage)
   const { selectedBlockId, selectBlock, viewport, activeProjectId } = useEditorStore()
   const revision = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.mediaRevision ?? 0)
@@ -64,9 +65,13 @@ export function Canvas() {
       aria-label={`Site preview, ${blocks.length} blocks, ${viewport} viewport`}
     >
       {pages && <nav aria-label="Site pages" className="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">
-        {pages.map(page => <a key={page.id} href={page.path} aria-current={page.id === activePageId ? 'page' : undefined} className="min-w-0 [overflow-wrap:anywhere] hover:text-text-0" onClick={event => { event.preventDefault(); setActivePage(page.id); selectBlock(null) }}>{page.name}</a>)}
+        {pages.filter(page => page.webstudioArticle?.status !== 'draft').map(page => <a key={page.id} href={page.path} aria-current={page.id === activePageId ? 'page' : undefined} className="min-w-0 [overflow-wrap:anywhere] hover:text-text-0" onClick={event => { event.preventDefault(); setActivePage(page.id); selectBlock(null) }}>{page.name}</a>)}
         {searchEnabled && <a href="#site-search" className="min-w-0 [overflow-wrap:anywhere] hover:text-text-0" onClick={event => { event.preventDefault(); toast('Site search is available in the exported website ZIP.') }}>Search</a>}
       </nav>}
+      {activeArticle && (activeArticle.author || activeArticle.summary) && <header className="px-6 py-3 text-text-1">
+        {activeArticle.author && <p className="text-sm">By {activeArticle.author}</p>}
+        {activeArticle.summary && <p className="text-sm">{activeArticle.summary}</p>}
+      </header>}
       {blocks.length === 0 ? <div className="bg-[#dce8f3] min-h-[400px] flex"><CanvasEmpty /></div> : blocks.map((block) => {
         const props = Object.fromEntries(Object.entries(block.props).map(([key, value]) => {
           if (typeof value === 'string' && /^(src|image|logoImage|heroImage|avatar|url)$/i.test(key)) return [key, assetUrls[value] ?? value]

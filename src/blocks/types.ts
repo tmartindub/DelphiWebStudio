@@ -66,6 +66,13 @@ export interface PageConfig {
   name: string
   path: string
   blocks: BlockConfig[]
+  webstudioArticle?: {
+    status: 'draft' | 'ready'
+    author: string
+    summary: string
+    createdAt: string
+    modifiedAt: string
+  }
 }
 
 export interface SiteConfig {
