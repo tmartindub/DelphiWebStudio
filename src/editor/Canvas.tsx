@@ -5,7 +5,6 @@ import { CanvasEmpty } from './CanvasEmpty'
 import { BlockWrapper } from '@/blocks/BlockWrapper'
 import { RenderBlock } from '@/blocks/registry'
 import { resolveTheme, themeToCSS } from '@/lib/theme-presets'
-import { useGoogleFonts } from '@/lib/useGoogleFonts'
 
 export function Canvas() {
   const blocks = useConfigStore((s) => {
@@ -19,7 +18,6 @@ export function Canvas() {
 
   const resolved = useMemo(() => resolveTheme(theme), [theme])
   const cssVars = useMemo(() => themeToCSS(resolved), [resolved])
-  useGoogleFonts([resolved.fontSans, resolved.fontDisplay, resolved.fontMono])
 
   const maxWidth = viewport === 'desktop' ? '880px' : viewport === 'tablet' ? '768px' : '375px'
 

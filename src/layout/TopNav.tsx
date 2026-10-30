@@ -16,10 +16,10 @@ export function TopNav() {
       {/* Logo */}
       <NavLink to="/" className="flex items-center gap-2 mr-6 select-none">
         <svg viewBox="0 0 24 24" className="w-5 h-5">
-          <circle cx="12" cy="12" r="10" fill="#22c55e" />
+          <circle cx="12" cy="12" r="10" fill="#f28a25" />
         </svg>
         <span className="font-display font-bold text-base text-text-0 tracking-tight">
-          OpenPage
+          WebStudio
         </span>
       </NavLink>
 
@@ -47,7 +47,7 @@ export function TopNav() {
       {/* Right side */}
       <div className="ml-auto flex items-center gap-2">
         <a
-          href="https://github.com/buildingopen/openpage"
+          href="https://github.com/tmartindub/DelphiWebStudio"
           target="_blank"
           rel="noopener noreferrer"
           className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-border-default text-text-2 text-[11.5px] hover:text-text-0 hover:border-border-hover hover:bg-bg-2 transition-all"

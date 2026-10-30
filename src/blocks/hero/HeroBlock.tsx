@@ -137,12 +137,12 @@ function HeroMinimal({ props }: { props: HeroProps }) {
       <p className="reveal-fade-up reveal-d2 text-text-2 text-lg @md:text-xl leading-relaxed max-w-lg mx-auto mb-10">
         {props.subheadline}
       </p>
-      <div className="reveal-fade-up reveal-d3">
+      {props.primaryCta && <div className="reveal-fade-up reveal-d3">
         <button className="px-8 py-4 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl flex items-center gap-2 mx-auto">
           {props.primaryCta}
           <ArrowRight size={16} />
         </button>
-      </div>
+      </div>}
     </section>
   )
 }

@@ -15,7 +15,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useEditorStore, type Viewport } from '@/store/editorStore'
+import { useEditorStore, type Viewport, type EditorMode } from '@/store/editorStore'
 import { useConfigStore } from '@/store/configStore'
 import { useProjectsStore } from '@/store/projectsStore'
 import type { PageConfig } from '@/blocks/types'
@@ -163,7 +163,7 @@ function PageTab({ page, isActive, onClick, onRename, onDelete, canDelete }: {
 
 export function CanvasToolbar() {
   const navigate = useNavigate()
-  const { viewport, setViewport, toggleJsonDrawer, jsonDrawerOpen, toggleHistory, togglePreview, toggleShortcutsModal, previewMode, activeProjectId } = useEditorStore()
+  const { viewport, setViewport, mode, setMode, toggleJsonDrawer, jsonDrawerOpen, toggleHistory, togglePreview, toggleShortcutsModal, previewMode, activeProjectId } = useEditorStore()
   const { undo, redo, canUndo, canRedo } = useConfigStore()
   const undoStack = useConfigStore((s) => s.undoStack)
   const redoStack = useConfigStore((s) => s.redoStack)
@@ -250,7 +250,15 @@ export function CanvasToolbar() {
       </div>
 
       {/* Right side */}
-      <div className="ml-auto flex items-center gap-1 shrink-0">
+      <div className="ml-auto flex flex-wrap justify-end items-center gap-1 min-w-0">
+        <label className="text-xs text-text-1 flex items-center gap-1">
+          Mode
+          <select aria-label="Editor mode" value={mode} onChange={event => setMode(event.target.value as EditorMode)} className="rounded bg-bg-2 border border-border-default px-1 py-1 text-text-0">
+            <option value="beginner">Beginner</option>
+            <option value="designer">Designer</option>
+            <option value="professional">Professional (JSON)</option>
+          </select>
+        </label>
         {/* Viewport toggle */}
         {viewports.map(({ value, icon: Icon, label }) => (
           <button
