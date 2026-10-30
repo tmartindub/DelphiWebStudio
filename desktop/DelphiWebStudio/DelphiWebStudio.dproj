@@ -1,0 +1,25 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{F5A2C8F1-C21D-4A40-B13E-8BBE62C19212}</ProjectGuid>
+    <ProjectVersion>20.4</ProjectVersion>
+    <FrameworkType>VCL</FrameworkType>
+    <MainSource>DelphiWebStudio.dpr</MainSource>
+    <Base>True</Base>
+    <Config Condition="'$(Config)'==''">Debug</Config>
+    <Platform Condition="'$(Platform)'==''">Win64</Platform>
+    <TargetedPlatforms>2</TargetedPlatforms>
+    <AppType>Application</AppType>
+    <ProjectName Condition="'$(ProjectName)'==''">DelphiWebStudio</ProjectName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Base)'!=''">
+    <DCC_Namespace>Winapi;System.Win;System;Xml;Data;Datasnap;Web;Soap;Vcl;$(DCC_Namespace)</DCC_Namespace>
+    <DCC_ExeOutput>..\..\bin</DCC_ExeOutput>
+    <DCC_DcuOutput>..\..\dcu</DCC_DcuOutput>
+  </PropertyGroup>
+  <ItemGroup>
+    <DelphiCompile Include="$(MainSource)"><MainSource>MainSource</MainSource></DelphiCompile>
+    <DCCReference Include="WebStudio.Main.pas"><Form>MainForm</Form></DCCReference>
+  </ItemGroup>
+  <ProjectExtensions><BorlandProject><Delphi.Personality><Source><Source Name="MainSource">DelphiWebStudio.dpr</Source></Source></Delphi.Personality><Platforms><Platform value="Win64">True</Platform></Platforms></BorlandProject><ProjectFileVersion>12</ProjectFileVersion></ProjectExtensions>
+  <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')" />
+</Project>
