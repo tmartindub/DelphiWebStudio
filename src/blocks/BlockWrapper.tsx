@@ -54,6 +54,7 @@ export function BlockWrapper({ block, isSelected, onSelect, children }: Props) {
         ;(revealRef as React.MutableRefObject<HTMLDivElement | null>).current = el
       }}
       onClick={(e) => {
+        if (e.target instanceof Element && e.target.closest('a')) e.preventDefault()
         e.stopPropagation()
         onSelect()
       }}

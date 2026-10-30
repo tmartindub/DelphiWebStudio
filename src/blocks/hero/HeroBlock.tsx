@@ -6,7 +6,10 @@ interface HeroProps {
   headline: string
   subheadline: string
   primaryCta: string
+  primaryCtaUrl?: string
   secondaryCta?: string
+  secondaryCtaUrl?: string
+  heroImage?: string
 }
 
 function HeroCentered({ props }: { props: HeroProps }) {
@@ -32,14 +35,14 @@ function HeroCentered({ props }: { props: HeroProps }) {
 
       {/* CTAs */}
       <div className="reveal-fade-up reveal-d4 flex flex-wrap items-center justify-center gap-3">
-        <button className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl flex items-center gap-2">
+        <a href={props.primaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl flex items-center gap-2">
           {props.primaryCta}
           <ArrowRight size={16} />
-        </button>
+        </a>
         {props.secondaryCta && (
-          <button className="px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 hover:border-border-hover transition-all">
+          <a href={props.secondaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 hover:border-border-hover transition-all">
             {props.secondaryCta}
-          </button>
+          </a>
         )}
       </div>
     </section>
@@ -64,14 +67,14 @@ function HeroSplit({ props }: { props: HeroProps }) {
           {props.subheadline}
         </p>
         <div className="reveal-fade-up reveal-d4 flex flex-wrap items-center gap-3">
-          <button className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all flex items-center gap-2">
+          <a href={props.primaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all flex items-center gap-2">
             {props.primaryCta}
             <ArrowRight size={16} />
-          </button>
+          </a>
           {props.secondaryCta && (
-            <button className="px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 transition-all">
+            <a href={props.secondaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 transition-all">
               {props.secondaryCta}
-            </button>
+            </a>
           )}
         </div>
       </div>
@@ -79,10 +82,10 @@ function HeroSplit({ props }: { props: HeroProps }) {
       {/* Visual side */}
       <div className="reveal-fade-up reveal-d3 flex-1 w-full">
         <div className="aspect-[4/3] rounded-xl bg-bg-2 border border-border-default overflow-hidden relative">
-          <div className="absolute inset-0 bg-gradient-to-br from-green/5 to-transparent" />
-          <div className="absolute inset-6 border border-dashed border-border-default rounded-lg flex items-center justify-center text-text-3 text-sm">
-            Preview
-          </div>
+          {props.heroImage ? <img src={props.heroImage} alt="" className="absolute inset-0 w-full h-full object-cover" /> : <>
+            <div className="absolute inset-0 bg-gradient-to-br from-green/5 to-transparent" />
+            <div className="absolute inset-6 border border-dashed border-border-default rounded-lg flex items-center justify-center text-text-3 text-sm">Preview</div>
+          </>}
         </div>
       </div>
     </section>
@@ -113,14 +116,14 @@ function HeroGradient({ props }: { props: HeroProps }) {
         </p>
 
         <div className="reveal-fade-up reveal-d4 flex flex-wrap items-center justify-center gap-3">
-          <button className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl flex items-center gap-2">
+          <a href={props.primaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl flex items-center gap-2">
             {props.primaryCta}
             <ArrowRight size={16} />
-          </button>
+          </a>
           {props.secondaryCta && (
-            <button className="px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 transition-all">
+            <a href={props.secondaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 transition-all">
               {props.secondaryCta}
-            </button>
+            </a>
           )}
         </div>
       </div>
@@ -138,10 +141,10 @@ function HeroMinimal({ props }: { props: HeroProps }) {
         {props.subheadline}
       </p>
       {props.primaryCta && <div className="reveal-fade-up reveal-d3">
-        <button className="px-8 py-4 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl flex items-center gap-2 mx-auto">
+        <a href={props.primaryCtaUrl || undefined} className="px-8 py-4 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl inline-flex items-center gap-2 mx-auto">
           {props.primaryCta}
           <ArrowRight size={16} />
-        </button>
+        </a>
       </div>}
     </section>
   )

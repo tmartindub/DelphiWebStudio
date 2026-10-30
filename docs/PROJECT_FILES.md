@@ -56,6 +56,8 @@ When a button or link uses an exact project page path such as `/about`, website 
 
 For Hero, CTA and Banner links, the Properties panel also offers **Choose a site page** below the URL field. Selecting a page fills in its path; the URL field remains editable for external addresses or anchors. Draft articles are omitted from the chooser. The chooser does not yet cover the separate legacy Navbar block, arbitrary links inside content, or automatically update references when a page is removed.
 
+In Preview mode, links to existing site pages switch the visible page without leaving the editor. Other links are not followed there; use the exported website to test external addresses and anchors. In editing mode, clicking a link selects its block instead of navigating away. The split Hero preview also shows its configured image when available.
+
 ZIP export checks page filenames against already packaged files and folders, including case-insensitive collisions and file/folder conflicts. If a page would overwrite a bundled PDF viewer file, export stops and identifies the conflicting page; the project remains open. Rename that page path before retrying.
 
 ## Optional sitemap

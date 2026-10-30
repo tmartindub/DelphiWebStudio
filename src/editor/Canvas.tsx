@@ -21,7 +21,7 @@ export function Canvas() {
   const activePageId = useConfigStore((s) => s.activePageId)
   const activeArticle = pages?.find(page => page.id === activePageId)?.webstudioArticle
   const setActivePage = useConfigStore((s) => s.setActivePage)
-  const { selectedBlockId, selectBlock, viewport, activeProjectId } = useEditorStore()
+  const { selectedBlockId, selectBlock, viewport, activeProjectId, previewMode } = useEditorStore()
   const revision = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.mediaRevision ?? 0)
   const searchEnabled = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.settings?.siteSearch === 'on')
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
@@ -59,6 +59,19 @@ export function Canvas() {
       className="@container outline outline-1 rounded-xl min-h-[400px] relative z-[1] overflow-hidden transition-all duration-300 mx-auto"
       style={{ width: '100%', maxWidth, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', outlineColor: 'var(--color-border-default)', overflowWrap: 'anywhere' } as React.CSSProperties}
       onClick={(e) => {
+        if (previewMode && !e.defaultPrevented && e.target instanceof Element) {
+          const link = e.target.closest('a[href]')
+          if (link) {
+            const href = link.getAttribute('href') ?? ''
+            if (link.hasAttribute('download') && href.startsWith('blob:')) return
+            e.preventDefault()
+            const path = href.split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
+            const target = pages?.find(page => page.path === path && page.webstudioArticle?.status !== 'draft')
+            if (target && href.startsWith('/')) { setActivePage(target.id); selectBlock(null) }
+            else toast('Open the exported website to follow this link.')
+            return
+          }
+        }
         if (e.target === e.currentTarget) selectBlock(null)
       }}
       role="region"
