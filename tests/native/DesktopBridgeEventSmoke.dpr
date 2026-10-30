@@ -73,6 +73,11 @@ begin
     Deadline := GetTickCount64 + 3000;
     while GetTickCount64 < Deadline do begin Application.ProcessMessages; Sleep(20) end;
     if Receiver.Accepted <> 1 then raise Exception.Create('A blob frame reached the parent channel.');
+    Script := Format('(()=>{const f=document.createElement("iframe");f.srcdoc=`<script>parent.chrome.webview.postMessage({version:1,requestId:"request-srcdoc",sessionId:"%s",projectId:"project-1",capability:"project.save"})</script>`;document.body.appendChild(f)})()', [Receiver.Session.SessionId]);
+    MainForm.EditorBrowser.ExecuteScript(Script);
+    Deadline := GetTickCount64 + 3000;
+    while GetTickCount64 < Deadline do begin Application.ProcessMessages; Sleep(20) end;
+    if Receiver.Accepted <> 1 then raise Exception.Create('A srcdoc frame reached the parent channel.');
     Receiver.Session.Revoke;
     Script := Format('window.chrome.webview.postMessage({version:1,requestId:"request-3",sessionId:"%s",projectId:"project-1",capability:"project.save"})', [Receiver.Session.SessionId]);
     MainForm.EditorBrowser.ExecuteScript(Script);
