@@ -5,12 +5,14 @@ interface NavbarProps {
   logo: string
   logoImage?: string
   links: string[]
+  navItems?: { label: string; url: string }[]
   ctaText: string
   ctaUrl?: string
 }
 
 function NavbarDefault({ props }: { props: NavbarProps }) {
   const { logo, logoImage, links = [], ctaText, ctaUrl } = props
+  const navItems = Array.isArray(props.navItems) ? props.navItems.filter(item => item && typeof item.label === 'string' && typeof item.url === 'string') : []
 
   return (
     <nav className="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
@@ -32,6 +34,7 @@ function NavbarDefault({ props }: { props: NavbarProps }) {
             {link}
           </span>
         ))}
+        {navItems.map((item, i) => <a key={`nav-${i}`} href={item.url || undefined} className="text-[13px] text-text-2 hover:text-text-0">{item.label}</a>)}
       </div>
 
       {/* CTA + mobile menu */}
@@ -39,9 +42,7 @@ function NavbarDefault({ props }: { props: NavbarProps }) {
         {ctaText && <a href={ctaUrl || undefined} className="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors">
           {ctaText}
         </a>}
-        {links.length > 0 && <button className="@2xl:hidden w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 hover:text-text-0 hover:bg-bg-3 transition-colors">
-          <Menu size={16} />
-        </button>}
+        {navItems.length > 0 && <details className="@2xl:hidden relative"><summary aria-label="Navigation menu" className="w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 cursor-pointer"><Menu size={16} /></summary><div className="absolute right-0 z-10 min-w-40 p-3 bg-bg-1 border border-border-default rounded-lg flex flex-col gap-3">{navItems.map((item, i) => <a key={i} href={item.url || undefined} className="text-sm text-text-2">{item.label}</a>)}</div></details>}
       </div>
     </nav>
   )
@@ -49,6 +50,7 @@ function NavbarDefault({ props }: { props: NavbarProps }) {
 
 function NavbarCentered({ props }: { props: NavbarProps }) {
   const { logo, logoImage, links = [], ctaText, ctaUrl } = props
+  const navItems = Array.isArray(props.navItems) ? props.navItems.filter(item => item && typeof item.label === 'string' && typeof item.url === 'string') : []
   const mid = Math.ceil(links.length / 2)
   const leftLinks = links.slice(0, mid)
   const rightLinks = links.slice(mid)
@@ -79,6 +81,7 @@ function NavbarCentered({ props }: { props: NavbarProps }) {
             {link}
           </span>
         ))}
+        {navItems.map((item, i) => <a key={`nav-${i}`} href={item.url || undefined} className="text-[13px] text-text-2 hover:text-text-0">{item.label}</a>)}
         {ctaText && <a href={ctaUrl || undefined} className="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors ml-2">
           {ctaText}
         </a>}
@@ -86,9 +89,7 @@ function NavbarCentered({ props }: { props: NavbarProps }) {
 
       {ctaText && <a href={ctaUrl || undefined} className="@2xl:hidden px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold">{ctaText}</a>}
       {/* Mobile menu */}
-      {links.length > 0 && <button className="@2xl:hidden w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 hover:text-text-0 hover:bg-bg-3 transition-colors">
-        <Menu size={16} />
-      </button>}
+      {navItems.length > 0 && <details className="@2xl:hidden relative"><summary aria-label="Navigation menu" className="w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 cursor-pointer"><Menu size={16} /></summary><div className="absolute right-0 z-10 min-w-40 p-3 bg-bg-1 border border-border-default rounded-lg flex flex-col gap-3">{navItems.map((item, i) => <a key={i} href={item.url || undefined} className="text-sm text-text-2">{item.label}</a>)}</div></details>}
     </nav>
   )
 }

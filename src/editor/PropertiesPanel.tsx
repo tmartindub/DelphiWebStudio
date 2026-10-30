@@ -31,7 +31,8 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
           { key: 'logoImage', label: 'Logo Image URL', type: 'image' },
           { key: 'ctaText', label: 'CTA Button', type: 'text' },
           { key: 'ctaUrl', label: 'CTA Destination', type: 'link' },
-          { key: 'links', label: 'Nav Links', type: 'array-strings' },
+          { key: 'links', label: 'Legacy text-only labels', type: 'array-strings' },
+          { key: 'navItems', label: 'Navigation destinations', type: 'array-items' },
         ],
       },
       {
@@ -526,6 +527,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
         }
         // Fallback templates by block type + field key
         const blockTemplates: Partial<Record<string, Record<string, Record<string, string>>>> = {
+          navbar: { navItems: { label: '', url: '' } },
           testimonials: { items: { name: '', role: '', quote: '' } },
           stats: { items: { value: '', label: '' } },
           faq: { items: { question: '', answer: '' } },
