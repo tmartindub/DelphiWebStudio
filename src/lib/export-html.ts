@@ -192,10 +192,10 @@ function renderHeroCentered(block: BlockConfig): string {
     ? `        ${renderLink(secondaryCta, secondaryCtaUrl, 'px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 hover:border-border-hover transition-all inline-block')}`
     : ''
 
-  return `  <section class="px-6 md:px-10 py-20 md:py-28 text-center">
+  return `  <section class="px-6 @md:px-10 py-20 @md:py-28 text-center">
 ${badgeHtml}
-      <h1 class="text-4xl md:text-5xl font-bold tracking-tight leading-[1.1] mb-4 max-w-3xl mx-auto">${headline}</h1>
-      <p class="text-text-2 text-base md:text-lg leading-relaxed max-w-xl mx-auto mb-8">${subheadline}</p>
+      <h1 class="text-4xl @md:text-5xl font-bold tracking-tight leading-[1.1] mb-4 max-w-3xl mx-auto">${headline}</h1>
+      <p class="text-text-2 text-base @md:text-lg leading-relaxed max-w-xl mx-auto mb-8">${subheadline}</p>
       <div class="flex flex-wrap items-center justify-center gap-3">
         ${renderLink(primaryCta, primaryCtaUrl, 'px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all inline-flex items-center gap-2')}
 ${secondaryHtml}
@@ -1196,7 +1196,7 @@ function renderBlock(block: BlockConfig): string {
       const title = escapeHtml(String(block.props.title || 'PDF document'))
       const height = Math.max(200, Math.min(2000, Number(block.props.height) || 600))
       const viewer = `assets/pdfjs/viewer.html?file=${encodeURIComponent(`../${src.slice(7)}`)}`
-      return `<section><h2>${title}</h2><iframe src="${escapeHtml(viewer)}" title="${title}" style="width:100%;height:${height}px;border:0" allowfullscreen></iframe><a href="${escapeHtml(src)}" download>Download PDF</a></section>`
+      return `<section class="p-6"><h2 class="text-xl font-semibold mb-3">${title}</h2><iframe src="${escapeHtml(viewer)}" title="${title}" style="width:100%;height:${height}px;border:0" allowfullscreen></iframe><a href="${escapeHtml(src)}" class="text-green" download>Open or download PDF</a></section>`
     }
     default:
       return `  <!-- Unknown block type: ${escapeHtml(block.type)} -->`
@@ -1328,6 +1328,7 @@ ${ogDescriptionMeta}${ogImageMeta}${faviconLink}
       --radius-lg: ${theme.radiusLg}px;
     }
 
+    html { font-size: 14px; }
     *, *::before, *::after { box-sizing: border-box; }
 
     body {
