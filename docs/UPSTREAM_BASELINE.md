@@ -7,9 +7,9 @@ Last changed: 2026-10-29 (America/New_York).
 - Authenticated owner: `tmartindub`, verified using connector and CLI.
 - Upstream: https://github.com/buildingopen/openpage, default branch `master`.
 - Starting commit: `9818eb43a88e01b23cb55752e19902d8285a853b`.
-- Fork confirmed by GitHub API: https://github.com/tmartindub/openpage, `fork: true`, parent `buildingopen/openpage`.
+- Fork created as `tmartindub/openpage` and renamed on 2026-10-29 to https://github.com/tmartindub/DelphiWebStudio. GitHub confirmed `fork: true` and parent `buildingopen/openpage` after the rename.
 - Branch: `codex/m0-baseline`; workspace: `C:\New Delphi Projects\Delphi Web Studio`.
-- Remotes: origin = fork, upstream = original repository. Authenticated owner search found no existing WebStudio/OpenPage repository or private counterpart before creation. No private counterpart was created.
+- Remotes: origin = `https://github.com/tmartindub/DelphiWebStudio.git`; upstream = `https://github.com/buildingopen/openpage.git`. Authenticated owner search found no private counterpart. No private counterpart was created.
 - Workspace was empty. Pre-change ZIP: `H:\Delphi Web Studio Backups\WebStudio_PreChange_20261029_180857.zip`, 18,733 bytes, contains handoff and global directives; ZIP entries verified.
 - Original MIT license, copyright and history remain intact.
 

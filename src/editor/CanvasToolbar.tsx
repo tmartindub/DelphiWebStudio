@@ -19,7 +19,9 @@ import { useEditorStore, type Viewport } from '@/store/editorStore'
 import { useConfigStore } from '@/store/configStore'
 import { useProjectsStore } from '@/store/projectsStore'
 import type { PageConfig } from '@/blocks/types'
-import { exportToHTML, downloadHTML } from '@/lib/export-html'
+import { exportToHTML, downloadHTML, exportSiteZip } from '@/lib/export-html'
+import { ProjectFileCommands } from '@/project/ProjectFileCommands'
+import { portableProjectsEnabled } from '@/project/project-file'
 
 const viewports: { value: Viewport; icon: typeof Monitor; label: string }[] = [
   { value: 'desktop', icon: Monitor, label: 'Desktop' },
@@ -29,7 +31,7 @@ const viewports: { value: Viewport; icon: typeof Monitor; label: string }[] = [
 
 function AddPagePopover({ onAdd, onClose }: { onAdd: (name: string, path: string) => void; onClose: () => void }) {
   const [name, setName] = useState('')
-  const [path, setPath] = useState('/')
+  const [path, setPath] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
@@ -38,8 +40,12 @@ function AddPagePopover({ onAdd, onClose }: { onAdd: (name: string, path: string
     const trimmed = name.trim()
     if (!trimmed) return
     const cleanPath = path.trim() || `/${trimmed.toLowerCase().replace(/\s+/g, '-')}`
-    onAdd(trimmed, cleanPath)
-    onClose()
+    try {
+      onAdd(trimmed, cleanPath)
+      onClose()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Page could not be added')
+    }
   }
 
   return (
@@ -50,10 +56,7 @@ function AddPagePopover({ onAdd, onClose }: { onAdd: (name: string, path: string
           <input
             ref={inputRef}
             value={name}
-            onChange={(e) => {
-              setName(e.target.value)
-              if (!path || path === '/') setPath(`/${e.target.value.toLowerCase().replace(/\s+/g, '-')}`)
-            }}
+            onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') submit(); if (e.key === 'Escape') onClose() }}
             placeholder="About"
             className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-3 text-text-0 text-[11.5px] outline-none focus:border-green"
@@ -182,19 +185,25 @@ export function CanvasToolbar() {
   async function handleExport() {
     setExporting(true)
     try {
-      const html = await exportToHTML(config, { settings: activeProject?.settings })
-      const filename = `${(activeProject?.name || config.name || 'site').toLowerCase().replace(/\s+/g, '-')}.html`
-      downloadHTML(html, filename)
-      toast('HTML exported')
-    } catch {
-      toast.error('Export failed')
+      const filename = (activeProject?.name || config.name || 'site').toLowerCase().replace(/[^a-z0-9-]+/g, '-')
+      if (portableProjectsEnabled) {
+        downloadHTML(await exportSiteZip(config, { settings: activeProject?.settings }), `${filename}.zip`)
+        toast('Website ZIP exported')
+      } else {
+        downloadHTML(await exportToHTML(config, { settings: activeProject?.settings }), `${filename}.html`)
+        toast('HTML exported')
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Export failed')
     } finally {
       setExporting(false)
     }
   }
 
   return (
-    <div className="h-10 bg-bg-1 border-b border-border-default flex items-center px-3 gap-1">
+    <>
+    {portableProjectsEnabled && <div className="bg-bg-1 border-b border-border-default px-3 py-1"><ProjectFileCommands /></div>}
+    <div className="min-h-10 bg-bg-1 border-b border-border-default flex flex-wrap items-center px-3 py-1 gap-1">
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-xs text-text-3 shrink-0">
         <span
@@ -219,7 +228,7 @@ export function CanvasToolbar() {
             onClick={() => setActivePage(page.id)}
             onRename={(name) => renamePage(page.id, name)}
             onDelete={() => removePage(page.id)}
-            canDelete={pages.length > 1}
+            canDelete={pages.length > 1 && page.path !== '/'}
           />
         ))}
         <div className="relative">
@@ -362,5 +371,6 @@ export function CanvasToolbar() {
         </button>
       </div>
     </div>
+    </>
   )
 }

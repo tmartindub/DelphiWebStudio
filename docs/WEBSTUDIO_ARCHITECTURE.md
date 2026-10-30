@@ -31,3 +31,7 @@ Retain React and upstream layout. Introduce a portable versioned project and loc
 Delphi forms use design-time .fmx/.dfm components and Object Inspector settings. Embedded React canvas is the owner-approved runtime UI exception. Prefer FMX Windows x64; validate an actual WebView2 binding before selecting it. Document any VCL fallback decision.
 
 Owner folders are additive: bin, dcu, docs/guides, docs/pdf, export, help, images and icons, samples, source distributions, tools. Retain src/api/public/tests where upstream expects them. Ignore generated/personal content. GTranslate is deferred until the main application is written.
+
+## M1 first increment
+
+src/project/project-file.ts defines feature flag, schema-2 parsing/validation/serialization and legacy conversion. ProjectFileCommands.tsx provides explicit local Open/Save downloads from Dashboard and CanvasToolbar. projectsStore keeps imported document extension fields separately from editable draft config, with independent local IDs. Tests in project-file.test.ts and project-storage.test.ts cover model/storage invariants. PROJECT_FILES.md records the tested browser flow and remaining M1 scope.

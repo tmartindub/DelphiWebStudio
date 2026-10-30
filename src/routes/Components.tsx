@@ -9,13 +9,6 @@ import { useEditorStore } from '@/store/editorStore'
 import { resolveTheme, themeToCSS } from '@/lib/theme-presets'
 import type { BlockConfig } from '@/blocks/types'
 
-let componentBlockIdSeq = 0
-
-function nextComponentBlockId(): string {
-  componentBlockIdSeq += 1
-  return `block-${componentBlockIdSeq}`
-}
-
 export function Components() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [hoveredBlock, setHoveredBlock] = useState<string | null>(null)
@@ -45,7 +38,7 @@ export function Components() {
   function handleAdd(meta: typeof blockMetadata[number]) {
     const variantIdx = activeVariants[meta.type] ?? 0
     const block: BlockConfig = {
-      id: nextComponentBlockId(),
+      id: `block-${crypto.randomUUID()}`,
       type: meta.type,
       variant: meta.variants[variantIdx],
       props: { ...meta.defaultProps },
