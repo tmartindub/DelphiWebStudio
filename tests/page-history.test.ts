@@ -47,6 +47,20 @@ describe('page history', () => {
     expect(useConfigStore.getState().config.pages).toHaveLength(2)
   })
 
+  it('changes a page address with undo and rejects unsafe, duplicate or Home addresses', () => {
+    const id = useConfigStore.getState().addPage('News', '/news')
+    useConfigStore.getState().addPage('Contact', '/contact')
+    useConfigStore.getState().changePagePath(id, '/updates')
+    expect(useConfigStore.getState().config.pages?.find(page => page.id === id)?.path).toBe('/updates')
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().config.pages?.find(page => page.id === id)?.path).toBe('/news')
+    useConfigStore.getState().redo()
+    expect(useConfigStore.getState().config.pages?.find(page => page.id === id)?.path).toBe('/updates')
+    for (const path of ['/CONTACT', '/../escape', '/']) expect(() => useConfigStore.getState().changePagePath(id, path)).toThrow()
+    expect(() => useConfigStore.getState().changePagePath('home', '/other')).toThrow('Home')
+    expect(useConfigStore.getState().config.pages?.find(page => page.id === id)?.path).toBe('/updates')
+  })
+
   it('undoes and redoes a complete JSON replacement without discarding extension data', () => {
     const before = { ...useConfigStore.getState().config, name: 'Original', extension: { retained: 1 } }
     useConfigStore.getState().setConfig(before)

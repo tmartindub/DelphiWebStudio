@@ -15,6 +15,7 @@ import {
   Loader2,
   Pencil,
   Trash2,
+  Link,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEditorStore, type Viewport, type EditorMode } from '@/store/editorStore'
@@ -89,11 +90,12 @@ function AddPagePopover({ onAdd, onClose }: { onAdd: (name: string, path: string
   )
 }
 
-function PageTab({ page, isActive, onClick, onRename, onDelete, canDelete }: {
+function PageTab({ page, isActive, onClick, onRename, onEditPath, onDelete, canDelete }: {
   page: PageConfig
   isActive: boolean
   onClick: () => void
   onRename: (name: string) => void
+  onEditPath: () => void
   onDelete: () => void
   canDelete: boolean
 }) {
@@ -143,6 +145,8 @@ function PageTab({ page, isActive, onClick, onRename, onDelete, canDelete }: {
       {isActive && <button type="button" aria-label={`Rename ${page.name}`} title={`Rename ${page.name}`}
         onClick={() => { setName(page.name); setEditing(true) }}
         className="p-1 rounded text-text-3 hover:text-text-0 focus-visible:outline focus-visible:outline-2"><Pencil size={12} /></button>}
+      {isActive && page.path !== '/' && <button type="button" aria-label={`Change address for ${page.name}`} title={`Change address for ${page.name}`}
+        onClick={onEditPath} className="p-1 rounded text-text-3 hover:text-text-0 focus-visible:outline focus-visible:outline-2"><Link size={12} /></button>}
       {isActive && canDelete && <button type="button" aria-label={`Delete ${page.name}`}
         title={`Delete ${page.name}`}
         onClick={onDelete}
@@ -151,6 +155,21 @@ function PageTab({ page, isActive, onClick, onRename, onDelete, canDelete }: {
       </button>}
     </div>
   )
+}
+
+function EditPagePathDialog({ page, onCancel, onSave }: { page: PageConfig; onCancel: () => void; onSave: (path: string) => void }) {
+  const dialog = useRef<HTMLDialogElement>(null)
+  const [path, setPath] = useState(page.path)
+  const [error, setError] = useState('')
+  useEffect(() => { const element = dialog.current; element?.showModal(); return () => { if (element?.open) element.close() } }, [])
+  return <dialog ref={dialog} onCancel={event => { event.preventDefault(); onCancel() }} aria-labelledby="page-path-title" className="w-[min(92vw,32rem)] rounded-xl border border-border-default bg-bg-1 p-5 text-text-0 shadow-xl backdrop:bg-black/60">
+    <h2 id="page-path-title" className="text-lg font-semibold">Change address for {page.name}</h2>
+    <p className="mt-2 text-sm text-text-2">Existing links and bookmarks may stop working. Check site can identify known links that need updating. You can undo this change.</p>
+    <label htmlFor="page-path" className="mt-4 block text-sm">Page address</label>
+    <input id="page-path" value={path} onChange={event => { setPath(event.target.value); setError('') }} className="mt-1 w-full rounded border border-border-default bg-bg-2 px-3 py-2 text-sm" />
+    {error && <p role="alert" className="mt-2 text-sm text-status-red">{error}</p>}
+    <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onCancel} className="rounded border border-border-default px-3 py-2 text-sm">Cancel</button><button type="button" onClick={() => { try { onSave(path.trim()) } catch (cause) { setError(cause instanceof Error ? cause.message : 'Address could not be changed.') } }} className="rounded bg-green px-3 py-2 text-sm font-semibold text-black">Save address</button></div>
+  </dialog>
 }
 
 function DeletePageDialog({ page, linkedPages, onCancel, onConfirm }: {
@@ -194,6 +213,7 @@ export function CanvasToolbar() {
   const addPage = useConfigStore((s) => s.addPage)
   const removePage = useConfigStore((s) => s.removePage)
   const renamePage = useConfigStore((s) => s.renamePage)
+  const changePagePath = useConfigStore((s) => s.changePagePath)
   const projects = useProjectsStore((s) => s.projects)
   const configName = useConfigStore((s) => s.config.name)
   const config = useConfigStore((s) => s.config)
@@ -201,11 +221,13 @@ export function CanvasToolbar() {
   const [showPlanPages, setShowPlanPages] = useState(false)
   const [showSiteChecks, setShowSiteChecks] = useState(false)
   const [deletingPage, setDeletingPage] = useState<{ id: string; projectId: string | null } | null>(null)
+  const [editingPath, setEditingPath] = useState<{ id: string; projectId: string | null } | null>(null)
   const [exporting, setExporting] = useState(false)
 
   const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) : null
   const projectName = activeProject?.name || configName
   const pageToDelete = pages.find(page => page.id === deletingPage?.id && deletingPage.projectId === activeProjectId)
+  const pageToEditPath = pages.find(page => page.id === editingPath?.id && editingPath.projectId === activeProjectId)
   const linkedPages = pageToDelete ? pages.filter(page => page.id !== pageToDelete.id && page.blocks.some(block => {
     const keys = block.type === 'hero' ? ['primaryCtaUrl', 'secondaryCtaUrl'] : block.type === 'cta' ? ['buttonUrl'] : block.type === 'banner' ? ['linkUrl'] : block.type === 'navbar' ? ['ctaUrl'] : []
     return keys.some(key => {
@@ -240,6 +262,7 @@ export function CanvasToolbar() {
     {showPlanPages && <PlanPages onClose={() => setShowPlanPages(false)} />}
     {showSiteChecks && <SiteChecks onClose={() => setShowSiteChecks(false)} />}
     {pageToDelete && <DeletePageDialog page={pageToDelete} linkedPages={linkedPages} onCancel={() => setDeletingPage(null)} onConfirm={() => { removePage(pageToDelete.id); setDeletingPage(null) }} />}
+    {pageToEditPath && <EditPagePathDialog page={pageToEditPath} onCancel={() => setEditingPath(null)} onSave={path => { changePagePath(pageToEditPath.id, path); setEditingPath(null) }} />}
     {portableProjectsEnabled && <div className="bg-bg-1 border-b border-border-default px-3 py-1"><ProjectFileCommands /></div>}
     <div className="min-h-10 bg-bg-1 border-b border-border-default flex flex-wrap items-center px-3 py-1 gap-1">
       {/* Breadcrumb */}
@@ -265,6 +288,7 @@ export function CanvasToolbar() {
             isActive={activePageId === page.id}
             onClick={() => setActivePage(page.id)}
             onRename={(name) => renamePage(page.id, name)}
+            onEditPath={() => setEditingPath({ id: page.id, projectId: activeProjectId })}
             onDelete={() => setDeletingPage({ id: page.id, projectId: activeProjectId })}
             canDelete={pages.length > 1 && page.path !== '/'}
           />
