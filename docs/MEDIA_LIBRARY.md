@@ -33,3 +33,5 @@ An isolated Edge editor test imported a generated two-page PDF, checked the page
 Media rename and undo-rename now read and update each current record within the same database transaction, so a concurrent replacement is not overwritten by a stale rename snapshot. Replacement checks that the original media record has not changed before writing; if it has, replacement stops and asks for another attempt. Automated tests exercise overlapping rename and replacement operations. This reduces a demonstrated race but does not establish complete crash recovery or cross-device synchronization.
 
 Concurrent imports now check for matching media and add a new record in the same database transaction. An isolated Edge test imported eight identical files concurrently and retained one record; restored project packages still retain distinct asset IDs when their bytes match.
+
+Before undoing a media replacement, the editor verifies the saved previous version's size and SHA-256 checksum. If the previous bytes are corrupt, undo stops and keeps the current file and previous record for inspection. Large files can take longer to verify.

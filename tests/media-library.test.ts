@@ -136,6 +136,33 @@ describe('project media library', () => {
     expect(await (await library.list(projectId))[0].content.text()).toBe('old text')
   })
 
+  it('keeps the current media when the previous version has corrupt bytes', async () => {
+    const library = new ProjectMediaLibrary()
+    const projectId = crypto.randomUUID()
+    const original = (await library.import(projectId, new File(['old'], 'note.txt'))).asset
+    const bytes = new TextEncoder().encode('new')
+    const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))).map(value => value.toString(16).padStart(2, '0')).join('')
+    const replaced = (await library.import(projectId, new File([bytes], 'note.txt'), { id: original.id, path: original.path, sha256 }, true)).asset
+    replaced.previousVersion!.content = new Blob(['bad'])
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('webstudio-media', 3)
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction('assetsV2', 'readwrite')
+      transaction.objectStore('assetsV2').put(replaced)
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error)
+    })
+    database.close()
+    await expect(library.undoReplacement(projectId, original.id)).rejects.toThrow('integrity check')
+    const current = (await library.list(projectId))[0]
+    expect(await current.content.text()).toBe('new')
+    expect(current.sha256).toBe(sha256)
+    expect(current.previousVersion).toBeDefined()
+  })
+
   it('restores the original image dimensions and recovers dimensions for older replacement records', async () => {
     const close = vi.fn()
     const decode = vi.fn().mockResolvedValueOnce({ width: 40, height: 20, close })

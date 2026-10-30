@@ -199,6 +199,10 @@ export class ProjectMediaLibrary {
     })
     if (!asset?.previousVersion) throw new Error('No previous media version is available.')
     const previous = asset.previousVersion
+    if (!(previous.content instanceof Blob) || previous.content.size !== previous.size || !/^[a-f0-9]{64}$/i.test(previous.sha256)) throw new Error('The previous media version failed its integrity check; the current file was kept.')
+    const digest = await crypto.subtle.digest('SHA-256', await previous.content.arrayBuffer())
+    const checksum = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+    if (checksum !== previous.sha256.toLowerCase()) throw new Error('The previous media version failed its integrity check; the current file was kept.')
     let width = previous.width
     let height = previous.height
     if ((!width || !height) && asset.mime.startsWith('image/') && asset.mime !== 'image/svg+xml' && typeof createImageBitmap === 'function') {
@@ -224,7 +228,7 @@ export class ProjectMediaLibrary {
         store.put({ ...current, ...previous, width, height, previousVersion: undefined })
       }
       transaction.oncomplete = () => resolve()
-      transaction.onerror = () => reject(transaction.error ?? new Error('Media replacement could not be undone.'))
+      transaction.onerror = () => reject(changed ? new Error('Media changed while the replacement was being undone. Try again.') : transaction.error ?? new Error('Media replacement could not be undone.'))
       transaction.onabort = () => reject(changed ? new Error('Media changed while the replacement was being undone. Try again.') : transaction.error ?? new Error('Media replacement could not be undone.'))
     })
   }
