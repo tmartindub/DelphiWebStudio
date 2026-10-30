@@ -3,6 +3,7 @@ import type { BlockConfig } from '../types'
 interface FooterProps {
   logo: string
   logoImage?: string
+  description?: string
   copyright: string
   links: string[]
   columns?: { title: string; links: string[] }[]
@@ -41,12 +42,7 @@ function FooterSimple({ props }: { props: FooterProps }) {
 }
 
 function FooterMultiColumn({ props }: { props: FooterProps }) {
-  const columns = props.columns || [
-    { title: 'Product', links: ['Features', 'Pricing', 'Changelog', 'Roadmap'] },
-    { title: 'Company', links: ['About', 'Blog', 'Careers', 'Press'] },
-    { title: 'Resources', links: ['Documentation', 'API Reference', 'Guides', 'Community'] },
-    { title: 'Legal', links: ['Privacy', 'Terms', 'Security', 'Cookie Policy'] },
-  ]
+  const columns = props.columns || []
 
   return (
     <footer className="px-6 @md:px-10 py-12 border-t border-border-subtle">
@@ -63,9 +59,7 @@ function FooterMultiColumn({ props }: { props: FooterProps }) {
             )}
             <span className="text-sm font-semibold">{props.logo}</span>
           </div>
-          <p className="text-[12px] text-text-3 leading-relaxed max-w-[200px]">
-            Build beautiful websites with structured JSON config.
-          </p>
+          {props.description && <p className="text-[12px] text-text-3 leading-relaxed max-w-[200px]">{props.description}</p>}
         </div>
 
         {/* Link columns */}
