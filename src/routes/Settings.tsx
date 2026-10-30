@@ -98,22 +98,26 @@ function GeneralPanel({ settings }: { settings: ReturnType<typeof useSettingsSta
 }
 
 function SeoPanel({ settings }: { settings: ReturnType<typeof useSettingsState> }) {
-  const title = settings.data.seoTitle || 'My Website - Build with OpenPage'
-  const description = settings.data.seoDescription || 'A beautiful website built with structured JSON config.'
-  const domain = settings.data.customDomain || 'mywebsite.com'
+  const title = settings.data.seoTitle || settings.data.siteName || 'Your site title'
+  const description = settings.data.seoDescription || settings.data.siteDescription || 'Add a description for your site.'
+  const domain = settings.data.siteBaseUrl || 'Set a public site URL when you know it.'
 
   return (
     <div>
       <h2 className="text-lg font-semibold mb-4">SEO</h2>
       <FieldGroup label="Page Title"><ControlledInput settingsKey="seoTitle" settings={settings} /></FieldGroup>
       <FieldGroup label="Meta Description"><ControlledTextarea settingsKey="seoDescription" settings={settings} /></FieldGroup>
+      <FieldGroup label="Public site URL (optional)">
+        <ControlledInput settingsKey="siteBaseUrl" placeholder="https://example.com/" settings={settings} />
+        <p className="text-[11px] text-text-3 mt-1.5">When set, ZIP export includes a sitemap for this site address. Include the subfolder if your site will use one.</p>
+      </FieldGroup>
       <FieldGroup label="OG Image URL"><ControlledInput settingsKey="ogImageUrl" placeholder="https://example.com/og.png" settings={settings} /></FieldGroup>
 
       {/* Live Google preview */}
       <div className="mt-6 p-4 rounded-xl bg-bg-2 border border-border-default">
         <div className="text-[10px] font-semibold uppercase tracking-wider text-text-3 mb-3">Google Preview</div>
         <div className="text-[#8ab4f8] text-sm hover:underline cursor-pointer">{title}</div>
-        <div className="text-[#bdc1c6] text-[11px] mt-0.5">https://{domain}</div>
+        <div className="text-[#bdc1c6] text-[11px] mt-0.5">{domain}</div>
         <div className="text-[#9aa0a6] text-[11.5px] mt-1 leading-relaxed">
           {description}
         </div>
