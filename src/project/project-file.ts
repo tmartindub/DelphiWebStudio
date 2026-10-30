@@ -7,6 +7,7 @@ export interface SiteProjectFile {
   schemaVersion: 2
   projectId: string
   config: SiteConfig
+  settings?: Record<string, unknown>
   [key: string]: unknown
 }
 
@@ -135,6 +136,10 @@ export function parseProjectFile(contents: string): { project: SiteProjectFile; 
       throw new Error('Unsupported project format or schema version. The original file has not been changed.')
     }
     const projectId = text(source.projectId, 'Project ID')
+    if (source.settings !== undefined) {
+      const settings = record(source.settings, 'Project settings')
+      if ('deployAccessKey' in settings) throw new Error('Remove the deployment credential from the project file before opening it.')
+    }
     return {
       project: { ...structuredClone(source), format: 'webstudio', schemaVersion: 2, projectId, config: validateProjectConfig(source.config) },
       migrated: false,
@@ -146,6 +151,9 @@ export function parseProjectFile(contents: string): { project: SiteProjectFile; 
 export function serializeProjectFile(project: SiteProjectFile): string {
   if (project.format !== 'webstudio' || project.schemaVersion !== 2) throw new Error('Unsupported project format or schema version.')
   text(project.projectId, 'Project ID')
+  if (project.settings !== undefined && 'deployAccessKey' in record(project.settings, 'Project settings')) {
+    throw new Error('Deployment credentials cannot be saved in a project file.')
+  }
   inspectContent(project)
   return JSON.stringify({ ...project, config: validateProjectConfig(project.config) }, null, 2) + '\n'
 }

@@ -14,7 +14,8 @@ import { toast } from 'sonner'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { useProjectsStore } from '@/store/projectsStore'
-import { exportToHTML, downloadHTML, previewHTML } from '@/lib/export-html'
+import { exportToHTML, downloadHTML, previewHTML, exportSiteZip, downloadSiteZip } from '@/lib/export-html'
+import { portableProjectsEnabled } from '@/project/project-file'
 import { publishSite } from '@/lib/publish-site'
 
 const readyOptions = [
@@ -57,6 +58,12 @@ export function Deploy() {
 
     setExporting(true)
     try {
+      if (action === 'html' && portableProjectsEnabled) {
+        const filename = (project?.name || config.name || 'site').toLowerCase().replace(/[^a-z0-9-]+/g, '-')
+        downloadSiteZip(await exportSiteZip(config, { settings: project?.settings }), `${filename}.zip`)
+        toast('Website ZIP exported')
+        return
+      }
       const html = await exportToHTML(config, { settings: project?.settings })
 
       if (action === 'html') {
@@ -66,14 +73,18 @@ export function Deploy() {
       } else {
         previewHTML(html)
       }
-    } catch {
-      toast.error(action === 'preview' ? 'Preview failed' : 'Export failed')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : action === 'preview' ? 'Preview failed' : 'Export failed')
     } finally {
       setExporting(false)
     }
   }
 
   async function handlePublish() {
+    if (portableProjectsEnabled) {
+      toast.error('Publishing is not available until destination review and verification are implemented.')
+      return
+    }
     if (!activeProjectId) {
       toast.error('Save your project first')
       return

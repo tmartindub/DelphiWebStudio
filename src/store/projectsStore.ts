@@ -60,6 +60,7 @@ export const useProjectsStore = create<ProjectsState>()(
               ...(projectFile ? {
                 config: structuredClone(projectFile.config),
                 projectFile: structuredClone(projectFile),
+                ...(projectFile.settings ? { settings: structuredClone(projectFile.settings) as ProjectSettings } : {}),
                 blockCount: projectFile.config.pages?.reduce((sum, page) => sum + page.blocks.length, 0) ?? projectFile.config.blocks.length,
               } : {}),
             },

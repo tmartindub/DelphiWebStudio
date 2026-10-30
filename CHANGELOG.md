@@ -2,6 +2,9 @@
 
 ## Unreleased — 2026-10-29
 
+- Add page-aware undo/redo, unique page and block IDs, validated page paths and Home-page protection.
+- Include non-secret site settings in portable files, and export all pages with relative navigation in a ZIP. Disable premature publication in experimental mode.
+
 - Rename the GitHub fork to `tmartindub/DelphiWebStudio`, retaining its OpenPage upstream relationship and history.
 
 - Start M1 behind VITE_WEBSTUDIO_PROJECTS: portable schema-2 JSON Open/Save, lossless unknown-content preservation, input/path validation and five-page fixture.

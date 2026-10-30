@@ -20,7 +20,9 @@ Unknown document/config/page/block fields and block types are retained through f
 
 Validation rejects duplicate page/block IDs, duplicate paths (including case collisions), traversal/encoded/nonportable Windows paths, missing Home, malformed blocks, prototype-polluting keys, active/privileged URL protocols, invalid known theme values, non-JSON editor values and unsupported format versions. Invalid input is reported before opening a replacement project. Validation does not execute scripts, access files, contact AI or publish.
 
-Current files cover SiteConfig content/theme and extension data. Existing per-project SEO/settings and assets/credentials are not yet integrated into this portable format. Connection credentials must never be added automatically to it. IDs already in valid files are preserved; the remaining editor page/block timestamp generators and page-aware undo are still M1 follow-up work.
+Current files cover SiteConfig content/theme, non-secret site settings and extension data. Deployment credentials are excluded from saves and rejected in imported files. Assets are not yet integrated. Existing IDs are preserved; newly added pages and duplicated blocks use UUIDs. Page changes and the active-page selection participate in undo/redo.
+
+With the feature enabled, Export produces a ZIP containing a separate HTML file for every page and relative page navigation. Unknown block types cause a clear error rather than being silently omitted. The output currently relies on online fonts and Tailwind; fully self-contained export remains later work. Publishing is disabled in this mode until destination review and verification are implemented.
 
 ## Evidence
 
@@ -32,4 +34,4 @@ Current files cover SiteConfig content/theme and extension data. Existing per-pr
 - Screenshot: `docs/m1-project-roundtrip.png`.
 - M1 pre-change tracked-source ZIP: `H:\Delphi Web Studio Backups\WebStudio_M1_PreChange_89f6a6d.zip`, 397,371 bytes.
 
-Complete multi-page static export, navigation references, native safe save/recovery, project settings/assets and consistent page undo remain outstanding. The inherited HTML exporter still has the offline/block-coverage gaps recorded in M0. This feature gate must stay experimental until those acceptance tests pass.
+Native safe save/recovery and portable assets remain outstanding. Existing footer/navbar links are not yet bound to page IDs. The feature gate remains experimental until the complete acceptance tests pass.

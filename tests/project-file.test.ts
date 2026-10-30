@@ -85,4 +85,11 @@ describe('portable project files', () => {
       expect(() => validateProjectConfig({ ...legacy, extra: value })).toThrow()
     }
   })
+
+  it('round-trips site settings and rejects embedded deployment credentials', () => {
+    const project = { ...createProjectFile(legacy as SiteConfig, 'p'), settings: { seoTitle: 'My site', future: { retained: true } } }
+    expect(parseProjectFile(serializeProjectFile(project)).project.settings).toEqual(project.settings)
+    expect(() => serializeProjectFile({ ...project, settings: { deployAccessKey: 'secret' } })).toThrow('credentials')
+    expect(() => parseProjectFile(JSON.stringify({ ...project, settings: { deployAccessKey: 'secret' } }))).toThrow('credential')
+  })
 })

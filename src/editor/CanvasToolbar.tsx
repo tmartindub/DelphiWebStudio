@@ -19,7 +19,7 @@ import { useEditorStore, type Viewport } from '@/store/editorStore'
 import { useConfigStore } from '@/store/configStore'
 import { useProjectsStore } from '@/store/projectsStore'
 import type { PageConfig } from '@/blocks/types'
-import { exportToHTML, downloadHTML } from '@/lib/export-html'
+import { exportToHTML, downloadHTML, exportSiteZip, downloadSiteZip } from '@/lib/export-html'
 import { ProjectFileCommands } from '@/project/ProjectFileCommands'
 import { portableProjectsEnabled } from '@/project/project-file'
 
@@ -40,8 +40,12 @@ function AddPagePopover({ onAdd, onClose }: { onAdd: (name: string, path: string
     const trimmed = name.trim()
     if (!trimmed) return
     const cleanPath = path.trim() || `/${trimmed.toLowerCase().replace(/\s+/g, '-')}`
-    onAdd(trimmed, cleanPath)
-    onClose()
+    try {
+      onAdd(trimmed, cleanPath)
+      onClose()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Page could not be added')
+    }
   }
 
   return (
@@ -184,12 +188,16 @@ export function CanvasToolbar() {
   async function handleExport() {
     setExporting(true)
     try {
-      const html = await exportToHTML(config, { settings: activeProject?.settings })
-      const filename = `${(activeProject?.name || config.name || 'site').toLowerCase().replace(/\s+/g, '-')}.html`
-      downloadHTML(html, filename)
-      toast('HTML exported')
-    } catch {
-      toast.error('Export failed')
+      const filename = (activeProject?.name || config.name || 'site').toLowerCase().replace(/[^a-z0-9-]+/g, '-')
+      if (portableProjectsEnabled) {
+        downloadSiteZip(await exportSiteZip(config, { settings: activeProject?.settings }), `${filename}.zip`)
+        toast('Website ZIP exported')
+      } else {
+        downloadHTML(await exportToHTML(config, { settings: activeProject?.settings }), `${filename}.html`)
+        toast('HTML exported')
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Export failed')
     } finally {
       setExporting(false)
     }
@@ -223,7 +231,7 @@ export function CanvasToolbar() {
             onClick={() => setActivePage(page.id)}
             onRename={(name) => renamePage(page.id, name)}
             onDelete={() => removePage(page.id)}
-            canDelete={pages.length > 1}
+            canDelete={pages.length > 1 && page.path !== '/'}
           />
         ))}
         <div className="relative">

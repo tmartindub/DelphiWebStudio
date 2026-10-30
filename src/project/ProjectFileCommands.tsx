@@ -42,9 +42,12 @@ export function ProjectFileCommands() {
   function saveProject() {
     if (!project) return
     try {
+      const portableSettings = { ...project.projectFile?.settings, ...project.settings }
+      delete portableSettings.deployAccessKey
       const projectDocument = {
         ...project.projectFile,
         ...createProjectFile(config, project.projectFile?.projectId ?? project.id),
+        settings: portableSettings,
       }
       const contents = serializeProjectFile(projectDocument)
       const filename = (project.name.replace(/[<>:"/\\|?*\p{Cc}]/gu, '-').trim().slice(0, 100) || 'site') + '.webstudio.json'
