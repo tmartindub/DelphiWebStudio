@@ -51,4 +51,13 @@ describe('multi-page export', () => {
     expect(zip.file('assets/pdfjs/viewer.js')).not.toBeNull()
     await expect(exportSiteZip(site)).rejects.toThrow('Missing media file')
   })
+
+  it('retains an alternating feature image on a nested page', async () => {
+    const site = structuredClone(config)
+    site.pages![1].blocks = [{ id: 'feature', type: 'features', variant: 'alternating', props: { title: 'Stories', items: [{ title: 'Photo', description: 'Example', image: 'assets/photo.png' }] } }]
+    const media = [{ id: 'photo', projectId: 'p', name: 'photo.png', path: 'assets/photo.png', mime: 'image/png', size: 5, sha256: 'x', content: new Blob(['image'], { type: 'image/png' }) }]
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site, undefined, media)).arrayBuffer())
+    expect(await zip.file('assets/photo.png')!.async('string')).toBe('image')
+    expect(await zip.file('community/news.html')!.async('string')).toContain('src="../assets/photo.png"')
+  })
 })
