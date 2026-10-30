@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createProjectFile, parseProjectFile, serializeProjectFile, validateProjectConfig } from '../src/project/project-file'
+import { createProjectFile, parseProjectFile, serializeProjectFile, validateProjectConfig, validateProjectMedia } from '../src/project/project-file'
 import type { SiteConfig } from '../src/blocks/types'
 
 const legacy = { name: 'My site', blocks: [{ id: 'hero', type: 'hero', variant: 'centered', props: { headline: 'Hello' } }] }
@@ -91,5 +91,23 @@ describe('portable project files', () => {
     expect(parseProjectFile(serializeProjectFile(project)).project.settings).toEqual(project.settings)
     expect(() => serializeProjectFile({ ...project, settings: { deployAccessKey: 'secret' } })).toThrow('credentials')
     expect(() => parseProjectFile(JSON.stringify({ ...project, settings: { deployAccessKey: 'secret' } }))).toThrow('credential')
+  })
+
+  it('rejects missing, mismatched, or duplicate media references before open or save', () => {
+    const assets = [{ id: 'one', path: 'assets/one-image.png' }, { id: 'two', path: 'assets/two-image.png' }]
+    const config = { name: 'Media', blocks: [{ id: 'img', type: 'image', variant: 'grid', props: { assetId: 'one', src: 'assets/one-image.png', images: [{ src: 'assets/two-image.png' }] } }] } as SiteConfig
+    expect(() => validateProjectMedia(config, assets)).not.toThrow()
+    expect(() => validateProjectMedia(config, assets.slice(0, 1))).toThrow('Missing project media file')
+    expect(() => validateProjectMedia(config, assets.slice(1))).toThrow('Missing project media ID')
+    expect(() => validateProjectMedia(config, [...assets, { id: 'one', path: 'assets/other.png' }])).toThrow('duplicate media')
+    expect(() => validateProjectMedia(config, [...assets, { id: 'three', path: 'assets/ONE-image.png' }])).toThrow('duplicate media')
+    const mismatched = structuredClone(config)
+    mismatched.blocks[0].props.src = 'assets/two-image.png'
+    expect(() => validateProjectMedia(mismatched, assets)).toThrow('do not match')
+  })
+
+  it('retains unknown block data without interpreting plugin-specific media references', () => {
+    const config = { name: 'Future', blocks: [{ id: 'future', type: 'future-chart', variant: 'custom', props: { src: 'assets/plugin-file.bin' } }] } as unknown as SiteConfig
+    expect(() => validateProjectMedia(config, [])).not.toThrow()
   })
 })
