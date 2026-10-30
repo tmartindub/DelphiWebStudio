@@ -140,7 +140,8 @@ function renderNavbar(block: BlockConfig): string {
   const logo = escapeHtml(prop(block.props, 'logo', 'Brand'))
   const logoImage = prop<string>(block.props, 'logoImage', '')
   const links = prop<string[]>(block.props, 'links', [])
-  const ctaText = escapeHtml(prop(block.props, 'ctaText', ''))
+  const ctaText = prop<string>(block.props, 'ctaText', '')
+  const ctaUrl = prop<string>(block.props, 'ctaUrl', '')
 
   const navLinks = links.map(l =>
     `          <span class="text-[13px] text-text-2 hover:text-text-0 transition-colors cursor-pointer">${escapeHtml(l)}</span>`
@@ -152,17 +153,18 @@ function renderNavbar(block: BlockConfig): string {
 
   if (block.variant === 'centered') {
     const mid = Math.ceil(navLinks.length / 2)
-    return `  <nav class="px-6 @md:px-10 py-4 flex items-center justify-between">
+    return `  <nav class="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
     <div class="hidden @2xl:flex items-center gap-6 flex-1">${navLinks.slice(0, mid).join('\n')}</div>
     <div class="flex min-w-0 items-center gap-2">${logoHtml}<span class="min-w-0 font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span></div>
     <div class="hidden @2xl:flex items-center gap-6 flex-1 justify-end">${navLinks.slice(mid).join('\n')}
-      ${ctaText ? `<button class="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors ml-2">${ctaText}</button>` : ''}
+      ${ctaText ? renderLink(ctaText, ctaUrl, 'px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors ml-2') : ''}
     </div>
+    ${ctaText ? renderLink(ctaText, ctaUrl, '@2xl:hidden px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold') : ''}
     ${links.length ? `<button class="@2xl:hidden w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 hover:text-text-0 hover:bg-bg-3 transition-colors">${SVG_MENU}</button>` : ''}
   </nav>`
   }
 
-  return `  <nav class="px-6 @md:px-10 py-4 flex items-center justify-between">
+  return `  <nav class="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
     <div class="flex min-w-0 items-center gap-2">
       ${logoHtml}
       <span class="min-w-0 font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span>
@@ -171,7 +173,7 @@ function renderNavbar(block: BlockConfig): string {
 ${navLinks.join('\n')}
     </div>
     <div class="flex items-center gap-3">
-      ${ctaText ? `<button class="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors">${ctaText}</button>` : ''}
+      ${ctaText ? renderLink(ctaText, ctaUrl, 'px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors') : ''}
       ${links.length ? `<button class="@2xl:hidden w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 hover:text-text-0 hover:bg-bg-3 transition-colors">
         ${SVG_MENU}
       </button>` : ''}

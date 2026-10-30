@@ -49,6 +49,14 @@ describe('preview link and image fidelity', () => {
     expect(html.slice(html.indexOf('<nav'), html.indexOf('</nav>'))).not.toContain('<button')
   })
 
+  it.each(['default', 'centered'])('uses the configured navbar button destination in preview and export in %s', async variant => {
+    const block: BlockConfig = { id: 'nav', type: 'navbar', variant, props: { logo: 'Community', links: [], ctaText: 'Contact', ctaUrl: '/contact' } }
+    expect(renderToStaticMarkup(createElement(NavbarBlock, { block }))).toContain('href="/contact"')
+    expect(await exportToHTML({ name: 'Site', blocks: [block] })).toContain('href="/contact"')
+    delete block.props.ctaUrl
+    expect(await exportToHTML({ name: 'Site', blocks: [block] })).not.toContain('href="/contact"')
+  })
+
   it('renders only supplied multi-column footer content in preview and export', async () => {
     const block: BlockConfig = { id: 'footer', type: 'footer', variant: 'multi-column', props: { logo: 'Community', copyright: '', links: [] } }
     const render = () => renderToStaticMarkup(createElement(FooterBlock, { block }))

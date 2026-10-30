@@ -6,13 +6,14 @@ interface NavbarProps {
   logoImage?: string
   links: string[]
   ctaText: string
+  ctaUrl?: string
 }
 
 function NavbarDefault({ props }: { props: NavbarProps }) {
-  const { logo, logoImage, links = [], ctaText } = props
+  const { logo, logoImage, links = [], ctaText, ctaUrl } = props
 
   return (
-    <nav className="px-6 @md:px-10 py-4 flex items-center justify-between">
+    <nav className="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
       {/* Logo */}
       <div className="flex min-w-0 items-center gap-2">
         {logoImage ? <img src={logoImage} alt={logo} className="h-8 w-auto max-w-[96px] shrink-0 object-contain" /> : <div className="w-8 h-8 shrink-0 rounded-lg bg-green/10 flex items-center justify-center">
@@ -35,9 +36,9 @@ function NavbarDefault({ props }: { props: NavbarProps }) {
 
       {/* CTA + mobile menu */}
       <div className="flex items-center gap-3">
-        {ctaText && <button className="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors">
+        {ctaText && <a href={ctaUrl || undefined} className="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors">
           {ctaText}
-        </button>}
+        </a>}
         {links.length > 0 && <button className="@2xl:hidden w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 hover:text-text-0 hover:bg-bg-3 transition-colors">
           <Menu size={16} />
         </button>}
@@ -47,13 +48,13 @@ function NavbarDefault({ props }: { props: NavbarProps }) {
 }
 
 function NavbarCentered({ props }: { props: NavbarProps }) {
-  const { logo, logoImage, links = [], ctaText } = props
+  const { logo, logoImage, links = [], ctaText, ctaUrl } = props
   const mid = Math.ceil(links.length / 2)
   const leftLinks = links.slice(0, mid)
   const rightLinks = links.slice(mid)
 
   return (
-    <nav className="px-6 @md:px-10 py-4 flex items-center justify-between">
+    <nav className="px-6 @md:px-10 py-4 flex flex-wrap gap-3 items-center justify-between">
       {/* Left links */}
       <div className="hidden @2xl:flex items-center gap-6 flex-1">
         {leftLinks.map((link, i) => (
@@ -78,11 +79,12 @@ function NavbarCentered({ props }: { props: NavbarProps }) {
             {link}
           </span>
         ))}
-        {ctaText && <button className="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors ml-2">
+        {ctaText && <a href={ctaUrl || undefined} className="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors ml-2">
           {ctaText}
-        </button>}
+        </a>}
       </div>
 
+      {ctaText && <a href={ctaUrl || undefined} className="@2xl:hidden px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold">{ctaText}</a>}
       {/* Mobile menu */}
       {links.length > 0 && <button className="@2xl:hidden w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 hover:text-text-0 hover:bg-bg-3 transition-colors">
         <Menu size={16} />

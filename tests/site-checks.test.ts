@@ -59,6 +59,8 @@ describe('local site checks', () => {
     expect(issues.filter(issue => issue.blockId === 'nav')).toHaveLength(2)
     expect(issues.filter(issue => issue.blockId === 'footer')).toHaveLength(1)
     expect(copy).toEqual(before)
+    copy.pages![0].blocks[1].props.ctaUrl = '/news'
+    expect(checkSite(copy).filter(issue => issue.blockId === 'nav')).toHaveLength(1)
     copy.pages![0].blocks[1].props = { links: [], ctaText: '' }
     copy.pages![0].blocks[2].props = { links: [], columns: [{ title: 'Pages', links: [] }] }
     expect(checkSite(copy)).toEqual([])
