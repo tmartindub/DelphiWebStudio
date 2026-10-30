@@ -59,6 +59,24 @@ export class ProjectMediaLibrary {
     })
   }
 
+  async copyProject(sourceId: string, destinationId: string): Promise<void> {
+    const database = await this.database
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction('assetsV2', 'readwrite')
+      const store = transaction.objectStore('assetsV2')
+      const request = store.index('projectId').openCursor(IDBKeyRange.only(sourceId))
+      request.onsuccess = () => {
+        const cursor = request.result
+        if (!cursor) return
+        store.add({ ...cursor.value, projectId: destinationId })
+        cursor.continue()
+      }
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error ?? new Error('Project media could not be copied.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('Project media copy was cancelled.'))
+    })
+  }
+
   async import(projectId: string, file: File, restored?: { id: string; path: string; sha256: string; importedAt?: number; folder?: string }, replacing = false, allowZip = false): Promise<{ asset: MediaAsset; duplicate: boolean }> {
     if (!projectId) throw new Error('Open a project before importing media.')
     const extension = file.name.split('.').pop()?.toLowerCase() ?? ''

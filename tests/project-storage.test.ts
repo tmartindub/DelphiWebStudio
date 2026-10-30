@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import 'fake-indexeddb/auto'
 import { createProjectFile } from '../src/project/project-file'
+import { ProjectMediaLibrary } from '../src/media/media-library'
 
 const storedValues = new Map<string, string>()
 vi.stubGlobal('window', { localStorage: {
@@ -30,13 +32,28 @@ describe('portable project storage', () => {
     expect(projects[0].projectFile).not.toBe(document)
   })
 
-  it('assigns a fresh portable identity to Duplicate and preserves extension fields', () => {
+  it('assigns a fresh portable identity to Duplicate and preserves extension fields', async () => {
     const first = useProjectsStore.getState().addProject('Original', document)
-    const second = useProjectsStore.getState().duplicateProject(first)
+    const second = await useProjectsStore.getState().duplicateProject(first)
     const duplicate = useProjectsStore.getState().projects.find(project => project.id === second)!
     expect(duplicate.projectFile?.projectId).not.toBe(document.projectId)
     expect(duplicate.projectFile?.pluginState).toEqual({ preserved: true })
     expect(document.projectId).toBe('original-file-id')
+  })
+
+  it('duplicates media with stable references and isolates subsequent changes', async () => {
+    const first = useProjectsStore.getState().addProject('Original', document)
+    const library = new ProjectMediaLibrary()
+    const { asset } = await library.import(first, new File(['original'], 'note.txt'))
+    const second = await useProjectsStore.getState().duplicateProject(first)
+    expect(second).toBeTruthy()
+    const copy = await library.list(second!)
+    expect(copy).toHaveLength(1)
+    expect(copy[0].id).toBe(asset.id)
+    expect(copy[0].path).toBe(asset.path)
+    expect(await copy[0].content.text()).toBe('original')
+    await library.remove(second!, asset.id)
+    expect(await library.list(first)).toHaveLength(1)
   })
 
   it('saves only the targeted local project and serializes its portable document to storage', () => {
