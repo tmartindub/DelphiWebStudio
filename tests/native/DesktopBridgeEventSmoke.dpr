@@ -13,7 +13,7 @@ type
   end;
 
 procedure TReceiver.Received(Sender: TCustomEdgeBrowser; Args: TWebMessageReceivedEventArgs);
-var Source, MessageJSON: PWideChar;
+var Source, MessageJSON: PWideChar; Request: TDesktopRequest; Response: string;
 begin
   Source := nil;
   MessageJSON := nil;
@@ -23,7 +23,10 @@ begin
       raise Exception.Create('WebView message data unavailable.');
     SenderURL := string(Source);
     try
-      Session.ValidateAndClaim(string(MessageJSON), SenderURL);
+      Request := Session.ValidateAndClaim(string(MessageJSON), SenderURL);
+      Response := Format('{"version":1,"requestId":"%s","ok":true}', [Request.RequestId]);
+      if Winapi.Windows.Failed(Sender.DefaultInterface.PostWebMessageAsJson(PWideChar(Response))) then
+        raise Exception.Create('Test response could not be sent.');
       Inc(Accepted);
     except
       Inc(Rejected);
@@ -52,11 +55,19 @@ begin
     MainForm.EditorBrowser.OnWebMessageReceived := Receiver.Received;
     if Winapi.Windows.Failed(MainForm.EditorBrowser.DefaultInterface.Get_Settings(Settings)) or
       Winapi.Windows.Failed(Settings.Set_IsWebMessageEnabled(1)) then raise Exception.Create('Could not enable test messages.');
+    MainForm.EditorBrowser.ExecuteScript('window.testReplies=[];window.chrome.webview.addEventListener("message",e=>window.testReplies.push(e.data))');
     Script := Format('window.chrome.webview.postMessage({version:1,requestId:"request-1",sessionId:"%s",projectId:"project-1",capability:"project.save"})', [Receiver.Session.SessionId]);
     MainForm.EditorBrowser.ExecuteScript(Script);
     Deadline := GetTickCount64 + 10000;
     while (Receiver.Accepted < 1) and (GetTickCount64 < Deadline) do begin Application.ProcessMessages; Sleep(20) end;
     if (Receiver.Accepted <> 1) or (Receiver.SenderURL <> 'https://webstudio.local/index.html') then raise Exception.Create('Trusted event was not accepted from its actual source.');
+    Deadline := GetTickCount64 + 10000;
+    repeat
+      Application.ProcessMessages; Sleep(50);
+      Script := MainForm.EditorBrowser.ExecuteScript('window.testReplies.length===1 && window.testReplies[0].requestId==="request-1" && window.testReplies[0].ok===true', '');
+    until (Script = 'true') or (GetTickCount64 >= Deadline);
+    if Script <> 'true' then raise Exception.Create('Trusted response was not received by the page.');
+    Script := Format('window.chrome.webview.postMessage({version:1,requestId:"request-1",sessionId:"%s",projectId:"project-1",capability:"project.save"})', [Receiver.Session.SessionId]);
     MainForm.EditorBrowser.ExecuteScript(Script);
     Deadline := GetTickCount64 + 10000;
     while (Receiver.Rejected < 1) and (GetTickCount64 < Deadline) do begin Application.ProcessMessages; Sleep(20) end;
@@ -91,6 +102,7 @@ begin
     Deadline := GetTickCount64 + 10000;
     while (Receiver.Rejected < 3) and (GetTickCount64 < Deadline) do begin Application.ProcessMessages; Sleep(20) end;
     if (Receiver.Rejected <> 3) or (Receiver.Accepted <> 1) then raise Exception.Create('Revoked session accepted an event.');
+    if MainForm.EditorBrowser.ExecuteScript('window.testReplies.length===1', '') <> 'true' then raise Exception.Create('A rejected request received a response.');
     Writeln('WebView validation and frame blocking checks passed.');
   finally
     MainForm.EditorBrowser.OnWebMessageReceived := nil;
