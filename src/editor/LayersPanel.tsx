@@ -192,7 +192,7 @@ export function LayersPanel() {
     const meta = blockMetadata.find((b) => b.type === type)
     if (!meta) return
     const block: BlockConfig = {
-      id: `block-${Date.now()}`,
+      id: `block-${crypto.randomUUID()}`,
       type,
       variant: meta.variants[0],
       props: { ...meta.defaultProps },
