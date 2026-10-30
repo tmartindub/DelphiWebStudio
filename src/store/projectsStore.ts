@@ -77,10 +77,7 @@ export const useProjectsStore = create<ProjectsState>()(
       saveProjectFile: (id, projectFile) => set(state => ({
         projects: state.projects.map(project => project.id === id ? {
           ...project,
-          config: structuredClone(projectFile.config),
           projectFile: structuredClone(projectFile),
-          blockCount: projectFile.config.pages?.reduce((sum, page) => sum + page.blocks.length, 0) ?? projectFile.config.blocks.length,
-          updatedAt: 'Just now',
         } : project),
       })),
       mediaChanged: (id) => set(state => ({

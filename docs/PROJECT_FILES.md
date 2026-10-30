@@ -12,6 +12,8 @@ Save validates a snapshot and starts a JSON download. Browser download settings 
 
 While the editor is open, changes are written to the browser draft as the editor state changes, without waiting for a later screen refresh. Browser storage can still be cleared or fail, so use **Save project** to keep a separate portable copy.
 
+Save downloads the snapshot captured when the command starts. If the project changes while that snapshot is prepared, newer edits stay in the browser draft and a notice asks you to save again to include them.
+
 ## Format and preservation
 
 ```json
