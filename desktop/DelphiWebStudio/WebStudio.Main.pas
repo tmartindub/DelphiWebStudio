@@ -88,7 +88,7 @@ begin
   try
     if Succeeded(Args.ArgsInterface.Get_uri(Address)) and (Address <> nil) then begin
       URL := string(Address);
-      Allowed := URL.StartsWith('https://webstudio.local/') or URL.StartsWith('blob:https://webstudio.local/');
+      Allowed := URL.StartsWith('https://webstudio.local/');
     end;
   finally
     CoTaskMemFree(Address);

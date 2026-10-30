@@ -66,13 +66,20 @@ begin
     Deadline := GetTickCount64 + 10000;
     while (Receiver.Rejected < 2) and (GetTickCount64 < Deadline) do begin Application.ProcessMessages; Sleep(20) end;
     if (Receiver.Rejected <> 2) or (Receiver.Accepted <> 1) then raise Exception.Create('Ungranted event was not rejected.');
+    { A same-origin blob frame can invoke its parent's channel if allowed to
+      load, so the shell must cancel this navigation before enabling a bridge. }
+    Script := Format('(()=>{const f=document.createElement("iframe");f.src=URL.createObjectURL(new Blob([`<script>parent.chrome.webview.postMessage({version:1,requestId:"request-frame",sessionId:"%s",projectId:"project-1",capability:"project.save"})</script>`],{type:"text/html"}));document.body.appendChild(f)})()', [Receiver.Session.SessionId]);
+    MainForm.EditorBrowser.ExecuteScript(Script);
+    Deadline := GetTickCount64 + 3000;
+    while GetTickCount64 < Deadline do begin Application.ProcessMessages; Sleep(20) end;
+    if Receiver.Accepted <> 1 then raise Exception.Create('A blob frame reached the parent channel.');
     Receiver.Session.Revoke;
     Script := Format('window.chrome.webview.postMessage({version:1,requestId:"request-3",sessionId:"%s",projectId:"project-1",capability:"project.save"})', [Receiver.Session.SessionId]);
     MainForm.EditorBrowser.ExecuteScript(Script);
     Deadline := GetTickCount64 + 10000;
     while (Receiver.Rejected < 3) and (GetTickCount64 < Deadline) do begin Application.ProcessMessages; Sleep(20) end;
     if (Receiver.Rejected <> 3) or (Receiver.Accepted <> 1) then raise Exception.Create('Revoked session accepted an event.');
-    Writeln('Actual WebView source, session, replay, capability and revocation checks passed.');
+    Writeln('WebView validation and blob-frame blocking checks passed.');
   finally
     MainForm.EditorBrowser.OnWebMessageReceived := nil;
     Receiver.Session.Revoke;
