@@ -25,3 +25,7 @@ No application/site was deployed in M0. Translation is deferred by owner instruc
 ## M3 media increment
 
 The experimental project workflow now saves media in project ZIPs and includes referenced assets and a local PDF viewer in website ZIPs. See MEDIA_LIBRARY.md for operation and remaining limitations. Website styling still depends on external resources, native atomic save remains outstanding, and project duplication is disabled when media exists. The numbered entries below describe the original M0 baseline and are retained as historical findings, not a current feature checklist.
+
+## M6 export styling increment
+
+Exports embed generated styling and fall back to system fonts; no Tailwind or Google Fonts network request is needed. User-supplied remote media and optional analytics may still require a network. Other M6 publishing and validation requirements remain outstanding.
