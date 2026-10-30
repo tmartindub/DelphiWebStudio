@@ -115,7 +115,7 @@ function SeoPanel({ settings }: { settings: ReturnType<typeof useSettingsState> 
       <FieldGroup label="Meta Description"><ControlledTextarea settingsKey="seoDescription" settings={settings} /></FieldGroup>
       <FieldGroup label="Public site URL (optional)">
         <ControlledInput settingsKey="siteBaseUrl" placeholder="https://example.com/" settings={settings} />
-        <p className="text-[11px] text-text-3 mt-1.5">When set, ZIP export includes a sitemap for this site address. Include the subfolder if your site will use one.</p>
+        <p className="text-[11px] text-text-3 mt-1.5">When set, ZIP export includes a sitemap and canonical page addresses. Include the subfolder if your site will use one.</p>
       </FieldGroup>
       <FieldGroup label="OG Image URL"><ControlledInput settingsKey="ogImageUrl" placeholder="https://example.com/og.png" settings={settings} /></FieldGroup>
 

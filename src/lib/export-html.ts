@@ -1426,6 +1426,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
   }
   const zip = new JSZip()
   const siteBaseUrl = options?.settings?.siteBaseUrl?.trim()
+  let canonicalBase: URL | undefined
   if (siteBaseUrl) {
     let base: URL
     try {
@@ -1437,6 +1438,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     }
     if (pages.length + (articles.length ? 1 : 0) > 50_000) throw new Error('The site has too many pages for one sitemap.')
     if (!base.pathname.endsWith('/')) base.pathname += '/'
+    canonicalBase = base
     const locations = [...paths, ...(articles.length ? ['articles/index.html'] : [])].map(path => `  <url><loc>${escapeHtml(new URL(encodeURI(path), base).href)}</loc></url>`).join('\n')
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${locations}\n</urlset>\n`
     if (new TextEncoder().encode(sitemap).length > 50 * 1024 * 1024) throw new Error('The sitemap is too large to export.')
@@ -1463,6 +1465,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     const content = `<main id="main-content" tabindex="-1" class="@container"><div class="max-w-3xl mx-auto px-6 py-12"><h1 class="text-3xl font-bold mb-4">Articles</h1><div class="space-y-4">${cards}</div>${siteBaseUrl ? '<p class="mt-4"><a href="../feed.xml" class="text-green hover:underline">RSS feed</a></p>' : ''}</div></main>`
     const searchNav = options?.settings?.siteSearch === 'on' ? ' <a href="../search.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a>' : ''
     const archive = exportSiteToHTML({ ...validated, name: 'Articles', blocks: [] }, { settings: { ...options?.settings, seoTitle: 'Articles' } })
+      .replace('</head>', canonicalBase ? `  <link rel="canonical" href="${escapeHtml(new URL('articles/index.html', canonicalBase).href)}" />\n  <meta property="og:url" content="${escapeHtml(new URL('articles/index.html', canonicalBase).href)}" />\n</head>` : '</head>')
       .replace('<!-- WEBSTUDIO_PAGE_NAV -->', `<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav} <a href="index.html" aria-current="page" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Articles</a>${searchNav}</nav>`)
       .replace('<main id="main-content" tabindex="-1" class="@container"></main>', content)
     zip.file('articles/index.html', archive, { date: new Date('1980-01-01T00:00:00Z') })
@@ -1539,6 +1542,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     const articleHeader = article && (article.author || article.summary) ? `<header class="px-6 py-3 text-text-1">${article.author ? `<p class="text-sm">By ${escapeHtml(article.author)}</p>` : ''}${article.summary ? `<p class="text-sm">${escapeHtml(article.summary)}</p>` : ''}</header>` : ''
     const pageSettings = { ...options?.settings, ...(page.webstudioSeo?.title?.trim() ? { seoTitle: page.webstudioSeo.title } : {}), ...(page.webstudioSeo?.description?.trim() ? { seoDescription: page.webstudioSeo.description } : {}) }
     const html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, { settings: pageSettings })
+      .replace('</head>', canonicalBase ? `  <link rel="canonical" href="${escapeHtml(new URL(encodeURI(paths[index]), canonicalBase).href)}" />\n  <meta property="og:url" content="${escapeHtml(new URL(encodeURI(paths[index]), canonicalBase).href)}" />\n</head>` : '</head>')
       .replace('<!-- WEBSTUDIO_PAGE_NAV -->', `<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav}</nav>`)
       .replace('<main id="main-content" tabindex="-1" class="@container">', `<main id="main-content" tabindex="-1" class="@container">${articleHeader}`)
       .replace(/\b(src|href|data)="assets\//g, `$1="${prefix}assets/`)
