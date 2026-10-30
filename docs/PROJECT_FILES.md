@@ -48,7 +48,7 @@ New exports embed generated Tailwind styles and use installed system font fallba
 
 ## Page addresses
 
-Page addresses can be changed with the link icon beside the active page. Home stays at `/`; other paths are validated and the change can be undone. Existing links and external bookmarks are not rewritten, so check and update them after changing an address.
+Page addresses can be changed with the link icon beside the active page. Home stays at `/`; other paths are validated and the change can be undone. The dialog offers to update known Hero, CTA, Banner and Navbar button links in the same undoable change. External bookmarks and links in other content are not rewritten, so check them after changing an address.
 
 ## Media integrity check
 
