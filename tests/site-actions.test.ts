@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { SiteConfig } from '../src/blocks/types'
 import { acceptSiteActions, previewFivePagePlan, previewSiteActions } from '../src/ai/site-actions'
+import { createProjectFile, parseProjectFile, serializeProjectFile } from '../src/project/project-file'
+import { exportSiteZip } from '../src/lib/export-html'
+import JSZip from 'jszip'
+import localPlan from './fixtures/local-ai-community-plan.json'
 
 const storage = new Map<string, string>()
 vi.stubGlobal('window', { localStorage: {
@@ -14,6 +18,16 @@ const config: SiteConfig = { name: 'Example', pages: [{ id: 'home', name: 'Home'
 const proposal = (operations: unknown[]) => ({ schemaVersion: 1, requestId: 'request-1', mode: 'preview', operations })
 
 describe('site action previews', () => {
+  it('accepts a previously generated local-model plan, saves it and exports five editable pages', async () => {
+    const blank: SiteConfig = { name: 'Community', pages: [{ id: 'home', name: 'Home', path: '/', blocks: [] }], blocks: [] }
+    const reviewed = acceptSiteActions(blank, previewFivePagePlan(blank, localPlan, 'local-plan'))
+    const reopened = parseProjectFile(serializeProjectFile(createProjectFile(reviewed, 'sample'))).project.config
+    expect(reopened.pages?.map(page => page.blocks[0].props.headline)).toEqual(localPlan.pages.map(page => page.headline))
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(reopened)).arrayBuffer())
+    for (const [index, path] of ['index.html', 'about.html', 'events.html', 'resources.html', 'contact.html'].entries()) {
+      expect(await zip.file(path)!.async('string')).toContain(localPlan.pages[index].headline.replace(/'/g, '&#39;'))
+    }
+  })
   it('turns a five-page model-shaped plan into an editable reviewed transaction', () => {
     const blank: SiteConfig = { name: 'New', pages: [{ id: 'home', name: 'Home', path: '/', blocks: [] }], blocks: [] }
     const plan = { pages: ['Welcome', 'About Us', 'Events', 'Resources', 'Contact'].map(name => ({ name, headline: `Welcome to ${name}` })) }
