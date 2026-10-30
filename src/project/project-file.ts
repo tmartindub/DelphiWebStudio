@@ -126,6 +126,47 @@ export function createProjectFile(config: SiteConfig, projectId: string): SitePr
   return { format: 'webstudio', schemaVersion: 2, projectId: text(projectId, 'Project ID'), config: validateProjectConfig(config) }
 }
 
+/** Prevent portable saves and opens from silently losing referenced project media. */
+export function validateProjectMedia(config: SiteConfig, assets: unknown[]): void {
+  const assetIds = new Set<string>()
+  const assetPaths = new Set<string>()
+  const portablePaths = new Set<string>()
+  const pathsById = new Map<string, string>()
+  for (const value of assets) {
+    const asset = record(value, 'Project media')
+    const id = text(asset.id, 'Media ID')
+    const path = text(asset.path, 'Media path')
+    if (assetIds.has(id) || portablePaths.has(path.toLowerCase())) throw new Error('The project contains duplicate media IDs or paths.')
+    assetIds.add(id)
+    assetPaths.add(path)
+    portablePaths.add(path.toLowerCase())
+    pathsById.set(id, path)
+  }
+  const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery', 'pdfViewer', 'document', 'audio', 'mediaVideo'])
+  const blocks = config.pages ? config.pages.flatMap(page => page.blocks) : config.blocks
+  for (const block of blocks) {
+    if (!knownTypes.has(block.type)) continue
+    const pending: unknown[] = [block.props]
+    while (pending.length) {
+      const value = pending.pop()
+      if (!value || typeof value !== 'object') continue
+      if (!Array.isArray(value)) {
+        const entry = value as Record<string, unknown>
+        if (typeof entry.assetId === 'string' && typeof entry.src === 'string' && entry.src.startsWith('assets/') && pathsById.has(entry.assetId) && pathsById.get(entry.assetId) !== entry.src) {
+          throw new Error(`Media ID and path do not match: ${entry.assetId}.`)
+        }
+      }
+      for (const [key, child] of Object.entries(value)) {
+        if (key === 'assetId' && typeof child === 'string' && child && !assetIds.has(child)) throw new Error(`Missing project media ID: ${child}.`)
+        if (/^(src|href|url|image|logoImage|heroImage|avatar)$/i.test(key) && typeof child === 'string' && child.startsWith('assets/') && !assetPaths.has(child)) {
+          throw new Error(`Missing project media file: ${child}.`)
+        }
+        if (child && typeof child === 'object') pending.push(child)
+      }
+    }
+  }
+}
+
 export function parseProjectFile(contents: string): { project: SiteProjectFile; migrated: boolean } {
   let raw: unknown
   try { raw = JSON.parse(contents) } catch { throw new Error('The selected file is not valid JSON.') }

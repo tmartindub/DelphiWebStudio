@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { useProjectsStore } from '@/store/projectsStore'
-import { createProjectFile, parseProjectFile, portableProjectsEnabled, serializeProjectFile } from './project-file'
+import { createProjectFile, parseProjectFile, portableProjectsEnabled, serializeProjectFile, validateProjectMedia } from './project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
 import JSZip from 'jszip'
 
@@ -30,7 +30,7 @@ export function ProjectFileCommands() {
     useEditorStore.getState().setMediaImporting(true)
     let createdProjectId: string | undefined
     const restoredIds: string[] = []
-    const library = new ProjectMediaLibrary()
+    let library: ProjectMediaLibrary | undefined
     try {
       const zip = file.name.toLowerCase().endsWith('.zip') ? await JSZip.loadAsync(await file.arrayBuffer()) : undefined
       if (zip && Object.values(zip.files).some(entry => !entry.dir && entry.unsafeOriginalName !== entry.name)) {
@@ -44,6 +44,7 @@ export function ProjectFileCommands() {
       const assetMetadata = project.assets === undefined ? [] : project.assets
       if (!Array.isArray(assetMetadata)) throw new Error('The project media list is invalid.')
       if (assetMetadata.length && !zip) throw new Error('This project references media files; open its ZIP package instead.')
+      validateProjectMedia(project.config, assetMetadata)
       const id = useProjectsStore.getState().addProject(project.config.name, project)
       createdProjectId = id
       if (zip) {
@@ -62,6 +63,7 @@ export function ProjectFileCommands() {
             throw new Error(`Unsafe or invalid media size: ${metadata.name}.`)
           }
           const bytes = await entry.async('arraybuffer')
+          library ??= new ProjectMediaLibrary()
           const restored = await library.import(id, new File([bytes], metadata.name, { type: metadata.mime }), metadata)
           restoredIds.push(restored.asset.id)
           if (restored.asset.mime !== metadata.mime || restored.asset.size !== metadata.size) throw new Error(`Invalid media type or size: ${metadata.name}.`)
@@ -75,7 +77,7 @@ export function ProjectFileCommands() {
       toast.success(migrated ? 'Legacy project opened. Save a new WebStudio file to keep the upgrade.' : 'Project opened as a separate local copy.')
     } catch (error) {
       if (createdProjectId) {
-        for (const id of restoredIds) await library.remove(createdProjectId, id).catch(() => undefined)
+        for (const id of restoredIds) await library?.remove(createdProjectId, id).catch(() => undefined)
         useProjectsStore.getState().deleteProject(createdProjectId)
       }
       toast.error(error instanceof Error ? error.message : 'Project could not be opened.')
@@ -93,6 +95,7 @@ export function ProjectFileCommands() {
       const portableSettings = { ...project.projectFile?.settings, ...project.settings }
       delete portableSettings.deployAccessKey
       const assets = await new ProjectMediaLibrary().list(project.id)
+      validateProjectMedia(config, assets)
       const projectDocument = {
         ...project.projectFile,
         ...createProjectFile(config, project.projectFile?.projectId ?? project.id),
