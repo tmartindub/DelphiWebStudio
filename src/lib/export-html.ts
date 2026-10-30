@@ -1526,7 +1526,12 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
   for (const path of referencedPaths) {
     const asset = media.find(item => item.path === path)
     if (!asset) throw new Error(`Missing media file: ${path}.`)
-    zip.file(path, await asset.content.arrayBuffer(), { date: new Date('1980-01-01T00:00:00Z') })
+    if (!(asset.content instanceof Blob) || asset.content.size !== asset.size || !/^[a-f0-9]{64}$/i.test(asset.sha256)) throw new Error(`Media integrity check failed for ${asset.name}. Restore or replace the file before exporting.`)
+    const bytes = await asset.content.arrayBuffer()
+    const digest = await crypto.subtle.digest('SHA-256', bytes)
+    const checksum = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+    if (checksum !== asset.sha256.toLowerCase()) throw new Error(`Media integrity check failed for ${asset.name}. Restore or replace the file before exporting.`)
+    zip.file(path, bytes, { date: new Date('1980-01-01T00:00:00Z') })
   }
   for (let index = 0; index < pages.length; index++) {
     const page = pages[index]
