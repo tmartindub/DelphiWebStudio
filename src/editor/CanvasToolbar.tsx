@@ -98,7 +98,6 @@ function PageTab({ page, isActive, onClick, onRename, onDelete, canDelete }: {
 }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(page.name)
-  const [confirmDelete, setConfirmDelete] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
@@ -143,14 +142,42 @@ function PageTab({ page, isActive, onClick, onRename, onDelete, canDelete }: {
       {isActive && <button type="button" aria-label={`Rename ${page.name}`} title={`Rename ${page.name}`}
         onClick={() => { setName(page.name); setEditing(true) }}
         className="p-1 rounded text-text-3 hover:text-text-0 focus-visible:outline focus-visible:outline-2"><Pencil size={12} /></button>}
-      {isActive && canDelete && <button type="button" aria-label={confirmDelete ? `Confirm delete ${page.name}` : `Delete ${page.name}`}
-        title={confirmDelete ? 'Click again to delete this page' : `Delete ${page.name}`}
-        onClick={() => { if (confirmDelete) onDelete(); else setConfirmDelete(true) }}
-        onBlur={() => setConfirmDelete(false)}
+      {isActive && canDelete && <button type="button" aria-label={`Delete ${page.name}`}
+        title={`Delete ${page.name}`}
+        onClick={onDelete}
         className="p-1 rounded text-text-3 hover:text-status-red focus-visible:outline focus-visible:outline-2">
-        {confirmDelete ? 'Delete?' : <Trash2 size={12} />}
+        <Trash2 size={12} />
       </button>}
     </div>
+  )
+}
+
+function DeletePageDialog({ page, linkedPages, onCancel, onConfirm }: {
+  page: PageConfig
+  linkedPages: PageConfig[]
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  const dialog = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const element = dialog.current
+    element?.showModal()
+    return () => { if (element?.open) element.close() }
+  }, [])
+  return (
+    <dialog ref={dialog} onCancel={event => { event.preventDefault(); onCancel() }} aria-labelledby="delete-page-title" className="w-[min(92vw,32rem)] rounded-xl border border-border-default bg-bg-1 p-5 text-text-0 shadow-xl backdrop:bg-black/60">
+      <h2 id="delete-page-title" className="text-lg font-semibold">Delete {page.name}?</h2>
+      <p className="mt-2 text-sm text-text-2">This removes the page and its contents. You can restore it with Undo.</p>
+      {linkedPages.length > 0 && <div className="mt-3 rounded border border-status-red/40 p-3 text-sm" role="status">
+        <p>These pages have button or banner link settings pointing to {page.path}. Those links will no longer reach this page:</p>
+        <ul className="mt-2 list-disc pl-5">{linkedPages.map(linked => <li key={linked.id}>{linked.name}</li>)}</ul>
+      </div>}
+      <p className="mt-3 text-xs text-text-2">Other links, including links in unsupported or custom content, are not checked.</p>
+      <div className="mt-5 flex justify-end gap-2">
+        <button type="button" onClick={onCancel} className="rounded border border-border-default px-3 py-2 text-sm">Cancel</button>
+        <button type="button" onClick={onConfirm} className="rounded bg-status-red px-3 py-2 text-sm font-semibold text-white">Delete page</button>
+      </div>
+    </dialog>
   )
 }
 
@@ -171,10 +198,21 @@ export function CanvasToolbar() {
   const config = useConfigStore((s) => s.config)
   const [showAddPage, setShowAddPage] = useState(false)
   const [showPlanPages, setShowPlanPages] = useState(false)
+  const [deletingPage, setDeletingPage] = useState<{ id: string; projectId: string | null } | null>(null)
   const [exporting, setExporting] = useState(false)
 
   const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) : null
   const projectName = activeProject?.name || configName
+  const pageToDelete = pages.find(page => page.id === deletingPage?.id && deletingPage.projectId === activeProjectId)
+  const linkedPages = pageToDelete ? pages.filter(page => page.id !== pageToDelete.id && page.blocks.some(block => {
+    const keys = block.type === 'hero' ? ['primaryCtaUrl', 'secondaryCtaUrl'] : block.type === 'cta' ? ['buttonUrl'] : block.type === 'banner' ? ['linkUrl'] : []
+    return keys.some(key => {
+      const value = block.props[key]
+      if (typeof value !== 'string') return false
+      const path = value.trim().split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
+      return path === pageToDelete.path || path === encodeURI(pageToDelete.path)
+    })
+  })) : []
 
   async function handleExport() {
     setExporting(true)
@@ -198,6 +236,7 @@ export function CanvasToolbar() {
   return (
     <>
     {showPlanPages && <PlanPages onClose={() => setShowPlanPages(false)} />}
+    {pageToDelete && <DeletePageDialog page={pageToDelete} linkedPages={linkedPages} onCancel={() => setDeletingPage(null)} onConfirm={() => { removePage(pageToDelete.id); setDeletingPage(null) }} />}
     {portableProjectsEnabled && <div className="bg-bg-1 border-b border-border-default px-3 py-1"><ProjectFileCommands /></div>}
     <div className="min-h-10 bg-bg-1 border-b border-border-default flex flex-wrap items-center px-3 py-1 gap-1">
       {/* Breadcrumb */}
@@ -223,7 +262,7 @@ export function CanvasToolbar() {
             isActive={activePageId === page.id}
             onClick={() => setActivePage(page.id)}
             onRename={(name) => renamePage(page.id, name)}
-            onDelete={() => removePage(page.id)}
+            onDelete={() => setDeletingPage({ id: page.id, projectId: activeProjectId })}
             canDelete={pages.length > 1 && page.path !== '/'}
           />
         ))}
