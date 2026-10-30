@@ -23,3 +23,5 @@ Feature grid, list and alternating examples were also checked at 375, 768 and 1,
 The page navigation generated for multi-page ZIP export is also shown in the editor preview, with page links selectable there. Its size and wrapping were compared at 375, 768 and 1,200 pixels in an isolated sample; this does not resolve the separate legacy Navbar block's incomplete link behavior.
 
 CTA simple/split and statistics grid/bar/counter examples were compared at 375, 768 and 1,200 pixels. Tested text sizes, split directions and grid column counts matched, and the samples had no horizontal overflow. The statistics counter export now retains its selected variant. This does not establish full visual parity or verify arbitrary content.
+
+Long unbroken text now wraps within the editor's page preview and exported page rather than being clipped at the edge. An isolated browser check exercised a long headline at 375, 768 and 1,200 pixels and a long button label at phone width. Components with explicit fixed sizes or preformatted content still need separate testing.
