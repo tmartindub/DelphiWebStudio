@@ -18,6 +18,10 @@ export type BlockType =
   | 'image'
   | 'video'
   | 'gallery'
+  | 'pdfViewer'
+  | 'document'
+  | 'audio'
+  | 'mediaVideo'
 
 export type BlockVariant = string
 

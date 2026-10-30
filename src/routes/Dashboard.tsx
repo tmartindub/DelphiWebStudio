@@ -252,7 +252,7 @@ function ProjectCard({ project }: { project: Project }) {
         {/* Action buttons */}
         <div className="absolute top-2 right-2 z-10 flex gap-1">
           <button
-            onClick={(e) => { e.stopPropagation(); duplicateProject(project.id); toast('Project duplicated') }}
+            onClick={(e) => { e.stopPropagation(); if (duplicateProject(project.id)) toast('Project duplicated'); else toast.error('Projects with media cannot be duplicated yet. Save and reopen a project ZIP instead.') }}
             aria-label={`Duplicate ${project.name}`}
             className="p-1.5 rounded-md border bg-bg-0/80 border-border-default text-text-3 opacity-0 group-hover:opacity-100 hover:text-green hover:border-green/30 transition-all"
           >

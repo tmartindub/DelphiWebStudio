@@ -2,6 +2,8 @@
 
 ## Unreleased — 2026-10-29
 
+- Begin M3 with a project media library, portable media ZIPs, media blocks, and a locally bundled PDF viewer.
+
 - Begin M2 with the WebStudio blue/orange interface, empty new projects, eight noncommercial starter types, and beginner/designer/professional JSON views.
 - Hide pricing in creation palettes, create local starters without sending descriptions online, and make JSON edits validated and undoable.
 
@@ -19,4 +21,4 @@
 - Add CI and correct two inherited React lint failures.
 - Resolve design-time native shell versus embedded React and additive folder layout; defer translation.
 
-Desktop, local AI, PDF/media, durable project files and complete offline export are not implemented yet.
+Desktop, local AI, native durable project saves and complete offline export remain outstanding.

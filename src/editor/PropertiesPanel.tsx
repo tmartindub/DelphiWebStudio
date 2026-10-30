@@ -11,6 +11,13 @@ interface FieldDef {
 }
 
 const blockFields: Partial<Record<BlockType, { sections: { title: string; fields: FieldDef[] }[] }>> = {
+  document: { sections: [{ title: 'Document', fields: [{ key: 'title', label: 'Title', type: 'text' }] }] },
+  audio: { sections: [{ title: 'Audio', fields: [{ key: 'title', label: 'Title', type: 'text' }] }] },
+  mediaVideo: { sections: [{ title: 'Video', fields: [{ key: 'title', label: 'Title', type: 'text' }] }] },
+  pdfViewer: { sections: [{ title: 'PDF', fields: [
+    { key: 'title', label: 'Title', type: 'text' },
+    { key: 'height', label: 'Height (px)', type: 'text' },
+  ] }] },
   navbar: {
     sections: [
       {
@@ -348,7 +355,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
     if (field.key === 'variant') {
       updateBlock(block.id, { variant: newValue as string })
     } else {
-      updateBlockProps(block.id, { [field.key]: newValue })
+      updateBlockProps(block.id, field.key === 'src' ? { [field.key]: newValue, assetId: undefined } : { [field.key]: newValue })
     }
   }
 
