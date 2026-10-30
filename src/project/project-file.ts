@@ -94,6 +94,14 @@ export function validateProjectConfig(value: unknown): SiteConfig {
       const path = pagePath(page.path)
       if (paths.has(path.toLowerCase())) throw new Error(`Duplicate page path: ${path}.`)
       paths.add(path.toLowerCase())
+      if (page.webstudioArticle !== undefined) {
+        const article = record(page.webstudioArticle, 'Article metadata')
+        if (article.status !== 'draft' && article.status !== 'ready') throw new Error('Invalid article status.')
+        if (path === '/') throw new Error('The Home page cannot be an article.')
+        for (const field of ['author', 'summary', 'createdAt', 'modifiedAt']) {
+          if (typeof article[field] !== 'string') throw new Error(`Invalid article ${field}.`)
+        }
+      }
       return { ...structuredClone(page), id, name: page.name as string, path, blocks: readBlocks(page.blocks) }
     })
     if (source.blocks !== undefined && (!Array.isArray(source.blocks) || !pages.some(page => JSON.stringify(page.blocks) === JSON.stringify(source.blocks)))) {

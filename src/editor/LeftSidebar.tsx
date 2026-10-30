@@ -7,6 +7,7 @@ import { useEditorStore } from '@/store/editorStore'
 import { blockMetadata } from '@/lib/block-metadata'
 import type { BlockType, BlockConfig } from '@/blocks/types'
 import { MediaPanel } from '@/media/MediaPanel'
+import { ArticlesPanel } from './ArticlesPanel'
 
 const blockIcons: Record<BlockType, typeof Layout> = {
   navbar: Layout, hero: Type, features: Grid3X3, pricing: DollarSign,
@@ -97,7 +98,7 @@ function ComponentsPanel() {
   )
 }
 
-type Tab = 'layers' | 'components' | 'media'
+type Tab = 'layers' | 'components' | 'media' | 'articles'
 
 export function LeftSidebar() {
   const [tab, setTab] = useState<Tab>('layers')
@@ -126,8 +127,9 @@ export function LeftSidebar() {
           Components
         </button>
         <button onClick={() => setTab('media')} className={`flex-1 py-2 text-[11px] font-medium transition-all ${tab === 'media' ? 'text-text-0 border-b border-green' : 'text-text-3 hover:text-text-1'}`}>Media</button>
+        <button onClick={() => setTab('articles')} className={`flex-1 py-2 text-[11px] font-medium transition-all ${tab === 'articles' ? 'text-text-0 border-b border-green' : 'text-text-3 hover:text-text-1'}`}>Articles</button>
       </div>
-      {tab === 'layers' ? <LayersPanel /> : tab === 'components' ? <ComponentsPanel /> : <MediaPanel />}
+      {tab === 'layers' ? <LayersPanel /> : tab === 'components' ? <ComponentsPanel /> : tab === 'media' ? <MediaPanel /> : <ArticlesPanel />}
     </div>
   )
 }

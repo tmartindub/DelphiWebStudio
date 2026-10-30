@@ -1408,7 +1408,8 @@ export async function exportToHTML(
 
 export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOptions, media: MediaAsset[] = []): Promise<Blob> {
   const validated = validateProjectConfig(config)
-  const pages = validated.pages!
+  const allPages = validated.pages!
+  const pages = allPages.filter(page => page.webstudioArticle?.status !== 'draft')
   const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery', 'pdfViewer', 'document', 'audio', 'mediaVideo'])
   for (const page of pages) {
     const unknown = page.blocks.find(block => !knownTypes.has(block.type))
@@ -1439,7 +1440,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
   }
   if (options?.settings?.siteSearch === 'on') {
     const searchIndex = pages.map((page, pageIndex) => {
-      const text: string[] = [page.name]
+      const text: string[] = [page.name, page.webstudioArticle?.author ?? '', page.webstudioArticle?.summary ?? '']
       const pending: unknown[] = page.blocks.map(block => block.props)
       while (pending.length) {
         const value = pending.pop()
@@ -1488,7 +1489,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     zip.file('assets/pdfjs/viewer.js', pdfViewerScript, { date })
     zip.file('assets/pdfjs/LICENSE', pdfLicense, { date })
   }
-  const serialized = JSON.stringify(validated)
+  const serialized = JSON.stringify(pages)
   const referencedPaths = [...new Set([...serialized.matchAll(/"(assets\/[a-zA-Z0-9._-]+)"/g)].map(match => match[1]))]
   for (const path of referencedPaths) {
     const asset = media.find(item => item.path === path)
@@ -1505,14 +1506,19 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     const depth = paths[index].split('/').length - 1
     const prefix = '../'.repeat(depth)
     const nav = pages.map((target, targetIndex) => `<a href="${escapeHtml(prefix + encodeURI(paths[targetIndex]))}"${target.id === page.id ? ' aria-current="page"' : ''} class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(target.name)}</a>`).join(' ') + (options?.settings?.siteSearch === 'on' ? ` <a href="${prefix}search.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a>` : '')
+    const article = page.webstudioArticle
+    const articleHeader = article && (article.author || article.summary) ? `<header class="px-6 py-3 text-text-1">${article.author ? `<p class="text-sm">By ${escapeHtml(article.author)}</p>` : ''}${article.summary ? `<p class="text-sm">${escapeHtml(article.summary)}</p>` : ''}</header>` : ''
     const html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, options)
       .replace('<body>', `<body>\n<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav}</nav>`)
+      .replace('<main class="@container">', `<main class="@container">${articleHeader}`)
       .replace(/\b(src|href|data)="assets\//g, `$1="${prefix}assets/`)
       .replace(/(<a\s[^>]*?\bhref=")([^"]*)(")/gi, (match, start: string, href: string, end: string) => {
         const separator = href.search(/[?#]/)
         const path = separator < 0 ? href : href.slice(0, separator)
         const suffix = separator < 0 ? '' : href.slice(separator)
         const normalized = path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path
+        const draft = allPages.find(target => target.webstudioArticle?.status === 'draft' && (normalized === escapeHtml(target.path) || normalized === escapeHtml(encodeURI(target.path))))
+        if (draft) throw new Error(`Page ${page.name} links to the draft article ${draft.name}.`)
         const targetIndex = pages.findIndex(target => normalized === escapeHtml(target.path) || normalized === escapeHtml(encodeURI(target.path)))
         return targetIndex < 0 ? match : `${start}${escapeHtml(prefix + encodeURI(paths[targetIndex]))}${suffix}${end}`
       })

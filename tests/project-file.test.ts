@@ -114,4 +114,17 @@ describe('portable project files', () => {
     const config = { name: 'Future', blocks: [{ id: 'future', type: 'future-chart', variant: 'custom', props: { src: 'assets/plugin-file.bin' } }] } as unknown as SiteConfig
     expect(() => validateProjectMedia(config, [])).not.toThrow()
   })
+
+  it('retains article metadata and rejects invalid status or an article Home page', () => {
+    const config = structuredClone(fivePages) as unknown as SiteConfig
+    config.pages![1].webstudioArticle = { status: 'draft', author: 'Ada', summary: 'A draft', createdAt: '2026-01-01', modifiedAt: '2026-01-01' }
+    const project = createProjectFile(config, 'article-project')
+    expect(parseProjectFile(serializeProjectFile(project)).project.config.pages![1].webstudioArticle).toEqual(config.pages![1].webstudioArticle)
+    const badStatus = structuredClone(config)
+    badStatus.pages![1].webstudioArticle!.status = 'other' as never
+    expect(() => validateProjectConfig(badStatus)).toThrow('Invalid article status')
+    const badHome = structuredClone(config)
+    badHome.pages![0].webstudioArticle = badHome.pages![1].webstudioArticle
+    expect(() => validateProjectConfig(badHome)).toThrow('Home page cannot be an article')
+  })
 })
