@@ -165,14 +165,26 @@ export class ProjectMediaLibrary {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-') || `file.${extension}`
     const folder = restored?.folder ?? (file.webkitRelativePath ?? '').split('/').slice(0, -1).join('/')
     if (folder && (folder.includes('\\') || folder.split('/').some(part => part === '..' || part === '.'))) throw new Error(`${file.name}: invalid folder path.`)
-    const asset: MediaAsset = { id, projectId, name: file.name, path: restored?.path ?? `assets/${id}-${safeName}`, mime, size: file.size, sha256: hash, importedAt: restored?.importedAt ?? Date.now(), ...(folder ? { folder } : {}), ...(width && height ? { width, height } : {}), content: new Blob([bytes], { type: mime }), ...(previous ? { previousVersion: { content: previous.content, sha256: previous.sha256, size: previous.size, width: previous.width, height: previous.height } } : {}) }
+    const asset: MediaAsset = { id, projectId, name: previous?.name ?? file.name, path: restored?.path ?? `assets/${id}-${safeName}`, mime, size: file.size, sha256: hash, importedAt: previous?.importedAt ?? restored?.importedAt ?? Date.now(), ...((previous?.folder ?? folder) ? { folder: previous?.folder ?? folder } : {}), ...(previous?.previousName ? { previousName: previous.previousName } : {}), ...(width && height ? { width, height } : {}), content: new Blob([bytes], { type: mime }), ...(previous ? { previousVersion: { content: previous.content, sha256: previous.sha256, size: previous.size, width: previous.width, height: previous.height } } : {}) }
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction('assetsV2', 'readwrite')
-      if (replacing) transaction.objectStore('assetsV2').put(asset)
-      else transaction.objectStore('assetsV2').add(asset)
+      const store = transaction.objectStore('assetsV2')
+      let changed = false
+      if (replacing) {
+        const request = store.get([projectId, id])
+        request.onsuccess = () => {
+          const current = request.result as MediaAsset | undefined
+          if (!current || !previous || current.sha256 !== previous.sha256 || current.size !== previous.size || current.name !== previous.name || current.path !== previous.path || current.mime !== previous.mime || current.width !== previous.width || current.height !== previous.height || current.folder !== previous.folder || current.importedAt !== previous.importedAt || current.previousVersion?.sha256 !== previous.previousVersion?.sha256 || current.previousVersion?.size !== previous.previousVersion?.size || current.previousVersion?.width !== previous.previousVersion?.width || current.previousVersion?.height !== previous.previousVersion?.height || current.previousName !== previous.previousName) {
+            changed = true
+            transaction.abort()
+            return
+          }
+          store.put(asset)
+        }
+      } else store.add(asset)
       transaction.oncomplete = () => resolve()
-      transaction.onerror = () => reject(transaction.error ?? new Error('Media could not be saved.'))
-      transaction.onabort = () => reject(transaction.error ?? new Error('Media import was cancelled.'))
+      transaction.onerror = () => reject(changed ? new Error('Media changed while it was being replaced. Try again.') : transaction.error ?? new Error('Media could not be saved.'))
+      transaction.onabort = () => reject(changed ? new Error('Media changed while it was being replaced. Try again.') : transaction.error ?? new Error('Media import was cancelled.'))
     })
     return { asset, duplicate: false }
   }
@@ -217,38 +229,54 @@ export class ProjectMediaLibrary {
   }
 
   async rename(projectId: string, changes: { id: string; name: string }[]): Promise<void> {
-    const assets = await this.list(projectId)
     if (new Set(changes.map(change => change.id)).size !== changes.length) throw new Error('A media file was selected more than once.')
-    const updated = changes.map(change => {
-      const asset = assets.find(item => item.id === change.id)
-      const name = change.name.trim()
-      const extension = asset?.name.split('.').pop()?.toLowerCase()
-      if (!asset || !name || /[\\/\p{Cc}]/u.test(name) || name.split('.').pop()?.toLowerCase() !== extension) throw new Error('Names must be nonempty, keep their original extension, and contain no path separators.')
-      return { ...asset, name, previousName: asset.name }
-    })
     const database = await this.database
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction('assetsV2', 'readwrite')
-      for (const asset of updated) transaction.objectStore('assetsV2').put(asset)
+      const store = transaction.objectStore('assetsV2')
+      let invalid = false
+      for (const change of changes) {
+        const request = store.get([projectId, change.id])
+        request.onsuccess = () => {
+          const asset = request.result as MediaAsset | undefined
+          const name = change.name.trim()
+          const extension = asset?.name.split('.').pop()?.toLowerCase()
+          if (!asset || !name || /[\\/\p{Cc}]/u.test(name) || name.split('.').pop()?.toLowerCase() !== extension) {
+            invalid = true
+            transaction.abort()
+            return
+          }
+          store.put({ ...asset, name, previousName: asset.name })
+        }
+      }
       transaction.oncomplete = () => resolve()
-      transaction.onerror = () => reject(transaction.error ?? new Error('Media could not be renamed.'))
-      transaction.onabort = () => reject(transaction.error ?? new Error('Media rename was cancelled.'))
+      transaction.onerror = () => reject(invalid ? new Error('Names must be nonempty, keep their original extension, and contain no path separators.') : transaction.error ?? new Error('Media could not be renamed.'))
+      transaction.onabort = () => reject(invalid ? new Error('Names must be nonempty, keep their original extension, and contain no path separators.') : transaction.error ?? new Error('Media rename was cancelled.'))
     })
   }
 
   async undoRenames(projectId: string, ids: string[]): Promise<void> {
-    const assets = await this.list(projectId)
-    const updated = ids.map(id => {
-      const asset = assets.find(item => item.id === id)
-      if (!asset?.previousName) throw new Error('A previous media name is unavailable.')
-      return { ...asset, name: asset.previousName, previousName: undefined }
-    })
+    if (new Set(ids).size !== ids.length) throw new Error('A media file was selected more than once.')
     const database = await this.database
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction('assetsV2', 'readwrite')
-      for (const asset of updated) transaction.objectStore('assetsV2').put(asset)
+      const store = transaction.objectStore('assetsV2')
+      let unavailable = false
+      for (const id of ids) {
+        const request = store.get([projectId, id])
+        request.onsuccess = () => {
+          const asset = request.result as MediaAsset | undefined
+          if (!asset?.previousName) {
+            unavailable = true
+            transaction.abort()
+            return
+          }
+          store.put({ ...asset, name: asset.previousName, previousName: undefined })
+        }
+      }
       transaction.oncomplete = () => resolve()
-      transaction.onerror = () => reject(transaction.error ?? new Error('Media rename could not be undone.'))
+      transaction.onerror = () => reject(unavailable ? new Error('A previous media name is unavailable.') : transaction.error ?? new Error('Media rename could not be undone.'))
+      transaction.onabort = () => reject(unavailable ? new Error('A previous media name is unavailable.') : transaction.error ?? new Error('Media rename was cancelled.'))
     })
   }
 
