@@ -41,6 +41,7 @@ interface ConfigState {
   removePage: (id: string) => void
   renamePage: (id: string, name: string) => void
   changePagePath: (id: string, path: string, updateLinks?: boolean) => void
+  updatePageSeo: (id: string, title: string, description: string) => void
   setTheme: (theme: Partial<ThemeConfig>) => void
   updateTheme: (partial: Partial<ThemeConfig>) => void
   previewTheme: (partial: Partial<ThemeConfig>) => void
@@ -246,6 +247,15 @@ export const useConfigStore = create<ConfigState>()(
         })
         const config = validateProjectConfig(changed)
         return { ...pushUndo(state, 'Change page address'), config }
+      }),
+
+      updatePageSeo: (id, title, description) => set(state => {
+        if (!ensurePages(state.config).some(page => page.id === id)) throw new Error('Page no longer exists.')
+        const changed = produce(withPages(state.config), draft => {
+          const page = draft.pages!.find(item => item.id === id)!
+          page.webstudioSeo = { ...page.webstudioSeo, title, description }
+        })
+        return { ...pushUndo(state, 'Change page search details'), config: validateProjectConfig(changed) }
       }),
 
       setTheme: (theme) =>

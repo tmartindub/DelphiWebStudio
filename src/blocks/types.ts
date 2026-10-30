@@ -66,6 +66,7 @@ export interface PageConfig {
   name: string
   path: string
   blocks: BlockConfig[]
+  webstudioSeo?: { title?: string; description?: string }
   webstudioArticle?: {
     status: 'draft' | 'ready'
     author: string
