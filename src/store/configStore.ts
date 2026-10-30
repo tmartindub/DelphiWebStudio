@@ -40,6 +40,7 @@ interface ConfigState {
   addPage: (name: string, path: string) => string
   removePage: (id: string) => void
   renamePage: (id: string, name: string) => void
+  changePagePath: (id: string, path: string) => void
   setTheme: (theme: Partial<ThemeConfig>) => void
   updateTheme: (partial: Partial<ThemeConfig>) => void
   previewTheme: (partial: Partial<ThemeConfig>) => void
@@ -222,6 +223,15 @@ export const useConfigStore = create<ConfigState>()(
             if (page) page.name = name
           }),
         })),
+
+      changePagePath: (id, path) => set(state => {
+        const pages = ensurePages(state.config)
+        const page = pages.find(item => item.id === id)
+        if (!page || page.path === '/') throw new Error('The Home page address cannot be changed.')
+        if (page.path === path) return state
+        const config = validateProjectConfig({ ...state.config, pages: pages.map(item => item.id === id ? { ...item, path } : item) })
+        return { ...pushUndo(state, 'Change page address'), config }
+      }),
 
       setTheme: (theme) =>
         set((state) => ({
