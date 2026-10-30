@@ -30,6 +30,10 @@ export function checkSite(config: SiteConfig): SiteIssue[] {
         const url = typeof block.props[urlKey] === 'string' ? (block.props[urlKey] as string).trim() : ''
         if (label && !url) add(`${label}: no link destination is set.`)
         if (!label && url) add(`${urlKey}: the link has no visible label.`)
+        if (url && (/[\\\p{Cc}]/u.test(url) || url.startsWith('//') || (/^[a-z][a-z\d+.-]*:/i.test(url) && !/^(https?:|mailto:|tel:)/i.test(url)))) {
+          add(`${label || urlKey}: unsupported link address; it will be shown as text in the export.`)
+          continue
+        }
         if (!url.startsWith('/') || url.startsWith('//')) continue
         const path = url.split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
         const target = pages.find(item => item.path === path || encodeURI(item.path) === path)
