@@ -36,14 +36,23 @@ export function checkSite(config: SiteConfig): SiteIssue[] {
         if (!target) add(`${url}: does not match a site page; it may point to a separate file or host resource.`)
         else if (target.webstudioArticle?.status === 'draft') add(`${url}: points to a draft article that is omitted from export.`)
       }
-      if (block.type === 'image' && typeof block.props.src === 'string' && block.props.src && !String(block.props.alt ?? '').trim()) {
+      if (block.type === 'image' && block.variant !== 'grid' && !(typeof block.props.src === 'string' && block.props.src.trim())) add('Image has no source and will show a placeholder. Choose an image from Media or enter an image URL.')
+      if (block.type === 'image' && block.variant !== 'grid' && typeof block.props.src === 'string' && block.props.src && !String(block.props.alt ?? '').trim()) {
         add('Image has no alternative text. Add a description or confirm that it is decorative.')
       }
-      if (block.type === 'gallery' || block.type === 'image') {
+      if (block.type === 'gallery' || (block.type === 'image' && block.variant === 'grid')) {
         const images = Array.isArray(block.props.images) ? block.props.images : []
+        if (!images.length) add('This image collection has no images and will show placeholders. Add images in Properties.')
         for (const [index, image] of images.entries()) {
+          if (!image || typeof image !== 'object' || typeof image.src !== 'string' || !image.src.trim()) add(`Image ${index + 1} has no source and will show a placeholder.`)
           if (image && typeof image === 'object' && typeof image.src === 'string' && image.src && !String(image.alt ?? '').trim()) add(`Image ${index + 1} has no alternative text. Add a description or confirm that it is decorative.`)
         }
+      }
+      if (['pdfViewer', 'document', 'audio', 'mediaVideo'].includes(block.type) && !(typeof block.props.src === 'string' && block.props.src.trim())) add('This media block has no file selected. Add a file from Media.')
+      if (block.type === 'video') {
+        const url = typeof block.props.url === 'string' ? block.props.url : ''
+        const valid = block.variant === 'vimeo' ? /vimeo\.com\/(\d+)/.test(url) : /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([a-zA-Z0-9_-]{11})/.test(url)
+        if (!valid) add(`Video has no supported ${block.variant === 'vimeo' ? 'Vimeo' : 'YouTube'} address and will show a placeholder.`)
       }
       if (block.type === 'contact') {
         const email = typeof block.props.recipientEmail === 'string' ? block.props.recipientEmail.trim() : ''
