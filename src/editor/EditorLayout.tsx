@@ -21,23 +21,17 @@ const templateIcons: Record<string, typeof Briefcase> = {
 }
 
 function useAutoSaveToProject() {
-  const config = useConfigStore((s) => s.config)
-  const activeProjectId = useEditorStore((s) => s.activeProjectId)
-  const updateProjectConfig = useProjectsStore((s) => s.updateProjectConfig)
-  const loadedConfigRef = useRef<string | null>(null)
-
-  // Snapshot the config at load time so we can diff
   useEffect(() => {
-    loadedConfigRef.current = JSON.stringify(config)
-  }, [activeProjectId]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!activeProjectId) return
-    const serialized = JSON.stringify(config)
-    // Only save when config actually differs from what was loaded
-    if (serialized === loadedConfigRef.current) return
-    updateProjectConfig(activeProjectId, config)
-  }, [config, activeProjectId, updateProjectConfig])
+    return useConfigStore.subscribe((state, previous) => {
+      if (state.config === previous.config) return
+      const id = useEditorStore.getState().activeProjectId
+      if (!id) return
+      const projects = useProjectsStore.getState()
+      const project = projects.projects.find(item => item.id === id)
+      if (!project || JSON.stringify(project.config) === JSON.stringify(state.config)) return
+      projects.updateProjectConfig(id, state.config)
+    })
+  }, [])
 }
 
 function useGenerationOrchestration() {
