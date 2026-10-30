@@ -101,6 +101,7 @@ describe('multi-page export', () => {
   it('creates an optional sitemap with absolute URLs under the configured site folder', async () => {
     const absent = await JSZip.loadAsync(await (await exportSiteZip(config)).arrayBuffer())
     expect(absent.file('sitemap.xml')).toBeNull()
+    expect(await absent.file('index.html')!.async('string')).not.toContain('rel="canonical"')
     const site = structuredClone(config)
     site.pages![2].path = '/a&b'
     const zip = await JSZip.loadAsync(await (await exportSiteZip(site, { settings: { siteBaseUrl: 'https://example.com/site' } })).arrayBuffer())
@@ -108,6 +109,12 @@ describe('multi-page export', () => {
     expect(sitemap).toContain('<loc>https://example.com/site/index.html</loc>')
     expect(sitemap).toContain('<loc>https://example.com/site/community/news.html</loc>')
     expect(sitemap).toContain('<loc>https://example.com/site/a&amp;b.html</loc>')
+    const home = await zip.file('index.html')!.async('string')
+    const news = await zip.file('community/news.html')!.async('string')
+    const about = await zip.file('a&b.html')!.async('string')
+    expect(home).toContain('<link rel="canonical" href="https://example.com/site/index.html" />')
+    expect(news).toContain('<meta property="og:url" content="https://example.com/site/community/news.html" />')
+    expect(about).toContain('href="https://example.com/site/a&amp;b.html"')
     expect(zip.file('robots.txt')).toBeNull()
   })
 
@@ -168,6 +175,7 @@ describe('multi-page export', () => {
     expect(article).toContain('Public article')
     const archive = await zip.file('articles/index.html')!.async('string')
     expect(archive).toContain('href="../about.html"')
+    expect(archive).toContain('rel="canonical" href="https://example.com/articles/index.html"')
     expect(archive).not.toContain('Private draft')
     const feed = await zip.file('feed.xml')!.async('string')
     expect(feed).toContain('<link>https://example.com/about.html</link>')
