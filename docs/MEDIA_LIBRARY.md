@@ -10,6 +10,8 @@ Save downloads a project ZIP with a manifest and the project's media; Open valid
 
 Site export includes referenced media and a local PDF.js viewer with page navigation, zoom, text search, password prompting and download. Print opens the PDF in the browser. Exported styling is embedded and uses system font fallbacks. User-supplied remote media and optional analytics can still require network access; complete offline export remains unfinished. Browser IndexedDB is not a substitute for a saved project ZIP, and native atomic file saving remains future desktop work.
 
+The PDF preview and exported viewer initially fit pages to the available width without enlarging them. Zoom is expressed relative to that fit; zooming in can intentionally require horizontal scrolling. The exported viewer was checked at 375, 768 and 1440 pixels using the sample bulletin, including phone-width search and zoom. Individual PDFs and devices may still need additional testing.
+
 Validation included a browser import, save and reopen of 1,000 images and 100 PDFs; PDF preview/search and export viewer were exercised locally with external requests blocked. Complex PDF fonts, large files, accessibility, and all supported document variants require further testing before release.
 
 Imported image paths inside feature items and gallery entries are resolved to temporary browser URLs for editor preview without changing the stored project paths. An isolated browser test imported a PNG, displayed it in an alternating feature and a gallery, and confirmed that both paths remained portable in the project model. Deeply nested extension data is not automatically resolved.
