@@ -5,10 +5,22 @@ import { HeroBlock } from '../src/blocks/hero/HeroBlock'
 import { CtaBlock } from '../src/blocks/cta/CtaBlock'
 import { NavbarBlock } from '../src/blocks/navbar/NavbarBlock'
 import { FooterBlock } from '../src/blocks/footer/FooterBlock'
+import { TeamBlock } from '../src/blocks/team/TeamBlock'
 import { exportToHTML } from '../src/lib/export-html'
 import type { BlockConfig } from '../src/blocks/types'
 
 describe('preview link and image fidelity', () => {
+  it('shows selected team photos in both preview and exported pages', async () => {
+    const block: BlockConfig = { id: 'team', type: 'team', variant: 'grid', props: { members: [{ name: 'Alex', role: 'Volunteer', avatar: 'assets/alex.png' }] } }
+    expect(renderToStaticMarkup(createElement(TeamBlock, { block }))).toContain('src="assets/alex.png"')
+    expect(await exportToHTML({ name: 'Site', blocks: [block] })).toContain('src="assets/alex.png"')
+  })
+
+  it('does not invent team members when none have been added', async () => {
+    const block: BlockConfig = { id: 'team', type: 'team', variant: 'grid', props: {} }
+    expect(renderToStaticMarkup(createElement(TeamBlock, { block }))).not.toContain('Alex Rivera')
+    expect(await exportToHTML({ name: 'Site', blocks: [block] })).not.toContain('Alex Rivera')
+  })
   it.each(['centered', 'split', 'gradient', 'minimal'])('renders the configured hero link in %s', variant => {
     const block: BlockConfig = { id: 'hero', type: 'hero', variant, props: { headline: 'Welcome', subheadline: 'Hello', primaryCta: 'Read news', primaryCtaUrl: '/news' } }
     expect(renderToStaticMarkup(createElement(HeroBlock, { block }))).toContain('href="/news"')

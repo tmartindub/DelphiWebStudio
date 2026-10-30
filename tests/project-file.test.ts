@@ -123,6 +123,14 @@ describe('portable project files', () => {
     expect(() => validateProjectMedia(config, assets)).toThrow('do not match')
   })
 
+  it('checks team photo IDs and paths before saving', () => {
+    const assets = [{ id: 'one', path: 'assets/one.png' }, { id: 'two', path: 'assets/two.png' }]
+    const config = { name: 'Team', blocks: [{ id: 't', type: 'team', variant: 'grid', props: { members: [{ name: 'Alex', role: 'Volunteer', avatar: 'assets/one.png', assetId: 'one' }] } }] } as unknown as SiteConfig
+    expect(() => validateProjectMedia(config, assets)).not.toThrow()
+    ;(config.blocks[0].props.members as Array<Record<string, string>>)[0].avatar = 'assets/two.png'
+    expect(() => validateProjectMedia(config, assets)).toThrow('do not match')
+  })
+
   it('retains article metadata and rejects invalid status or an article Home page', () => {
     const config = structuredClone(fivePages) as unknown as SiteConfig
     config.pages![1].webstudioArticle = { status: 'draft', author: 'Ada', summary: 'A draft', createdAt: '2026-01-01', modifiedAt: '2026-01-01' }
