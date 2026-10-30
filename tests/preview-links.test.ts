@@ -3,6 +3,9 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { HeroBlock } from '../src/blocks/hero/HeroBlock'
 import { CtaBlock } from '../src/blocks/cta/CtaBlock'
+import { NavbarBlock } from '../src/blocks/navbar/NavbarBlock'
+import { FooterBlock } from '../src/blocks/footer/FooterBlock'
+import { exportToHTML } from '../src/lib/export-html'
 import type { BlockConfig } from '../src/blocks/types'
 
 describe('preview link and image fidelity', () => {
@@ -19,5 +22,38 @@ describe('preview link and image fidelity', () => {
   it.each(['simple', 'split'])('renders the configured CTA link in %s', variant => {
     const block: BlockConfig = { id: 'cta', type: 'cta', variant, props: { headline: 'Hello', buttonText: 'Contact', buttonUrl: '/contact' } }
     expect(renderToStaticMarkup(createElement(CtaBlock, { block }))).toContain('href="/contact"')
+  })
+
+  it.each(['default', 'centered'])('shows the selected navbar logo in %s', variant => {
+    const block: BlockConfig = { id: 'nav', type: 'navbar', variant, props: { logo: 'Community', logoImage: 'assets/logo.png', links: [], ctaText: '' } }
+    expect(renderToStaticMarkup(createElement(NavbarBlock, { block }))).toContain('src="assets/logo.png"')
+  })
+
+  it('exports the centered navbar layout and omits empty controls', async () => {
+    const block: BlockConfig = { id: 'nav', type: 'navbar', variant: 'centered', props: { logo: 'Community', logoImage: 'assets/logo.png', links: ['First', 'Second'], ctaText: '' } }
+    const html = await exportToHTML({ name: 'Site', blocks: [block] })
+    const nav = html.slice(html.indexOf('<nav'), html.indexOf('</nav>'))
+    expect(nav.indexOf('First')).toBeLessThan(nav.indexOf('Community'))
+    expect(nav.indexOf('Community')).toBeLessThan(nav.indexOf('Second'))
+    expect(nav).toContain('@2xl:flex')
+    expect(nav).not.toContain('Get Started')
+    block.props.links = []
+    expect(renderToStaticMarkup(createElement(NavbarBlock, { block }))).not.toContain('<button')
+    const emptyHtml = await exportToHTML({ name: 'Site', blocks: [block] })
+    expect(emptyHtml.slice(emptyHtml.indexOf('<nav'), emptyHtml.indexOf('</nav>'))).not.toContain('<button')
+  })
+
+  it('renders only supplied multi-column footer content in preview and export', async () => {
+    const block: BlockConfig = { id: 'footer', type: 'footer', variant: 'multi-column', props: { logo: 'Community', copyright: '', links: [] } }
+    const render = () => renderToStaticMarkup(createElement(FooterBlock, { block }))
+    const exportPage = () => exportToHTML({ name: 'Community', blocks: [block] })
+    expect(render()).not.toContain('Pricing')
+    expect(await exportPage()).not.toContain('Build beautiful websites with structured JSON config.')
+    block.props.description = 'Neighbors welcome'
+    block.props.columns = [{ title: 'Our group', links: ['Meetings'] }]
+    expect(render()).toContain('Neighbors welcome')
+    expect(render()).toContain('Meetings')
+    expect(await exportPage()).toContain('Neighbors welcome')
+    expect(await exportPage()).toContain('Meetings')
   })
 })

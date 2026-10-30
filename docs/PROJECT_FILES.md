@@ -60,6 +60,10 @@ Before deleting a page, the editor lists other pages with Hero, CTA or Banner li
 
 In Preview mode, links to existing site pages switch the visible page without leaving the editor. Other links are not followed there; use the exported website to test external addresses and anchors. In editing mode, clicking a link selects its block instead of navigating away. The split Hero preview also shows its configured image when available.
 
+New Footer blocks start without prefilled legal links or copyright claims. The multi-column layout uses the description and columns actually present in the project instead of generating product or legal placeholder content. Existing saved values are preserved; projects that previously relied on generated placeholder columns will no longer display those placeholders unless the content was explicitly saved.
+
+New Navbar blocks start without placeholder links or a call-to-action label. Existing labels remain intact. The legacy Navbar's text labels and mobile menu are not yet wired as navigable links; the separately generated site-page navigation is the functional navigation for a multi-page export. The centered Navbar layout and its logo now appear in both the editor and export.
+
 ZIP export checks page filenames against already packaged files and folders, including case-insensitive collisions and file/folder conflicts. If a page would overwrite a bundled PDF viewer file, export stops and identifies the conflicting page; the project remains open. Rename that page path before retrying.
 
 ## Optional sitemap

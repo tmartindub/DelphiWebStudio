@@ -142,30 +142,39 @@ function renderNavbar(block: BlockConfig): string {
   const links = prop<string[]>(block.props, 'links', [])
   const ctaText = escapeHtml(prop(block.props, 'ctaText', 'Get Started'))
 
-  const navLinks = links
-    .map(
-      (l) =>
-        `          <span class="text-[13px] text-text-2 hover:text-text-0 transition-colors cursor-pointer">${escapeHtml(l)}</span>`
-    )
-    .join('\n')
+  const navLinks = links.map(l =>
+    `          <span class="text-[13px] text-text-2 hover:text-text-0 transition-colors cursor-pointer">${escapeHtml(l)}</span>`
+  )
 
   const logoHtml = logoImage
     ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-8 w-auto object-contain" />`
     : `<div class="w-8 h-8 rounded-lg bg-green/10 flex items-center justify-center"><div class="w-4 h-4 rounded-full bg-green"></div></div>`
 
-  return `  <nav class="px-6 md:px-10 py-4 flex items-center justify-between">
+  if (block.variant === 'centered') {
+    const mid = Math.ceil(navLinks.length / 2)
+    return `  <nav class="px-6 @md:px-10 py-4 flex items-center justify-between">
+    <div class="hidden @2xl:flex items-center gap-6 flex-1">${navLinks.slice(0, mid).join('\n')}</div>
+    <div class="flex items-center gap-2">${logoHtml}<span class="font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span></div>
+    <div class="hidden @2xl:flex items-center gap-6 flex-1 justify-end">${navLinks.slice(mid).join('\n')}
+      ${ctaText ? `<button class="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors ml-2">${ctaText}</button>` : ''}
+    </div>
+    ${links.length ? `<button class="@2xl:hidden w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 hover:text-text-0 hover:bg-bg-3 transition-colors">${SVG_MENU}</button>` : ''}
+  </nav>`
+  }
+
+  return `  <nav class="px-6 @md:px-10 py-4 flex items-center justify-between">
     <div class="flex items-center gap-2">
       ${logoHtml}
       <span class="font-semibold text-[15px] text-text-0 tracking-tight">${logo}</span>
     </div>
-    <div class="hidden lg:flex items-center gap-6">
-${navLinks}
+    <div class="hidden @2xl:flex items-center gap-6">
+${navLinks.join('\n')}
     </div>
     <div class="flex items-center gap-3">
-      <button class="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors">${ctaText}</button>
-      <button class="lg:hidden w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 hover:text-text-0 hover:bg-bg-3 transition-colors">
+      ${ctaText ? `<button class="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors">${ctaText}</button>` : ''}
+      ${links.length ? `<button class="@2xl:hidden w-9 h-9 rounded-lg border border-border-default flex items-center justify-center text-text-2 hover:text-text-0 hover:bg-bg-3 transition-colors">
         ${SVG_MENU}
-      </button>
+      </button>` : ''}
     </div>
   </nav>`
 }
@@ -671,8 +680,8 @@ function renderFooterSimple(block: BlockConfig): string {
     ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-6 w-auto object-contain" />`
     : `<div class="w-6 h-6 rounded-md bg-green/10 flex items-center justify-center"><div class="w-3 h-3 rounded-full bg-green"></div></div>`
 
-  return `  <footer class="px-6 md:px-10 py-8 border-t border-border-subtle">
-      <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+  return `  <footer class="px-6 @md:px-10 py-8 border-t border-border-subtle">
+      <div class="flex flex-col @lg:flex-row items-center justify-between gap-4">
         <div class="flex items-center gap-2">
           ${footerLogoHtml}
           <span class="text-sm font-semibold text-text-1">${logo}</span>
@@ -688,20 +697,13 @@ ${linksHtml}
 function renderFooterMultiColumn(block: BlockConfig): string {
   const logo = escapeHtml(prop(block.props, 'logo', 'Brand'))
   const logoImage = prop<string>(block.props, 'logoImage', '')
+  const description = prop<string>(block.props, 'description', '')
   const copyright = escapeHtml(prop(block.props, 'copyright', ''))
   const links = prop<string[]>(block.props, 'links', [])
   const columns = prop<{ title: string; links: string[] }[]>(
     block.props,
     'columns',
-    [
-      { title: 'Product', links: ['Features', 'Pricing', 'Changelog', 'Roadmap'] },
-      { title: 'Company', links: ['About', 'Blog', 'Careers', 'Press'] },
-      {
-        title: 'Resources',
-        links: ['Documentation', 'API Reference', 'Guides', 'Community'],
-      },
-      { title: 'Legal', links: ['Privacy', 'Terms', 'Security', 'Cookie Policy'] },
-    ]
+    []
   )
 
   const colsHtml = columns
@@ -732,18 +734,18 @@ ${colLinks}
     ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-7 w-auto object-contain" />`
     : `<div class="w-7 h-7 rounded-md bg-green/10 flex items-center justify-center"><div class="w-3.5 h-3.5 rounded-full bg-green"></div></div>`
 
-  return `  <footer class="px-6 md:px-10 py-12 border-t border-border-subtle">
-      <div class="grid grid-cols-2 lg:grid-cols-5 gap-8 mb-10">
-        <div class="col-span-2 lg:col-span-1">
+  return `  <footer class="px-6 @md:px-10 py-12 border-t border-border-subtle">
+      <div class="grid grid-cols-2 @2xl:grid-cols-5 gap-8 mb-10">
+        <div class="col-span-2 @2xl:col-span-1">
           <div class="flex items-center gap-2 mb-3">
             ${mcLogoHtml}
             <span class="text-sm font-semibold">${logo}</span>
           </div>
-          <p class="text-[12px] text-text-3 leading-relaxed max-w-[200px]">Build beautiful websites with structured JSON config.</p>
+          ${description ? `<p class="text-[12px] text-text-3 leading-relaxed max-w-[200px]">${escapeHtml(description)}</p>` : ''}
         </div>
 ${colsHtml}
       </div>
-      <div class="pt-6 border-t border-border-subtle flex flex-col md:flex-row items-center justify-between gap-3">
+      <div class="pt-6 border-t border-border-subtle flex flex-col @lg:flex-row items-center justify-between gap-3">
         <span class="text-[11px] text-text-3">${copyright}</span>
         <div class="flex gap-4">
 ${bottomLinks}
@@ -765,7 +767,7 @@ function renderFooterMinimal(block: BlockConfig): string {
 
   const divider = links.length > 0 ? '<span class="mx-1">|</span>' : ''
 
-  return `  <footer class="px-6 md:px-10 py-6">
+  return `  <footer class="px-6 @md:px-10 py-6">
       <div class="flex items-center justify-center gap-1.5 text-[11px] text-text-3">
         <span>${copyright}</span>
         ${divider}
