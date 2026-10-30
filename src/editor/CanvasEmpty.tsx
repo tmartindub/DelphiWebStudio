@@ -24,8 +24,8 @@ export function CanvasEmpty() {
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center p-10 relative z-[1]">
-      <h3 className="text-lg font-semibold text-text-1">Start building</h3>
-      <p className="text-[13px] text-text-3 max-w-[360px] leading-relaxed">
+      <h3 className="text-lg font-semibold text-[#1c3650]">Start building</h3>
+      <p className="text-[13px] text-[#405b73] max-w-[360px] leading-relaxed">
         Add your first component from the library, or use the Components page to browse all blocks.
       </p>
       <button
