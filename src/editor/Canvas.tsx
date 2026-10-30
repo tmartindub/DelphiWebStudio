@@ -55,7 +55,7 @@ export function Canvas() {
   const canvasContent = (
     <div
       className="@container outline outline-1 rounded-xl min-h-[400px] relative z-[1] overflow-hidden transition-all duration-300 mx-auto"
-      style={{ width: '100%', maxWidth, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', outlineColor: 'var(--color-border-default)' } as React.CSSProperties}
+      style={{ width: '100%', maxWidth, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', outlineColor: 'var(--color-border-default)', overflowWrap: 'anywhere' } as React.CSSProperties}
       onClick={(e) => {
         if (e.target === e.currentTarget) selectBlock(null)
       }}
