@@ -78,6 +78,13 @@ describe('local site checks', () => {
     expect(issues.some(issue => issue.message.includes('unsupported link address'))).toBe(true)
   })
 
+  it('flags explicitly empty blocks that need content', () => {
+    const copy = structuredClone(config)
+    copy.pages![0].blocks.push({ id: 'team', type: 'team', variant: 'grid', props: { members: [] } })
+    copy.blocks = copy.pages![0].blocks
+    expect(checkSite(copy).find(issue => issue.blockId === 'team')?.message).toContain('no entries')
+  })
+
   it('warns about nonfunctional legacy navigation without altering it', () => {
     const copy = structuredClone(config)
     copy.pages![0].blocks.push({ id: 'nav', type: 'navbar', variant: 'default', props: { links: ['About'], ctaText: 'Join' } })

@@ -32,7 +32,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Feature showcase with icon cards',
     category: 'Content',
     variants: ['grid', 'list', 'alternating'],
-    defaultProps: { title: 'Features', subtitle: 'Everything you need', items: [{ icon: 'Zap', title: 'Fast', description: 'Lightning fast performance' }, { icon: 'Shield', title: 'Secure', description: 'Enterprise-grade security' }, { icon: 'Globe', title: 'Global', description: 'Available worldwide' }] },
+    defaultProps: { title: 'Features', subtitle: '', items: [] },
   },
   {
     type: 'pricing',
@@ -48,7 +48,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Conversion-focused section with CTA button',
     category: 'Conversion',
     variants: ['simple', 'split'],
-    defaultProps: { headline: 'Ready to get started?', subheadline: 'Start building today.', buttonText: 'Start Free' },
+    defaultProps: { headline: 'Ready to get started?', subheadline: '', buttonText: 'Learn more' },
   },
   {
     type: 'footer',
@@ -64,7 +64,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Customer testimonials with quotes and ratings',
     category: 'Social Proof',
     variants: ['cards', 'carousel', 'spotlight'],
-    defaultProps: { title: 'What our customers say' },
+    defaultProps: { title: 'Testimonials', items: [] },
   },
   {
     type: 'stats',
@@ -72,7 +72,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Key metrics and statistics display',
     category: 'Social Proof',
     variants: ['grid', 'bar', 'counter'],
-    defaultProps: { title: 'By the numbers' },
+    defaultProps: { title: 'By the numbers', items: [] },
   },
   {
     type: 'faq',
@@ -80,7 +80,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Frequently asked questions accordion',
     category: 'Content',
     variants: ['accordion'],
-    defaultProps: { title: 'Frequently Asked Questions' },
+    defaultProps: { title: 'Frequently Asked Questions', items: [] },
   },
   {
     type: 'team',
@@ -88,7 +88,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Team member grid with photos and roles',
     category: 'Content',
     variants: ['grid'],
-    defaultProps: { title: 'Meet the Team' },
+    defaultProps: { title: 'Meet the Team', members: [] },
   },
   {
     type: 'contact',
@@ -104,7 +104,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Email subscription form with social proof',
     category: 'Conversion',
     variants: ['simple'],
-    defaultProps: { title: 'Stay in the loop', subtitle: 'Get updates on new features.', buttonText: 'Subscribe' },
+    defaultProps: { title: 'Stay in the loop', subtitle: '', buttonText: 'Subscribe' },
   },
   {
     type: 'logocloud',
@@ -112,7 +112,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Company logos with hover effects',
     category: 'Social Proof',
     variants: ['default'],
-    defaultProps: { title: 'Trusted by leading companies' },
+    defaultProps: { title: 'Partners', logos: [] },
   },
   {
     type: 'content',
@@ -160,7 +160,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Announcement bar or ribbon',
     category: 'Content',
     variants: ['ribbon', 'bar'],
-    defaultProps: { text: 'New: We just launched v2.0!', linkText: 'Learn more' },
+    defaultProps: { text: 'Add your announcement', linkText: '' },
   },
 ]
 
