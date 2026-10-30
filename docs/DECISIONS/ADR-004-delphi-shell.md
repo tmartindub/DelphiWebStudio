@@ -44,6 +44,12 @@ A separate hidden Win64 proof mapped two local test folders to `webstudio.local`
 
 This is not a product bridge or complete security review. It does not test subframes, redirects, replay, malformed messages, capability grants, navigation prevention, file access, or a clean install. Any desktop implementation must independently enforce its origin and navigation policy and test those cases.
 
+## Built-in VCL Edge control proof, 2026-10-30
+
+RAD Studio 37.0 also includes the VCL `TEdgeBrowser` control. Unlike the FMX browser surface evaluated above, its public API exposes the WebView2 interface and web-message event; the `.dfm` can declare the browser control at design time. In a separate hidden Win64 proof, that built-in control mapped the locally built editor to `https://webstudio.local`, rendered the editor, accepted a test message from that source, and rejected a test message from a second local virtual origin. It exited successfully. The test used an isolated browser cache and a WebView2 loader DLL from the temporary evaluation; no third-party Delphi component was installed or added to the project.
+
+This is a promising simpler candidate for the desktop host, but not a finished shell or security review. IDE form editing and runtime redistribution have not been verified, and the test deliberately navigated to the untrusted origin. A real host must prevent untrusted navigation, constrain capabilities and test subframes, redirects, malformed messages and clean installation. The choice of shell framework remains open until its requirements are met.
+
 ## Native request validation increment
 
 `desktop/bridge/WebStudio.Bridge.pas` now validates a small version-1 native request envelope against the actual sender URL supplied by its caller, a native session and project identity, and an explicit capability set. It rejects unknown fields and operations, invalid IDs, malformed or oversized messages and project-scoped requests without a project. The native validator accepts the canonical integer representation `1` for the version and requires the sender string to start with `https://webstudio.local/`; it is deliberately stricter than the TypeScript prototype's URL normalization.
