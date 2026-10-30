@@ -4,6 +4,8 @@ Last changed: 2026-10-29. Experimental M3 increment; enable `VITE_WEBSTUDIO_PROJ
 
 Import individual files or folders in the Media tab. Files are copied into the browser's project-specific IndexedDB database; originals are not modified. Imports validate supported file types, reject unsafe SVG content, deduplicate by SHA-256 within the project, and report individual failures. ZIP import requires explicit opt-in. Imports can be cancelled. Search, filter and sort the library, rename displayed items with undo, or replace an item with one-level undo. Add media to a page or drag it onto the canvas.
 
+Duplicating a project also copies its media into the new project's library. Media references remain intact, and later changes to the copy do not change the original.
+
 Save downloads a project ZIP with a manifest and the project's media; Open validates it and restores a separate local project. Projects without media can still be saved as JSON. Browser download behavior governs the destination. Project duplication is disabled when the project contains media. Previous replacement versions are retained in the browser but are not included in project ZIPs.
 
 Site export includes referenced media and a local PDF.js viewer with page navigation, zoom, text search, password prompting and download. Print opens the PDF in the browser. Exported styling is embedded and uses system font fallbacks. User-supplied remote media and optional analytics can still require network access; complete offline export remains unfinished. Browser IndexedDB is not a substitute for a saved project ZIP, and native atomic file saving remains future desktop work.

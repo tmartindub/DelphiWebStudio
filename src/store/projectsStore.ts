@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { SiteConfig } from '@/blocks/types'
 import type { SiteProjectFile } from '@/project/project-file'
+import { ProjectMediaLibrary } from '@/media/media-library'
 
 export interface Project {
   id: string
@@ -39,7 +40,7 @@ interface ProjectsState {
   addProject: (name: string, projectFile?: SiteProjectFile) => string
   saveProjectFile: (id: string, projectFile: SiteProjectFile) => void
   mediaChanged: (id: string) => void
-  duplicateProject: (id: string) => string | null
+  duplicateProject: (id: string) => Promise<string | null>
   deleteProject: (id: string) => void
   renameProject: (id: string, name: string) => void
   updateProjectConfig: (id: string, config: SiteConfig) => void
@@ -85,11 +86,10 @@ export const useProjectsStore = create<ProjectsState>()(
       mediaChanged: (id) => set(state => ({
         projects: state.projects.map(project => project.id === id ? { ...project, mediaRevision: (project.mediaRevision ?? 0) + 1 } : project),
       })),
-      duplicateProject: (id) => {
+      duplicateProject: async (id) => {
         const state = useProjectsStore.getState()
         const original = state.projects.find((p) => p.id === id)
         if (!original) return null
-        if (original.mediaRevision) return null
         const newId = `proj-${crypto.randomUUID()}`
         const clone: Project = {
           ...JSON.parse(JSON.stringify(original)),
@@ -101,6 +101,7 @@ export const useProjectsStore = create<ProjectsState>()(
             projectFile: { ...structuredClone(original.projectFile), projectId: crypto.randomUUID() },
           } : {}),
         }
+        await new ProjectMediaLibrary().copyProject(id, newId)
         set((s) => ({ projects: [clone, ...s.projects] }))
         return newId
       },
