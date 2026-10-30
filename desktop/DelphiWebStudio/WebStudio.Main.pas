@@ -81,19 +81,8 @@ begin
 end;
 
 procedure TMainForm.EditorBrowserFrameNavigationStarting(Sender: TCustomEdgeBrowser; Args: TNavigationStartingEventArgs);
-var Address: PWideChar; Allowed: Boolean; URL: string;
 begin
-  Address := nil;
-  Allowed := False;
-  try
-    if Succeeded(Args.ArgsInterface.Get_uri(Address)) and (Address <> nil) then begin
-      URL := string(Address);
-      Allowed := URL.StartsWith('https://webstudio.local/');
-    end;
-  finally
-    CoTaskMemFree(Address);
-  end;
-  if not Allowed then Args.ArgsInterface.Set_Cancel(1);
+  Args.ArgsInterface.Set_Cancel(1);
 end;
 
 procedure TMainForm.EditorBrowserNewWindowRequested(Sender: TCustomEdgeBrowser; Args: TNewWindowRequestedEventArgs);
