@@ -1,10 +1,12 @@
 import { create } from 'zustand'
 
 export type Viewport = 'desktop' | 'tablet' | 'mobile'
+export type EditorMode = 'beginner' | 'designer' | 'professional'
 
 interface EditorState {
   selectedBlockId: string | null
   viewport: Viewport
+  mode: EditorMode
   jsonDrawerOpen: boolean
   historyOpen: boolean
   shortcutsModalOpen: boolean
@@ -16,6 +18,7 @@ interface EditorState {
   generationError: string | null
   selectBlock: (id: string | null) => void
   setViewport: (vp: Viewport) => void
+  setMode: (mode: EditorMode) => void
   toggleJsonDrawer: () => void
   toggleHistory: () => void
   toggleShortcutsModal: () => void
@@ -29,6 +32,7 @@ interface EditorState {
 export const useEditorStore = create<EditorState>()((set) => ({
   selectedBlockId: null,
   viewport: 'desktop',
+  mode: 'beginner',
   jsonDrawerOpen: false,
   historyOpen: false,
   shortcutsModalOpen: false,
@@ -39,6 +43,7 @@ export const useEditorStore = create<EditorState>()((set) => ({
   generationError: null,
   selectBlock: (id) => set({ selectedBlockId: id }),
   setViewport: (vp) => set({ viewport: vp }),
+  setMode: (mode) => set({ mode, jsonDrawerOpen: mode === 'professional' }),
   toggleJsonDrawer: () => set((s) => ({ jsonDrawerOpen: !s.jsonDrawerOpen })),
   toggleHistory: () => set((s) => ({ historyOpen: !s.historyOpen })),
   toggleShortcutsModal: () => set((s) => ({ shortcutsModalOpen: !s.shortcutsModalOpen })),

@@ -21,8 +21,8 @@ function ComponentsPanel() {
   const selectBlock = useEditorStore((s) => s.selectBlock)
 
   const filtered = blockMetadata.filter((b) =>
-    b.label.toLowerCase().includes(search.toLowerCase()) ||
-    b.category.toLowerCase().includes(search.toLowerCase())
+    b.type !== 'pricing' && (b.label.toLowerCase().includes(search.toLowerCase()) ||
+    b.category.toLowerCase().includes(search.toLowerCase()))
   )
 
   const grouped = filtered.reduce<Record<string, typeof blockMetadata>>((acc, b) => {

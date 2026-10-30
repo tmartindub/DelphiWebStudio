@@ -2,12 +2,11 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Search, Sparkles, Trash2, FolderOpen, Copy, Pencil, Layers, Briefcase, UtensilsCrossed, Building2, BookOpen } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
 import { useProjectsStore, type Project } from '@/store/projectsStore'
 import { useConfigStore, defaultConfig } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { hexToRgb } from '@/lib/theme-presets'
-import { templateMeta, buildTemplate } from '@/lib/templates'
+import { templateMeta, buildTemplate, getTemplateForPrompt } from '@/lib/templates'
 import { ProjectFileCommands } from '@/project/ProjectFileCommands'
 import { portableProjectsEnabled } from '@/project/project-file'
 
@@ -16,22 +15,10 @@ const templateIcons: Record<string, typeof Briefcase> = {
 }
 
 const suggestions = [
-  {
-    label: 'SaaS landing page',
-    prompt: 'Create a SaaS landing page for a project management tool called "FlowBoard". Include a hero with a compelling headline about team productivity, a features grid highlighting task boards, real-time collaboration, and analytics. Add a pricing section with Free, Pro ($12/mo), and Enterprise tiers. Use a clean, modern dark theme with blue accents.',
-  },
-  {
-    label: 'Portfolio site',
-    prompt: 'Create a portfolio site for a freelance product designer named Alex Chen. Include a hero section with a strong personal headline, a project gallery showcasing 4-6 case studies with titles and descriptions, a testimonials section with client quotes, an about/bio section, and a contact form. Use a minimal, sophisticated aesthetic with warm neutral tones.',
-  },
-  {
-    label: 'Restaurant website',
-    prompt: 'Create a website for an upscale Italian restaurant called "Trattoria Luna". Include a hero with an inviting headline about authentic cuisine, a features section highlighting handmade pasta, wood-fired pizza, and a curated wine list. Add a content block with the chef\'s philosophy, a testimonials section with diner reviews, and a CTA to make reservations. Use warm, earthy tones with gold accents.',
-  },
-  {
-    label: 'AI startup',
-    prompt: 'Create a landing page for an AI startup called "NeuralFlow" that builds intelligent document processing tools. Include a hero with a bold headline about automating workflows, a features grid with smart extraction, multi-language support, and enterprise security. Add a stats section with impressive numbers, a pricing comparison table, customer testimonials from CTOs, and a strong CTA. Use a sleek dark theme with green accents.',
-  },
+  { label: 'Personal site', prompt: 'Personal website' },
+  { label: 'Community group', prompt: 'Community organization' },
+  { label: 'Church', prompt: 'Church website' },
+  { label: 'Documentation', prompt: 'Documentation website' },
 ]
 
 const filters = ['All', 'Published', 'Drafts'] as const
@@ -53,7 +40,6 @@ function PromptSection() {
   const addProject = useProjectsStore((s) => s.addProject)
   const setConfig = useConfigStore((s) => s.setConfig)
   const setActiveProject = useEditorStore((s) => s.setActiveProject)
-  const editorSetGenerating = useEditorStore((s) => s.setGenerating)
 
   const [prompt, setPrompt] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -76,16 +62,13 @@ function PromptSection() {
     const trimmed = text.trim()
     if (!trimmed) return
 
-    // Create placeholder project, set generation state, navigate immediately
     const placeholderName = trimmed.split(/\s+/).slice(0, 4).join(' ')
     const id = addProject(placeholderName.charAt(0).toUpperCase() + placeholderName.slice(1))
     setActiveProject(id)
-    setConfig(defaultConfig)
-    editorSetGenerating(trimmed)
+    setConfig(getTemplateForPrompt(trimmed))
     navigate('/editor')
   }
 
-  const hasGeminiKey = !!localStorage.getItem('openpage-gemini-key')
   const isFocused = prompt.length > 0
 
   return (
@@ -97,13 +80,13 @@ function PromptSection() {
 
       <div className="relative flex flex-col items-center pt-16 pb-6 px-6">
         <h1 className="text-[36px] font-display font-bold tracking-tight mb-2 text-center animate-fade-in-up stagger-1">What will you build?</h1>
-        <p className="text-text-2 text-[15px] mb-8 text-center animate-fade-in-up stagger-2">Describe your site and AI generates the layout, copy, and theme.</p>
+        <p className="text-text-2 text-[15px] mb-8 text-center animate-fade-in-up stagger-2">Choose a starter or describe the kind of site you want.</p>
 
         {/* Prompt card - gradient border wrapper */}
         <div className={`w-full max-w-[680px] rounded-2xl p-px transition-all duration-300 animate-scale-in stagger-3 ${
           isFocused
-            ? 'bg-gradient-to-b from-green/40 via-green/20 to-green/5 shadow-[0_0_80px_rgba(34,197,94,0.15)]'
-            : 'bg-gradient-to-b from-border-hover via-border-default to-border-subtle shadow-[0_0_60px_rgba(34,197,94,0.06)] hover:from-green/25 hover:via-green/10 hover:to-green/5 hover:shadow-[0_0_80px_rgba(34,197,94,0.1)]'
+            ? 'bg-gradient-to-b from-green/40 via-green/20 to-green/5 shadow-[0_0_80px_rgba(242,138,37,0.15)]'
+            : 'bg-gradient-to-b from-border-hover via-border-default to-border-subtle shadow-[0_0_60px_rgba(242,138,37,0.06)] hover:from-green/25 hover:via-green/10 hover:to-green/5 hover:shadow-[0_0_80px_rgba(242,138,37,0.1)]'
         }`}>
           <div className="bg-bg-1 rounded-[15px] overflow-hidden">
             <textarea
@@ -116,7 +99,7 @@ function PromptSection() {
                 }
               }}
               rows={3}
-              placeholder="A landing page for a modern fitness app with dark theme..."
+              placeholder="A website for our community group..."
               className="w-full px-5 pt-5 pb-3 bg-transparent text-text-0 text-[14px] placeholder:text-text-3 resize-none leading-relaxed"
             />
 
@@ -142,10 +125,10 @@ function PromptSection() {
                 <button
                   onClick={() => generate(prompt)}
                   disabled={!prompt.trim()}
-                  className="px-5 py-2.5 rounded-xl bg-green text-black text-[13px] font-semibold hover:bg-green-dim active:scale-[0.97] transition-all disabled:opacity-20 disabled:cursor-not-allowed inline-flex items-center gap-2 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.4)]"
+                  className="px-5 py-2.5 rounded-xl bg-green text-black text-[13px] font-semibold hover:bg-green-dim active:scale-[0.97] transition-all disabled:opacity-20 disabled:cursor-not-allowed inline-flex items-center gap-2 shadow-[0_0_20px_rgba(242,138,37,0.3)] hover:shadow-[0_0_30px_rgba(242,138,37,0.4)]"
                 >
                   <Sparkles size={14} />
-                  Generate
+                  Create starter
                 </button>
               </div>
             </div>
@@ -196,15 +179,7 @@ function PromptSection() {
           >
             or start blank
           </button>
-          {!hasGeminiKey && (
-            <p className="text-text-3 text-[10.5px]">
-              Using template mode.{' '}
-              <NavLink to="/settings" className="text-green hover:text-green-dim transition-colors">
-                Add a Gemini API key
-              </NavLink>
-              {' '}for AI-generated sites.
-            </p>
-          )}
+          <p className="text-text-3 text-[10.5px]">Starters are created locally and can be edited.</p>
         </div>
       </div>
     </div>

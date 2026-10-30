@@ -9,6 +9,9 @@ import { useEditorStore } from '@/store/editorStore'
 import { resolveTheme, themeToCSS } from '@/lib/theme-presets'
 import type { BlockConfig } from '@/blocks/types'
 
+const visibleComponents = blockMetadata.filter(block => block.type !== 'pricing')
+const visibleCategories = categories.filter(category => visibleComponents.some(block => block.category === category))
+
 export function Components() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [hoveredBlock, setHoveredBlock] = useState<string | null>(null)
@@ -22,7 +25,7 @@ export function Components() {
   const cssVars = useMemo(() => themeToCSS(resolveTheme(theme)), [theme])
 
   const filtered = useMemo(() => {
-    let results = blockMetadata
+    let results = visibleComponents
     if (activeCategory) results = results.filter((b) => b.category === activeCategory)
     if (search.trim()) {
       const q = search.toLowerCase()
@@ -55,7 +58,7 @@ export function Components() {
       <div className="px-4 md:px-12 pt-8">
         <h1 className="text-[22px] font-display font-semibold tracking-tight animate-fade-in-up stagger-1">Component Library</h1>
         <p className="text-text-2 text-[13px] mt-1 animate-fade-in-up stagger-2">
-          {blockMetadata.length} components across {categories.length} categories
+          {visibleComponents.length} components across {visibleCategories.length} categories
         </p>
       </div>
 
@@ -83,10 +86,10 @@ export function Components() {
               : 'text-text-2 border border-transparent hover:text-text-1 hover:bg-bg-2'
           }`}
         >
-          All ({blockMetadata.length})
+          All ({visibleComponents.length})
         </button>
-        {categories.map((cat) => {
-          const count = blockMetadata.filter((b) => b.category === cat).length
+        {visibleCategories.map((cat) => {
+          const count = visibleComponents.filter((b) => b.category === cat).length
           return (
             <button
               key={cat}

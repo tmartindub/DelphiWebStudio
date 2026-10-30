@@ -46,4 +46,15 @@ describe('page history', () => {
     useConfigStore.getState().removePage('home')
     expect(useConfigStore.getState().config.pages).toHaveLength(2)
   })
+
+  it('undoes and redoes a complete JSON replacement without discarding extension data', () => {
+    const before = { ...useConfigStore.getState().config, name: 'Original', extension: { retained: 1 } }
+    useConfigStore.getState().setConfig(before)
+    useConfigStore.getState().replaceConfig({ ...before, name: 'Edited', extension: { retained: 2 } })
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().config).toEqual(before)
+    useConfigStore.getState().redo()
+    expect(useConfigStore.getState().config.name).toBe('Edited')
+    expect((useConfigStore.getState().config as typeof before).extension).toEqual({ retained: 2 })
+  })
 })
