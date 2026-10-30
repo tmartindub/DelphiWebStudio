@@ -8,4 +8,6 @@ New articles start as **Draft**. Draft pages remain in the project and its proje
 
 Choose **Ready** to include the page in the next website ZIP. Author and summary appear above the page content. Ready does not publish or upload anything. Changes to article metadata participate in editor undo/redo. Created and modified timestamps are stored with the page metadata.
 
-This increment does not provide article archives, tags, categories, scheduled publication, RSS, reusable article templates, or a rich-text article editor. Use existing content components to edit page content. Those features and full collection support remain future work.
+When one or more articles are Ready, website ZIP export includes an Articles index with links, authors and summaries. Drafts are excluded. If a Public site URL is configured under Settings → SEO, export also creates an RSS 2.0 feed with absolute links and includes the index in the sitemap. The feed contains titles, links and summaries; it does not claim a publication date. The index and feed are static and update only when the site is exported again. No upload or publication is performed. A page path that collides with the generated index or feed stops export.
+
+Tags, categories, scheduled publication, pagination, reusable article templates, and a rich-text article editor are not yet implemented. Use existing content components to edit page content. Those features and full collection support remain future work.
