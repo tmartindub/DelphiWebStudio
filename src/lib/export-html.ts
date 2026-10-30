@@ -1050,6 +1050,8 @@ ${cards}
 function renderContact(block: BlockConfig): string {
   const title = escapeHtml(prop(block.props, 'title', 'Get in Touch'))
   const subtitle = prop<string>(block.props, 'subtitle', '')
+  const recipient = typeof block.props.recipientEmail === 'string' ? block.props.recipientEmail.trim() : ''
+  const configured = /^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/.test(recipient)
 
   const subtitleHtml = subtitle
     ? `          <p class="text-text-2 text-sm">${escapeHtml(subtitle)}</p>`
@@ -1061,27 +1063,28 @@ function renderContact(block: BlockConfig): string {
           <h2 class="text-2xl @md:text-3xl font-bold tracking-tight mb-2">${title}</h2>
 ${subtitleHtml}
         </div>
-        <form onsubmit="return false"><fieldset disabled class="space-y-4">
+        <form onsubmit="return false"${configured ? ` data-contact-email="${escapeHtml(recipient)}"` : ''}><fieldset${configured ? '' : ' disabled'} class="space-y-4">
           <div class="grid grid-cols-1 @sm:grid-cols-2 gap-3">
             <div>
-              <label class="block text-[11.5px] text-text-2 mb-1.5 font-medium">Name</label>
-              <input type="text" placeholder="Your name" class="w-full px-3 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 transition-colors" />
+              <label class="block text-[11.5px] text-text-2 mb-1.5 font-medium">Name
+              <input type="text" name="name" required maxlength="200" placeholder="Your name" class="w-full px-3 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 transition-colors" /></label>
             </div>
             <div>
-              <label class="block text-[11.5px] text-text-2 mb-1.5 font-medium">Email</label>
-              <input type="email" placeholder="you@example.com" class="w-full px-3 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 transition-colors" />
+              <label class="block text-[11.5px] text-text-2 mb-1.5 font-medium">Email
+              <input type="email" name="email" required maxlength="254" placeholder="you@example.com" class="w-full px-3 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 transition-colors" /></label>
             </div>
           </div>
           <div>
-            <label class="block text-[11.5px] text-text-2 mb-1.5 font-medium">Message</label>
-            <textarea rows="4" placeholder="How can we help?" class="w-full px-3 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 resize-y transition-colors"></textarea>
+            <label class="block text-[11.5px] text-text-2 mb-1.5 font-medium">Message
+            <textarea name="message" required maxlength="4000" rows="4" placeholder="How can we help?" class="w-full px-3 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 resize-y transition-colors"></textarea></label>
           </div>
           <button type="submit" class="w-full py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all flex items-center justify-center gap-2">
             ${SVG_SEND}
             Send Message
           </button>
         </fieldset></form>
-        <p class="text-text-1 text-sm mt-3">This form is not connected yet.</p>
+        <p class="text-text-1 text-sm mt-3">${configured ? 'This form opens your email application; you send the message there.' : 'This form is not connected yet.'}</p>
+        ${configured ? '<noscript>JavaScript is required to open the email application from this form.</noscript>' : ''}
       </div>
   </section>`
 }
@@ -1225,6 +1228,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
   const settings = options?.settings
 
   const hasFaq = config.blocks.some((b) => b.type === 'faq')
+  const hasContact = config.blocks.some((b) => b.type === 'contact')
 
   const blocksHtml = `<main class="@container">${config.blocks.map((b) => renderBlock(b)).join('\n\n')}</main>`
 
@@ -1305,6 +1309,22 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
     </script>`
     : ''
 
+  const contactScript = hasContact
+    ? `
+    <script>
+      document.querySelectorAll('form[data-contact-email]').forEach(function(form) {
+        form.addEventListener('submit', function(event) {
+          event.preventDefault();
+          if (!form.reportValidity()) return;
+          var data = new FormData(form);
+          var body = 'Name: ' + data.get('name') + '\\nEmail: ' + data.get('email') + '\\n\\n' + data.get('message');
+          var recipient = encodeURIComponent(form.getAttribute('data-contact-email')).replace('%40', '@');
+          window.location.href = 'mailto:' + recipient + '?subject=' + encodeURIComponent('Website message') + '&body=' + encodeURIComponent(body);
+        });
+      });
+    </script>`
+    : ''
+
   return `<!DOCTYPE html>
 <html lang="${escapeHtml(lang)}">
 <head>
@@ -1373,6 +1393,7 @@ ${posthogScript}
 
 ${blocksHtml}
 ${faqScript}
+${contactScript}
 </body>
 </html>`
 }

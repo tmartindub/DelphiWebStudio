@@ -97,6 +97,19 @@ describe('exportSiteToHTML', () => {
     expect(html).not.toContain('Join 2,000+ developers and designers')
   })
 
+  it('offers a mail application action only for a valid contact address', () => {
+    const contact = { id: 'contact', type: 'contact' as const, variant: 'form', props: { title: 'Contact', recipientEmail: 'office@example.com' } }
+    const configured = exportSiteToHTML({ name: 'Forms', blocks: [contact] })
+    expect(configured).toContain('data-contact-email="office@example.com"')
+    expect(configured).toContain('name="message" required')
+    expect(configured).toContain('name="email" required')
+    expect(configured).toContain('you send the message there')
+    expect(configured).toContain("'mailto:' + recipient")
+    const invalid = exportSiteToHTML({ name: 'Forms', blocks: [{ ...contact, props: { ...contact.props, recipientEmail: 'office@example.com?bcc=other@example.com' } }] })
+    expect(invalid).not.toContain('data-contact-email="office@example.com')
+    expect(invalid).toContain('<fieldset disabled')
+  })
+
   it('preserves responsive feature layouts and alternating images', () => {
     const feature = { id: 'features', type: 'features' as const, variant: 'grid', props: { title: 'Features', items: [{ title: 'Photo', description: 'Description', image: 'assets/photo.png' }] } }
     const grid = exportSiteToHTML({ name: 'Test', blocks: [feature] })

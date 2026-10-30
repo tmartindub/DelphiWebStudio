@@ -205,6 +205,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
         fields: [
           { key: 'title', label: 'Title', type: 'text' },
           { key: 'subtitle', label: 'Subtitle', type: 'text' },
+          { key: 'recipientEmail', label: 'Contact Email', type: 'text' },
         ],
       },
     ],
