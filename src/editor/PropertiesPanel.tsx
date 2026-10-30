@@ -1,13 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, ChevronRight, Code } from 'lucide-react'
 import type { BlockConfig, BlockType } from '@/blocks/types'
 import { useConfigStore } from '@/store/configStore'
 import { portableProjectsEnabled } from '@/project/project-file'
+import { useEditorStore } from '@/store/editorStore'
+import { useProjectsStore } from '@/store/projectsStore'
+import { ProjectMediaLibrary, type MediaAsset } from '@/media/media-library'
 
 interface FieldDef {
   key: string
   label: string
-  type: 'text' | 'link' | 'textarea' | 'select' | 'array-strings' | 'array-items'
+  type: 'text' | 'image' | 'link' | 'textarea' | 'select' | 'array-strings' | 'array-items'
   options?: string[]
 }
 
@@ -25,7 +28,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
         title: 'Content',
         fields: [
           { key: 'logo', label: 'Logo Text', type: 'text' },
-          { key: 'logoImage', label: 'Logo Image URL', type: 'text' },
+          { key: 'logoImage', label: 'Logo Image URL', type: 'image' },
           { key: 'ctaText', label: 'CTA Button', type: 'text' },
           { key: 'links', label: 'Nav Links', type: 'array-strings' },
         ],
@@ -50,7 +53,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
           { key: 'primaryCtaUrl', label: 'Primary CTA URL', type: 'link' },
           { key: 'secondaryCta', label: 'Secondary CTA', type: 'text' },
           { key: 'secondaryCtaUrl', label: 'Secondary CTA URL', type: 'link' },
-          { key: 'heroImage', label: 'Hero Image URL', type: 'text' },
+          { key: 'heroImage', label: 'Hero Image URL', type: 'image' },
         ],
       },
       {
@@ -127,7 +130,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
         title: 'Content',
         fields: [
           { key: 'logo', label: 'Logo Text', type: 'text' },
-          { key: 'logoImage', label: 'Logo Image URL', type: 'text' },
+          { key: 'logoImage', label: 'Logo Image URL', type: 'image' },
           { key: 'copyright', label: 'Copyright', type: 'text' },
           { key: 'links', label: 'Links', type: 'array-strings' },
         ],
@@ -256,7 +259,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
       {
         title: 'Content',
         fields: [
-          { key: 'src', label: 'Image URL', type: 'text' },
+          { key: 'src', label: 'Image URL', type: 'image' },
           { key: 'alt', label: 'Alt Text', type: 'text' },
           { key: 'title', label: 'Title', type: 'text' },
           { key: 'subtitle', label: 'Subtitle', type: 'text' },
@@ -347,6 +350,18 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
   const updateBlockProps = useConfigStore((s) => s.updateBlockProps)
   const updateBlock = useConfigStore((s) => s.updateBlock)
   const pages = useConfigStore((s) => s.config.pages)
+  const projectId = useEditorStore((s) => s.activeProjectId)
+  const mediaRevision = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.mediaRevision ?? 0)
+  const [media, setMedia] = useState<{ projectId: string; revision: number; images: MediaAsset[] } | null>(null)
+
+  useEffect(() => {
+    if (!portableProjectsEnabled || field.type !== 'image' || !projectId) return
+    let active = true
+    new ProjectMediaLibrary().list(projectId).then(assets => {
+      if (active) setMedia({ projectId, revision: mediaRevision, images: assets.filter(asset => asset.mime.startsWith('image/')) })
+    }).catch(() => { if (active) setMedia({ projectId, revision: mediaRevision, images: [] }) })
+    return () => { active = false }
+  }, [field.type, projectId, mediaRevision])
 
   // For variant field, it's on the block itself
   const value = field.key === 'variant'
@@ -363,6 +378,29 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
   }
 
   switch (field.type) {
+    case 'image': {
+      const images = media?.projectId === projectId && media.revision === mediaRevision ? media.images : []
+      const current = String(value || '')
+      const selected = images.some(image => image.path === current) ? current : ''
+      return (
+        <div className="mb-2.5">
+          <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{field.label}</label>
+          <input type="text" aria-label={field.label} value={current} onChange={event => onChange(event.target.value)}
+            className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-2 text-text-0 text-xs outline-none focus:border-green" />
+          {portableProjectsEnabled && images.length > 0 && <select aria-label={`Choose image for ${field.label}`} value={selected}
+            onChange={event => {
+              const image = images.find(item => item.path === event.target.value)
+              if (!image) return
+              if (field.key === 'src') updateBlockProps(block.id, { src: image.path, assetId: image.id })
+              else onChange(image.path)
+            }} className="mt-1 w-full px-2 py-1.5 rounded border border-border-default bg-bg-2 text-text-0 text-xs outline-none focus:border-green">
+            <option value="">Choose an image from Media...</option>
+            {images.map(image => <option key={image.id} value={image.path}>{image.name}</option>)}
+          </select>}
+        </div>
+      )
+    }
+
     case 'link': {
       const availablePages = (pages ?? []).filter(page => page.webstudioArticle?.status !== 'draft')
       const current = String(value || '')
