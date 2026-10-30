@@ -3,6 +3,25 @@ import { describe, expect, it, vi } from 'vitest'
 import { ProjectMediaLibrary } from '../src/media/media-library'
 
 describe('project media library', () => {
+  it('deduplicates simultaneous imports within the same project', async () => {
+    const library = new ProjectMediaLibrary()
+    const projectId = crypto.randomUUID()
+    const imports = await Promise.all(Array.from({ length: 8 }, (_, index) =>
+      library.import(projectId, new File(['same contents'], `note-${index}.txt`))))
+    expect(imports.filter(result => !result.duplicate)).toHaveLength(1)
+    expect(new Set(imports.map(result => result.asset.id)).size).toBe(1)
+    expect(await library.list(projectId)).toHaveLength(1)
+  })
+  it('retains distinct restored asset identities even when their bytes match', async () => {
+    const library = new ProjectMediaLibrary()
+    const file = new File(['same'], 'one.txt')
+    const original = (await library.import(crypto.randomUUID(), file)).asset
+    const projectId = crypto.randomUUID()
+    const secondId = crypto.randomUUID()
+    await library.import(projectId, file, original)
+    await library.import(projectId, new File(['same'], 'two.txt'), { ...original, id: secondId, path: `assets/${secondId}-two.txt` })
+    expect((await library.list(projectId)).map(asset => asset.id).sort()).toEqual([original.id, secondId].sort())
+  })
   it('does not overwrite a rename made while a replacement is being prepared', async () => {
     const library = new ProjectMediaLibrary()
     const projectId = crypto.randomUUID()

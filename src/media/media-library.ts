@@ -155,17 +155,12 @@ export class ProjectMediaLibrary {
       })
       if (!previous || previous.path !== restored.path || previous.mime !== mime) throw new Error('The replacement must match an existing media type.')
     }
-    const existing = await new Promise<MediaAsset | undefined>((resolve, reject) => {
-      const request = database.transaction('assetsV2', 'readonly').objectStore('assetsV2').index('projectHash').get([projectId, hash])
-      request.onsuccess = () => resolve(request.result as MediaAsset | undefined)
-      request.onerror = () => reject(request.error ?? new Error('Media duplicates could not be checked.'))
-    })
-    if (existing && !restored) return { asset: existing, duplicate: true }
     const id = restored?.id ?? crypto.randomUUID()
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-') || `file.${extension}`
     const folder = restored?.folder ?? (file.webkitRelativePath ?? '').split('/').slice(0, -1).join('/')
     if (folder && (folder.includes('\\') || folder.split('/').some(part => part === '..' || part === '.'))) throw new Error(`${file.name}: invalid folder path.`)
     const asset: MediaAsset = { id, projectId, name: previous?.name ?? file.name, path: restored?.path ?? `assets/${id}-${safeName}`, mime, size: file.size, sha256: hash, importedAt: previous?.importedAt ?? restored?.importedAt ?? Date.now(), ...((previous?.folder ?? folder) ? { folder: previous?.folder ?? folder } : {}), ...(previous?.previousName ? { previousName: previous.previousName } : {}), ...(width && height ? { width, height } : {}), content: new Blob([bytes], { type: mime }), ...(previous ? { previousVersion: { content: previous.content, sha256: previous.sha256, size: previous.size, width: previous.width, height: previous.height } } : {}) }
+    let duplicate: MediaAsset | undefined
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction('assetsV2', 'readwrite')
       const store = transaction.objectStore('assetsV2')
@@ -181,12 +176,18 @@ export class ProjectMediaLibrary {
           }
           store.put(asset)
         }
+      } else if (!restored) {
+        const request = store.index('projectHash').get([projectId, hash])
+        request.onsuccess = () => {
+          duplicate = request.result as MediaAsset | undefined
+          if (!duplicate) store.add(asset)
+        }
       } else store.add(asset)
       transaction.oncomplete = () => resolve()
       transaction.onerror = () => reject(changed ? new Error('Media changed while it was being replaced. Try again.') : transaction.error ?? new Error('Media could not be saved.'))
       transaction.onabort = () => reject(changed ? new Error('Media changed while it was being replaced. Try again.') : transaction.error ?? new Error('Media import was cancelled.'))
     })
-    return { asset, duplicate: false }
+    return { asset: duplicate ?? asset, duplicate: !!duplicate }
   }
 
   async undoReplacement(projectId: string, id: string): Promise<void> {
