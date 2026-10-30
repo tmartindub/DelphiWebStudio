@@ -45,8 +45,10 @@ function escapeHtml(str: string): string {
 function renderLink(text: string, url?: string, className?: string): string {
   const cls = className ? ` class="${escapeHtml(className)}"` : ''
   const escaped = escapeHtml(text)
-  if (url && url.trim()) {
-    return `<a href="${escapeHtml(url)}"${cls}>${escaped}</a>`
+  const destination = url?.trim() ?? ''
+  if (destination && !/[\\\p{Cc}]/u.test(destination) && !destination.startsWith('//') &&
+    (!/^[a-z][a-z\d+.-]*:/i.test(destination) || /^(https?:|mailto:|tel:)/i.test(destination))) {
+    return `<a href="${escapeHtml(destination)}"${cls}>${escaped}</a>`
   }
   return `<span${cls}>${escaped}</span>`
 }

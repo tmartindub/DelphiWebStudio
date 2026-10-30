@@ -103,3 +103,5 @@ In Settings → General, set **Site search** to **Include in website ZIP** to ad
 An isolated browser test saved and reopened the setting, searched a nested page, followed the result under a subfolder, and blocked external requests. Full CMS and document-text search remain future work.
 
 Article pages use optional `webstudioArticle` metadata on ordinary pages. Drafts stay in project saves but are omitted from website exports and generated search/sitemaps; see ARTICLE_PAGES.md for operation and limitations.
+
+For Hero, CTA, Banner and Navbar buttons rendered by the HTML exporter, unsupported link schemes, protocol-relative URLs, backslashes and control characters are exported as text rather than active links. **Check site** reports destinations it can inspect; project validation may reject some invalid URLs earlier. This check does not cover every URL field or plugin and is not a complete security audit.
