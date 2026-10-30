@@ -25,6 +25,36 @@ export interface SiteActionPreview {
   changes: readonly string[]
 }
 
+/** Turn an untrusted five-page plan into the existing review-only action flow.
+ * Only a blank single-page project can be used, so existing content is not replaced. */
+export function previewFivePagePlan(config: SiteConfig, input: unknown, requestId: string): SiteActionPreview {
+  const current = validateProjectConfig(config)
+  const pages = current.pages!
+  if (pages.length !== 1 || pages[0].path !== '/' || pages[0].blocks.length !== 0) throw new Error('A five-page plan requires a blank project with only an empty Home page.')
+  if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => key !== 'pages')) throw new Error('Invalid five-page plan.')
+  const planned = (input as Record<string, unknown>).pages
+  if (!Array.isArray(planned) || planned.length !== 5) throw new Error('The plan must contain exactly five pages.')
+  const operations: SiteAction[] = []
+  const paths = new Set<string>(['/'])
+  for (const [index, value] of planned.entries()) {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !['name', 'headline'].includes(key)) || typeof value.name !== 'string' || typeof value.headline !== 'string') throw new Error('Invalid page in plan.')
+    const name = value.name.trim()
+    const headline = value.headline.trim()
+    if (!name || name.length > 120 || !headline || headline.length > 4000 || /\p{Cc}/u.test(name + headline)) throw new Error('Invalid page name or headline in plan.')
+    const pageId = index === 0 ? pages[0].id : crypto.randomUUID()
+    if (index === 0) operations.push({ op: 'renamePage', pageId, name })
+    else {
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 100).replace(/-$/, '')
+      const path = `/${slug}`
+      if (!slug || paths.has(path)) throw new Error('Page names must produce distinct usable addresses.')
+      paths.add(path)
+      operations.push({ op: 'createPage', pageId, name, path })
+    }
+    operations.push({ op: 'addBlock', pageId, block: { id: crypto.randomUUID(), type: 'hero', variant: 'centered', props: { headline } } })
+  }
+  return previewSiteActions(current, { schemaVersion: 1, requestId, mode: 'preview', operations })
+}
+
 /** A proposal is evaluated on a copy and never edits the active project. */
 export function previewSiteActions(config: SiteConfig, input: unknown): SiteActionPreview {
   const request = input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : null
