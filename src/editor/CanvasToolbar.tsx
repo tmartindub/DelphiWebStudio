@@ -14,6 +14,7 @@ import {
   Download,
   Loader2,
   Pencil,
+  Copy,
   Trash2,
   Link,
   Search,
@@ -91,13 +92,14 @@ function AddPagePopover({ onAdd, onClose }: { onAdd: (name: string, path: string
   )
 }
 
-function PageTab({ page, isActive, onClick, onRename, onEditPath, onEditSeo, onDelete, canDelete }: {
+function PageTab({ page, isActive, onClick, onRename, onEditPath, onEditSeo, onDuplicate, onDelete, canDelete }: {
   page: PageConfig
   isActive: boolean
   onClick: () => void
   onRename: (name: string) => void
   onEditPath: () => void
   onEditSeo: () => void
+  onDuplicate: () => void
   onDelete: () => void
   canDelete: boolean
 }) {
@@ -147,6 +149,8 @@ function PageTab({ page, isActive, onClick, onRename, onEditPath, onEditSeo, onD
       {isActive && <button type="button" aria-label={`Rename ${page.name}`} title={`Rename ${page.name}`}
         onClick={() => { setName(page.name); setEditing(true) }}
         className="p-1 rounded text-text-3 hover:text-text-0 focus-visible:outline focus-visible:outline-2"><Pencil size={12} /></button>}
+      {isActive && <button type="button" aria-label={`Duplicate ${page.name} page`} title={`Duplicate ${page.name} page`}
+        onClick={onDuplicate} className="p-1 rounded text-text-3 hover:text-text-0 focus-visible:outline focus-visible:outline-2"><Copy size={12} /></button>}
       {isActive && <button type="button" aria-label={`Search details for ${page.name}`} title={`Search details for ${page.name}`}
         onClick={onEditSeo} className="p-1 rounded text-text-3 hover:text-text-0 focus-visible:outline focus-visible:outline-2"><Search size={12} /></button>}
       {isActive && page.path !== '/' && <button type="button" aria-label={`Change address for ${page.name}`} title={`Change address for ${page.name}`}
@@ -236,6 +240,7 @@ export function CanvasToolbar() {
   const setActivePage = useConfigStore((s) => s.setActivePage)
   const addPage = useConfigStore((s) => s.addPage)
   const removePage = useConfigStore((s) => s.removePage)
+  const duplicatePage = useConfigStore((s) => s.duplicatePage)
   const renamePage = useConfigStore((s) => s.renamePage)
   const changePagePath = useConfigStore((s) => s.changePagePath)
   const updatePageSeo = useConfigStore((s) => s.updatePageSeo)
@@ -328,6 +333,7 @@ export function CanvasToolbar() {
             onRename={(name) => renamePage(page.id, name)}
             onEditPath={() => setEditingPath({ id: page.id, projectId: activeProjectId })}
             onEditSeo={() => setEditingSeo({ id: page.id, projectId: activeProjectId })}
+            onDuplicate={() => { try { duplicatePage(page.id); toast(page.webstudioArticle ? 'Page duplicated as a draft' : 'Page duplicated') } catch (error) { toast.error(error instanceof Error ? error.message : 'Page could not be duplicated') } }}
             onDelete={() => setDeletingPage({ id: page.id, projectId: activeProjectId })}
             canDelete={pages.length > 1 && page.path !== '/'}
           />

@@ -13,6 +13,21 @@ beforeEach(() => {
 })
 
 describe('page history', () => {
+  it('duplicates a page with independent block IDs, a unique address and undo', () => {
+    useConfigStore.getState().addBlock({ id: 'original', type: 'content', variant: 'prose', props: { body: 'Original text' } })
+    useConfigStore.getState().duplicatePage('home')
+    const copy = useConfigStore.getState().config.pages![1]
+    expect(copy.path).toBe('/home-copy')
+    expect(copy.blocks[0].id).not.toBe('original')
+    useConfigStore.getState().updateBlockProps(copy.blocks[0].id, { body: 'Changed copy' })
+    expect(useConfigStore.getState().config.pages![0].blocks[0].props.body).toBe('Original text')
+    useConfigStore.getState().undo()
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().config.pages).toHaveLength(1)
+    useConfigStore.getState().duplicatePage('home')
+    useConfigStore.getState().duplicatePage('home')
+    expect(useConfigStore.getState().config.pages!.map(page => page.path)).toContain('/home-copy-2')
+  })
   it('shares a header across pages and keeps edits, new pages and undo consistent', () => {
     useConfigStore.getState().addBlock({ id: 'header', type: 'navbar', variant: 'default', props: { logoText: 'Welcome' } })
     useConfigStore.getState().addPage('About', '/about')

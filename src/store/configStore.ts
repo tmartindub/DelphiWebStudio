@@ -46,6 +46,7 @@ interface ConfigState {
   insertReusableSection: (id: string) => void
   moveBlock: (fromIndex: number, toIndex: number) => void
   addPage: (name: string, path: string) => string
+  duplicatePage: (id: string) => void
   removePage: (id: string) => void
   renamePage: (id: string, name: string) => void
   changePagePath: (id: string, path: string, updateLinks?: boolean) => void
@@ -282,6 +283,27 @@ export const useConfigStore = create<ConfigState>()(
         })
         return id
       },
+
+      duplicatePage: (id) => set(state => {
+        const pages = ensurePages(state.config)
+        const index = pages.findIndex(page => page.id === id)
+        if (index < 0) throw new Error('Page no longer exists.')
+        const source = pages[index]
+        const base = source.path === '/' ? '/home-copy' : `${source.path}-copy`
+        let path = base
+        let number = 2
+        while (pages.some(page => page.path.toLowerCase() === path.toLowerCase())) path = `${base}-${number++}`
+        const copy = structuredClone(source)
+        copy.id = `page-${crypto.randomUUID()}`
+        copy.name = `${source.name} copy`
+        copy.path = path
+        copy.blocks = copy.blocks.map(block => ({ ...block, id: `block-${crypto.randomUUID()}` }))
+        if (copy.webstudioArticle) copy.webstudioArticle.status = 'draft'
+        const newPages = [...pages]
+        newPages.splice(index + 1, 0, copy)
+        const config = validateProjectConfig({ ...state.config, pages: newPages })
+        return { ...pushUndo(state, 'Duplicate page'), config, activePageId: copy.id }
+      }),
 
       removePage: (id) =>
         set((state) => {
