@@ -21,7 +21,7 @@ export function checkSite(config: SiteConfig): SiteIssue[] {
         const hasColumnLinks = columns.some(column => column && typeof column === 'object' && Array.isArray(column.links) && column.links.some((link: unknown) => typeof link === 'string' && link.trim()))
         if (links.some(link => typeof link === 'string' && link.trim()) || hasColumnLinks) add('This block contains text-only navigation labels that do not link to pages. Use the site page navigation for working links.')
       }
-      if (block.type === 'navbar' && Array.isArray(block.props.navItems)) {
+      if ((block.type === 'navbar' || block.type === 'footer') && Array.isArray(block.props.navItems)) {
         for (const item of block.props.navItems) {
           if (!item || typeof item !== 'object') { add('A navigation destination is invalid.'); continue }
           const label = typeof item.label === 'string' ? item.label.trim() : ''

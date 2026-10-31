@@ -6,10 +6,13 @@ interface FooterProps {
   description?: string
   copyright: string
   links: string[]
+  navItems?: { label: string; url: string }[]
   columns?: { title: string; links: string[] }[]
 }
 
 function FooterSimple({ props }: { props: FooterProps }) {
+  const links = Array.isArray(props.links) ? props.links : []
+  const navItems = Array.isArray(props.navItems) ? props.navItems.filter(item => item && typeof item.label === 'string' && typeof item.url === 'string') : []
   return (
     <footer className="px-6 @md:px-10 py-8 border-t border-border-subtle">
       <div className="flex flex-col @lg:flex-row items-center justify-between gap-4">
@@ -24,8 +27,8 @@ function FooterSimple({ props }: { props: FooterProps }) {
           <span className="min-w-0 text-sm font-semibold text-text-1">{props.logo}</span>
         </div>
 
-        <div className="flex items-center gap-4">
-          {props.links.map((link, i) => (
+        <div className="flex flex-wrap items-center gap-4">
+          {links.map((link, i) => (
             <span
               key={i}
               className="text-[12px] text-text-3 hover:text-text-1 transition-colors cursor-pointer"
@@ -33,6 +36,7 @@ function FooterSimple({ props }: { props: FooterProps }) {
               {link}
             </span>
           ))}
+          {navItems.map((item, i) => <a key={`nav-${i}`} href={item.url || undefined} className="text-[12px] text-text-3 hover:text-text-1">{item.label}</a>)}
         </div>
 
         <span className="text-[11px] text-text-3">{props.copyright}</span>
@@ -43,6 +47,8 @@ function FooterSimple({ props }: { props: FooterProps }) {
 
 function FooterMultiColumn({ props }: { props: FooterProps }) {
   const columns = props.columns || []
+  const links = Array.isArray(props.links) ? props.links : []
+  const navItems = Array.isArray(props.navItems) ? props.navItems.filter(item => item && typeof item.label === 'string' && typeof item.url === 'string') : []
 
   return (
     <footer className="px-6 @md:px-10 py-12 border-t border-border-subtle">
@@ -84,8 +90,8 @@ function FooterMultiColumn({ props }: { props: FooterProps }) {
       {/* Bottom bar */}
       <div className="pt-6 border-t border-border-subtle flex flex-col @lg:flex-row items-center justify-between gap-3">
         <span className="text-[11px] text-text-3">{props.copyright}</span>
-        <div className="flex gap-4">
-          {props.links.map((link, i) => (
+        <div className="flex flex-wrap gap-4">
+          {links.map((link, i) => (
             <span
               key={i}
               className="text-[11px] text-text-3 hover:text-text-1 transition-colors cursor-pointer"
@@ -93,6 +99,7 @@ function FooterMultiColumn({ props }: { props: FooterProps }) {
               {link}
             </span>
           ))}
+          {navItems.map((item, i) => <a key={`nav-${i}`} href={item.url || undefined} className="text-[11px] text-text-3 hover:text-text-1">{item.label}</a>)}
         </div>
       </div>
     </footer>
@@ -100,17 +107,20 @@ function FooterMultiColumn({ props }: { props: FooterProps }) {
 }
 
 function FooterMinimal({ props }: { props: FooterProps }) {
+  const links = Array.isArray(props.links) ? props.links : []
+  const navItems = Array.isArray(props.navItems) ? props.navItems.filter(item => item && typeof item.label === 'string' && typeof item.url === 'string') : []
   return (
     <footer className="px-6 @md:px-10 py-6">
-      <div className="flex items-center justify-center gap-1.5 text-[11px] text-text-3">
+      <div className="flex flex-wrap items-center justify-center gap-1.5 text-[11px] text-text-3">
         <span>{props.copyright}</span>
-        {props.links.length > 0 && <span className="mx-1">|</span>}
-        {props.links.map((link, i) => (
+        {links.length > 0 && <span className="mx-1">|</span>}
+        {links.map((link, i) => (
           <span key={i}>
             <span className="hover:text-text-1 transition-colors cursor-pointer">{link}</span>
-            {i < props.links.length - 1 && <span className="mx-1">|</span>}
+            {i < links.length - 1 && <span className="mx-1">|</span>}
           </span>
         ))}
+        {navItems.map((item, i) => <span key={`nav-${i}`}>{(props.copyright || links.length > 0 || i > 0) && <span className="mx-1">|</span>}<a href={item.url || undefined} className="hover:text-text-1">{item.label}</a></span>)}
       </div>
     </footer>
   )

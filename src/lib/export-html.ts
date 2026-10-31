@@ -676,13 +676,15 @@ function renderFooterSimple(block: BlockConfig): string {
   const logoImage = prop<string>(block.props, 'logoImage', '')
   const copyright = escapeHtml(prop(block.props, 'copyright', ''))
   const links = prop<string[]>(block.props, 'links', [])
+  const navItems = Array.isArray(block.props.navItems) ? block.props.navItems : []
 
   const linksHtml = links
     .map(
       (l) =>
         `        <span class="text-[12px] text-text-3 hover:text-text-1 transition-colors cursor-pointer">${escapeHtml(l)}</span>`
     )
-    .join('\n')
+    .join('\n') + navItems.filter(item => item && typeof item.label === 'string' && typeof item.url === 'string').map(item =>
+      renderLink(item.label, item.url, 'text-[12px] text-text-3 hover:text-text-1')).join('\n')
 
   const footerLogoHtml = logoImage
     ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-6 w-auto max-w-[96px] shrink-0 object-contain" />`
@@ -694,7 +696,7 @@ function renderFooterSimple(block: BlockConfig): string {
           ${footerLogoHtml}
           <span class="min-w-0 text-sm font-semibold text-text-1">${logo}</span>
         </div>
-        <div class="flex items-center gap-4">
+        <div class="flex flex-wrap items-center gap-4">
 ${linksHtml}
         </div>
         <span class="text-[11px] text-text-3">${copyright}</span>
@@ -708,6 +710,7 @@ function renderFooterMultiColumn(block: BlockConfig): string {
   const description = prop<string>(block.props, 'description', '')
   const copyright = escapeHtml(prop(block.props, 'copyright', ''))
   const links = prop<string[]>(block.props, 'links', [])
+  const navItems = Array.isArray(block.props.navItems) ? block.props.navItems : []
   const columns = prop<{ title: string; links: string[] }[]>(
     block.props,
     'columns',
@@ -736,7 +739,8 @@ ${colLinks}
       (l) =>
         `          <span class="text-[11px] text-text-3 hover:text-text-1 transition-colors cursor-pointer">${escapeHtml(l)}</span>`
     )
-    .join('\n')
+    .join('\n') + navItems.filter(item => item && typeof item.label === 'string' && typeof item.url === 'string').map(item =>
+      renderLink(item.label, item.url, 'text-[11px] text-text-3 hover:text-text-1')).join('\n')
 
   const mcLogoHtml = logoImage
     ? `<img src="${escapeHtml(logoImage)}" alt="${logo}" class="h-7 w-auto max-w-[96px] shrink-0 object-contain" />`
@@ -755,7 +759,7 @@ ${colsHtml}
       </div>
       <div class="pt-6 border-t border-border-subtle flex flex-col @lg:flex-row items-center justify-between gap-3">
         <span class="text-[11px] text-text-3">${copyright}</span>
-        <div class="flex gap-4">
+        <div class="flex flex-wrap gap-4">
 ${bottomLinks}
         </div>
       </div>
@@ -765,18 +769,19 @@ ${bottomLinks}
 function renderFooterMinimal(block: BlockConfig): string {
   const copyright = escapeHtml(prop(block.props, 'copyright', ''))
   const links = prop<string[]>(block.props, 'links', [])
+  const navItems = Array.isArray(block.props.navItems) ? block.props.navItems.filter(item => item && typeof item.label === 'string' && typeof item.url === 'string') : []
 
   const linksHtml = links
     .map((l, i) => {
       const sep = i < links.length - 1 ? '<span class="mx-1">|</span>' : ''
       return `<span class="hover:text-text-1 transition-colors cursor-pointer">${escapeHtml(l)}</span>${sep}`
     })
-    .join('')
+    .join('') + navItems.map((item, i) => `${copyright || links.length > 0 || i > 0 ? '<span class="mx-1">|</span>' : ''}${renderLink(item.label, item.url, 'hover:text-text-1')}`).join('')
 
   const divider = links.length > 0 ? '<span class="mx-1">|</span>' : ''
 
   return `  <footer class="px-6 @md:px-10 py-6">
-      <div class="flex items-center justify-center gap-1.5 text-[11px] text-text-3">
+      <div class="flex flex-wrap items-center justify-center gap-1.5 text-[11px] text-text-3">
         <span>${copyright}</span>
         ${divider}
         ${linksHtml}

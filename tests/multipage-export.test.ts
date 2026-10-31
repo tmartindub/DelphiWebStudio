@@ -12,6 +12,21 @@ const pages = [
 const config: SiteConfig = { name: 'Example', pages, blocks: pages[0].blocks }
 
 describe('multi-page export', () => {
+  it.each(['simple', 'multi-column', 'minimal'])('exports %s footer destinations as working nested links', async variant => {
+    const site = structuredClone(config)
+    site.pages![1].blocks.push({ id: 'footer', type: 'footer', variant, props: { logo: 'Club', copyright: '', links: ['Legacy'], navItems: [{ label: 'About & us', url: '/about?from=news#team' }, { label: 'Unsafe', url: '//example.com' }] } })
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site)).arrayBuffer())
+    const news = await zip.file('community/news.html')!.async('string')
+    expect(news).toMatch(/href="\.\.\/about\.html\?from=news#team"[^>]*>About &amp; us<\/a>/)
+    expect(news).toContain('Legacy')
+    expect(news).not.toContain('href="//example.com"')
+  })
+  it('blocks footer links to draft articles', async () => {
+    const site = structuredClone(config)
+    site.pages![1].blocks.push({ id: 'footer', type: 'footer', variant: 'simple', props: { links: [], navItems: [{ label: 'Draft', url: '/about' }] } })
+    site.pages![2].webstudioArticle = { status: 'draft', author: '', summary: '', createdAt: '', modifiedAt: '' }
+    await expect(exportSiteZip(site)).rejects.toThrow('links to the draft article')
+  })
   it('exports navbar destinations on desktop and mobile with nested page links', async () => {
     const site = structuredClone(config)
     site.pages![1].blocks.push({ id: 'nav', type: 'navbar', variant: 'default', props: { logo: 'Club', links: ['Legacy'], navItems: [{ label: 'About club', url: '/about' }] } })
