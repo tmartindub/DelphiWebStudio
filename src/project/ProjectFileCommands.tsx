@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FolderOpen, Save } from 'lucide-react'
 import { toast } from 'sonner'
-import { useConfigStore } from '@/store/configStore'
+import { configDraftReadFailed, useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
-import { useProjectsStore } from '@/store/projectsStore'
+import { projectDraftReadFailed, useProjectsStore } from '@/store/projectsStore'
 import { createProjectFile, decodeProjectFile, parseProjectFile, portableProjectsEnabled, readProjectZipManifest, serializeProjectFile, validateProjectMedia } from './project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
 import JSZip from 'jszip'
@@ -15,6 +15,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
   const inputRef = useRef<HTMLInputElement>(null)
   const [opening, setOpening] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [savingRawDraft, setSavingRawDraft] = useState(false)
   const [revisions, setRevisions] = useState<ProjectRevision[]>([])
   const [revisionsError, setRevisionsError] = useState(false)
   const [confirmRevision, setConfirmRevision] = useState<string | null>(null)
@@ -158,6 +159,41 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
     } finally { setCheckingRevision(null) }
   }
 
+  async function downloadRawDraft() {
+    if (savingRawDraft) return
+    setSavingRawDraft(true)
+    try {
+      const zip = new JSZip()
+      let available = 0
+      const unreadable: string[] = []
+      for (const [key, filename] of [['openpage-projects', 'projects.utf16le'], ['openpage-config', 'config.utf16le']]) {
+        let raw: string | null
+        try { raw = window.localStorage.getItem(key) } catch { unreadable.push(key); continue }
+        if (raw === null) continue
+        const bytes = new Uint8Array(raw.length * 2)
+        for (let index = 0; index < raw.length; index++) {
+          const code = raw.charCodeAt(index)
+          bytes[index * 2] = code & 255
+          bytes[index * 2 + 1] = code >>> 8
+        }
+        zip.file(filename, bytes)
+        available++
+      }
+      if (!available) throw new Error('No local draft data could be read for recovery.')
+      zip.file('READ ME.txt', 'These files contain raw local draft data encoded as UTF-16LE. They are not project files and do not include media. They may contain private settings or saved access keys. Keep them private.\r\n' + (unreadable.length ? `Could not read: ${unreadable.join(', ')}.\r\n` : ''))
+      const url = URL.createObjectURL(await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' }))
+      try {
+        const link = window.document.createElement('a')
+        link.href = url
+        link.download = 'webstudio-local-draft-recovery.zip'
+        link.click()
+      } finally { URL.revokeObjectURL(url) }
+      toast('Recovery data download requested. Keep the file private.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Local draft data could not be saved.')
+    } finally { setSavingRawDraft(false) }
+  }
+
   async function saveProject(checkpoint = false) {
     if (!project || useEditorStore.getState().mediaImporting) return
     setSaving(true)
@@ -238,7 +274,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
   }
 
   return (
-    <div className="relative flex items-center gap-2 shrink-0">
+    <div className="relative flex flex-wrap items-center gap-2 shrink-0">
       <input ref={inputRef} type="file" accept=".json,.zip,application/json,application/zip" className="hidden" aria-label="Choose project file" onChange={openProject} />
       <button type="button" onClick={() => inputRef.current?.click()} disabled={opening || mediaImporting}
         className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
@@ -248,6 +284,10 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
         className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
         <Save size={14} />{saving ? 'Preparing project…' : 'Save project'}
       </button>}
+      {allRevisions && (projectDraftReadFailed || configDraftReadFailed) && <div className="basis-full text-xs text-text-2">
+        <button type="button" disabled={savingRawDraft} onClick={() => void downloadRawDraft()} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50">{savingRawDraft ? 'Preparing recovery data…' : 'Save unreadable draft data'}</button>
+        <span>Raw data is not a project file, excludes media and may contain private settings or access keys.</span>
+      </div>}
       {(project || allRevisions) && <details className="text-xs">
         <summary className="cursor-pointer rounded px-2 py-1 text-text-1 hover:bg-bg-3">{allRevisions ? 'All local revisions' : 'Local revisions'}</summary>
         <div className={`absolute ${allRevisions ? 'left-0' : 'right-0'} top-full z-50 mt-1 w-[min(20rem,calc(100vw-2rem))] max-h-80 overflow-y-auto rounded border border-border-default bg-bg-1 p-3 shadow-lg`}>
