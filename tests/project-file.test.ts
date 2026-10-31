@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createProjectFile, parseProjectFile, serializeProjectFile, validateProjectConfig, validateProjectMedia } from '../src/project/project-file'
+import JSZip from 'jszip'
+import { createProjectFile, parseProjectFile, readProjectZipManifest, serializeProjectFile, validateProjectConfig, validateProjectMedia } from '../src/project/project-file'
 import type { SiteConfig } from '../src/blocks/types'
 
 const legacy = { name: 'My site', blocks: [{ id: 'hero', type: 'hero', variant: 'centered', props: { headline: 'Hello' } }] }
@@ -12,6 +13,31 @@ const fivePages = {
 }
 
 describe('portable project files', () => {
+  it('checks ZIP manifest integrity before reading project content', async () => {
+    const text = '{"name":"Hello world"}'
+    const zip = new JSZip()
+    zip.file('project.webstudio.json', text)
+    const bytes = await zip.generateAsync({ type: 'uint8array', compression: 'STORE' })
+    const valid = await JSZip.loadAsync(bytes)
+    expect(await readProjectZipManifest(valid.file('project.webstudio.json')!)).toBe(text)
+    const marker = new TextEncoder().encode('Hello world')
+    const index = bytes.findIndex((_, position) => marker.every((byte, offset) => bytes[position + offset] === byte))
+    expect(index).toBeGreaterThanOrEqual(0)
+    bytes[index] = 'J'.charCodeAt(0)
+    const damaged = await JSZip.loadAsync(bytes)
+    await expect(readProjectZipManifest(damaged.file('project.webstudio.json')!)).rejects.toThrow('checksum does not match')
+  })
+
+  it('rejects non-UTF-8 and oversized ZIP manifests', async () => {
+    const zip = new JSZip()
+    zip.file('project.webstudio.json', new Uint8Array([0xc3, 0x28]))
+    const parsed = await JSZip.loadAsync(await zip.generateAsync({ type: 'uint8array' }))
+    const manifest = parsed.file('project.webstudio.json')!
+    await expect(readProjectZipManifest(manifest)).rejects.toThrow('not valid UTF-8')
+    const metadata = (manifest as JSZip.JSZipObject & { _data: { uncompressedSize: number } })._data
+    metadata.uncompressedSize = 100 * 1024 * 1024 + 1
+    await expect(readProjectZipManifest(manifest)).rejects.toThrow('too large')
+  })
   it('migrates legacy JSON without changing the input and creates a stable portable identity', () => {
     const source = JSON.stringify(legacy)
     const { project, migrated } = parseProjectFile(source)

@@ -180,4 +180,6 @@ The desktop status line reports when WebView2 marks a selected download complete
 
 Opening a project rejects a JSON file or ZIP manifest larger than 100 MiB before reading its contents. Saving also stops before downloading a manifest above that limit so the application does not produce a project it cannot reopen. The ZIP may be larger when it contains media. This limit helps prevent excessive manifest allocation; it is not a complete defense against every oversized or malformed archive.
 
+Opening a project ZIP verifies the manifest's recorded CRC and requires valid UTF-8 before parsing it. An isolated browser test rejected a ZIP with altered manifest bytes while preserving the current project, then opened a valid project ZIP containing a PDF. CRC detects accidental corruption; it does not authenticate the archive or establish protection against a deliberately crafted ZIP. This check uses metadata and the CRC implementation from the pinned JSZip version.
+
 An isolated browser check rejected an oversized JSON file and a ZIP whose manifest metadata claimed more than 100 MiB, then opened the five-page sample in the same session. Another browser check simulated an oversized serialized manifest, verified that no download was started, then restored the normal size and saved the sample. This does not test every archive or complete native save and recovery.

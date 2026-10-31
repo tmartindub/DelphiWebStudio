@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { useProjectsStore } from '@/store/projectsStore'
-import { createProjectFile, parseProjectFile, portableProjectsEnabled, serializeProjectFile, validateProjectMedia } from './project-file'
+import { createProjectFile, parseProjectFile, portableProjectsEnabled, readProjectZipManifest, serializeProjectFile, validateProjectMedia } from './project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
 import JSZip from 'jszip'
 import { ProjectRevisions, type ProjectRevision } from './project-revisions'
@@ -64,9 +64,8 @@ export function ProjectFileCommands() {
       }
       const manifest = zip?.file('project.webstudio.json')
       if (zip && !manifest) throw new Error('The project ZIP has no project.webstudio.json file.')
-      const manifestSize = (manifest as (JSZip.JSZipObject & { _data?: { uncompressedSize?: number } }) | null | undefined)?._data?.uncompressedSize
-      if (manifest && (!Number.isSafeInteger(manifestSize) || manifestSize! < 0 || manifestSize! > 100 * 1024 * 1024)) throw new Error('The project ZIP manifest is too large to open safely (maximum 100 MiB).')
-      const { project, migrated } = parseProjectFile(manifest ? await manifest.async('string') : await file.text())
+      const contents = manifest ? await readProjectZipManifest(manifest) : await file.text()
+      const { project, migrated } = parseProjectFile(contents)
       const assetMetadata = project.assets === undefined ? [] : project.assets
       if (!Array.isArray(assetMetadata)) throw new Error('The project media list is invalid.')
       if (assetMetadata.length && !zip) throw new Error('This project references media files; open its ZIP package instead.')

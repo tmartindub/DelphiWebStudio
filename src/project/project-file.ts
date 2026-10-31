@@ -1,4 +1,6 @@
 import type { BlockConfig, PageConfig, SiteConfig } from '@/blocks/types'
+import type JSZip from 'jszip'
+import crc32 from 'jszip/lib/crc32.js'
 
 export const portableProjectsEnabled = import.meta.env.VITE_WEBSTUDIO_PROJECTS === 'true'
 
@@ -9,6 +11,19 @@ export interface SiteProjectFile {
   config: SiteConfig
   settings?: Record<string, unknown>
   [key: string]: unknown
+}
+
+/** Read a bounded ZIP manifest only after verifying its recorded checksum. */
+export async function readProjectZipManifest(manifest: JSZip.JSZipObject): Promise<string> {
+  const metadata = (manifest as JSZip.JSZipObject & { _data?: { uncompressedSize?: number; crc32?: number } })._data
+  if (!Number.isSafeInteger(metadata?.uncompressedSize) || metadata!.uncompressedSize! < 0 || metadata!.uncompressedSize! > 100 * 1024 * 1024) {
+    throw new Error('The project ZIP manifest is too large to open safely (maximum 100 MiB).')
+  }
+  if (!Number.isInteger(metadata?.crc32)) throw new Error('The project ZIP manifest checksum is missing.')
+  const bytes = await manifest.async('uint8array')
+  if ((crc32(bytes) >>> 0) !== (metadata!.crc32! >>> 0)) throw new Error('The project ZIP manifest is damaged; its checksum does not match.')
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes) }
+  catch { throw new Error('The project ZIP manifest is not valid UTF-8.') }
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {
