@@ -33,6 +33,37 @@ uses Winapi.ActiveX, System.IOUtils;
 
 {$R *.dfm}
 
+type
+  TDownloadStateHandler = class(TInterfacedObject, ICoreWebView2StateChangedEventHandler)
+  private
+    FOwnerWindow: HWND;
+    FOwner: TMainForm;
+    FFileName: string;
+  public
+    constructor Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName: string);
+    function Invoke(const sender: ICoreWebView2DownloadOperation; const args: IUnknown): HResult; stdcall;
+  end;
+
+constructor TDownloadStateHandler.Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName: string);
+begin
+  inherited Create;
+  FOwner := AOwner;
+  FOwnerWindow := AOwnerWindow;
+  FFileName := AFileName;
+end;
+
+function TDownloadStateHandler.Invoke(const sender: ICoreWebView2DownloadOperation; const args: IUnknown): HResult;
+var State: COREWEBVIEW2_DOWNLOAD_STATE;
+begin
+  Result := S_OK;
+  if not IsWindow(FOwnerWindow) or (FindControl(FOwnerWindow) <> FOwner) or
+    Winapi.Windows.Failed(sender.Get_State(State)) then Exit;
+  if State = COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED then
+    FOwner.StatusLabel.Caption := 'Download completed: ' + FFileName
+  else if State = COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED then
+    FOwner.StatusLabel.Caption := 'Download interrupted: ' + FFileName + '. Try saving again.';
+end;
+
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
   if not TFile.Exists(TPath.Combine(ExtractFilePath(ParamStr(0)), 'editor\index.html')) then begin
@@ -121,6 +152,8 @@ var
   Operation: ICoreWebView2DownloadOperation;
   DownloadArgs: ICoreWebView2DownloadStartingEventArgs;
   Deferral: ICoreWebView2Deferral;
+  StateHandler: ICoreWebView2StateChangedEventHandler;
+  StateToken: EventRegistrationToken;
   Address, Suggested: PWideChar;
   SuggestedName: string;
   OwnerWindow: HWND;
@@ -161,6 +194,10 @@ begin
                   Winapi.Windows.Failed(DownloadArgs.Set_Handled(1)) then begin
                   DownloadArgs.Set_Cancel(1);
                   StatusLabel.Caption := 'The download could not start.';
+                end else begin
+                  StateHandler := TDownloadStateHandler.Create(Self, OwnerWindow, ExtractFileName(SaveDownloadDialog.FileName));
+                  if Winapi.Windows.Failed(Operation.add_StateChanged(StateHandler, StateToken)) then
+                    StatusLabel.Caption := 'Download started; completion status is unavailable.';
                 end;
               end else begin
                 DownloadArgs.Set_Cancel(1);
