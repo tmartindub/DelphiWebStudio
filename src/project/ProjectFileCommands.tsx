@@ -97,11 +97,15 @@ export function ProjectFileCommands() {
       delete portableSettings.deployAccessKey
       const assets = await new ProjectMediaLibrary().list(project.id)
       validateProjectMedia(config, assets)
+      const previousAssets = Array.isArray(project.projectFile?.assets) ? project.projectFile.assets : []
       const projectDocument = {
         ...project.projectFile,
         ...createProjectFile(config, project.projectFile?.projectId ?? project.id),
         settings: portableSettings,
-        assets: assets.map(({ id, name, path, mime, size, sha256, importedAt, folder, width, height }) => ({ id, name, path, mime, size, sha256, importedAt, folder, width, height })),
+        assets: assets.map(({ id, name, path, mime, size, sha256, importedAt, folder, width, height }) => ({
+          ...previousAssets.find(item => item && typeof item === 'object' && item.id === id),
+          id, name, path, mime, size, sha256, importedAt, folder, width, height,
+        })),
       }
       const contents = serializeProjectFile(projectDocument)
       const manifestBlob = new Blob([contents], { type: 'application/json' })

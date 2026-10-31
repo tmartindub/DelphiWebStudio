@@ -74,6 +74,8 @@ If a public site URL is configured in Settings, ZIP export also writes canonical
 
 Before opening or saving, known block media IDs and local `assets/` paths are checked against the project media list, including references inside nested items. Missing or mismatched media and duplicate IDs or case-colliding paths produce an error rather than a portable file with silently broken references. An unsuccessful open leaves the current project selected; an unsuccessful save leaves the editing state intact. Unknown block types are preserved and their plugin-specific references are not interpreted. Restoring missing files and native crash-safe saving remain future work.
 
+When a project ZIP is reopened and saved, unrecognized metadata on retained media entries is preserved by media ID while current names, paths, checksums and other known fields are updated. An isolated browser test verified an additional nested metadata field and the original PDF bytes survived a ZIP round trip. Unknown metadata is preserved without interpreting it and may need review after replacing a file.
+
 ## Page links in ZIP exports
 
 When a button or link uses an exact project page path such as `/about`, website ZIP export rewrites it to the correct relative HTML file for the page it appears on. Query strings and fragment identifiers are preserved. Links to unknown paths and external sites are unchanged; full broken-link checks remain unfinished. An isolated browser test followed a button from a nested page to another page and then Home while the site was served under a subdirectory.
