@@ -66,6 +66,13 @@ object MainForm: TMainForm
     Left = 360
     Top = 48
   end
+  object ProjectSaveDialog: TSaveDialog
+    Filter = 'WebStudio project files|*.json;*.zip'
+    Options = [ofHideReadOnly, ofNoChangeDir, ofPathMustExist, ofEnableSizing]
+    Title = 'Save project using a new filename'
+    Left = 808
+    Top = 48
+  end
   object RecoverySaveDialog: TSaveDialog
     Filter = 'WebStudio projects|*.json;*.zip'
     Options = [ofHideReadOnly, ofNoChangeDir, ofPathMustExist, ofEnableSizing]

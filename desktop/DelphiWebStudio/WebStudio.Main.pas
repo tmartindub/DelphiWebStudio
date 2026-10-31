@@ -14,6 +14,7 @@ type
     RecoverStageButton: TButton;
     EditorBrowser: TEdgeBrowser;
     SaveDownloadDialog: TSaveDialog;
+    ProjectSaveDialog: TSaveDialog;
     RecoveryOpenDialog: TOpenDialog;
     RecoverySaveDialog: TSaveDialog;
     ProjectMenu: TMainMenu;
@@ -325,6 +326,7 @@ var
   StageId: TGUID;
   OwnerWindow: HWND;
   Allowed: Boolean;
+  ActiveDialog: TSaveDialog;
 begin
   Address := nil;
   Suggested := nil;
@@ -363,9 +365,11 @@ begin
           if IsWindow(OwnerWindow) and (FindControl(OwnerWindow) = Self) and
             not (csDestroying in ComponentState) then begin
             try
-              SaveDownloadDialog.FileName := SuggestedName;
-              if SaveDownloadDialog.Execute then begin
-                SelectedPath := SaveDownloadDialog.FileName;
+              if ProjectSuffix <> '' then ActiveDialog := ProjectSaveDialog
+              else ActiveDialog := SaveDownloadDialog;
+              ActiveDialog.FileName := SuggestedName;
+              if ActiveDialog.Execute then begin
+                SelectedPath := ActiveDialog.FileName;
                 StagedPath := '';
                 if LowerCase(SuggestedName).EndsWith('.webstudio.json') or LowerCase(SuggestedName).EndsWith('.webstudio.zip') then begin
                   if not SameText(TPath.GetExtension(SelectedPath), TPath.GetExtension(SuggestedName)) then begin
@@ -390,7 +394,7 @@ begin
                   DownloadArgs.Set_Cancel(1);
                   StatusLabel.Caption := 'The download could not start.';
                 end else begin
-                  StateHandler := TDownloadStateHandler.Create(Self, OwnerWindow, ExtractFileName(SaveDownloadDialog.FileName), StagedPath, SaveDownloadDialog.FileName);
+                  StateHandler := TDownloadStateHandler.Create(Self, OwnerWindow, ExtractFileName(ActiveDialog.FileName), StagedPath, ActiveDialog.FileName);
                   if Winapi.Windows.Failed(Operation.add_StateChanged(StateHandler, StateToken)) then begin
                     if StagedPath <> '' then begin
                       DownloadArgs.Set_Cancel(1);

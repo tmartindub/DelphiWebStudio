@@ -55,7 +55,9 @@ begin
     if MainForm.StatusLabel.Caption <> 'Local editor loaded.' then raise Exception.Create('Test editor did not load.');
     if Winapi.Windows.Failed(MainForm.EditorBrowser.ControllerInterface.Set_IsVisible(1)) then raise Exception.Create('Could not activate test WebView.');
     MainForm.SaveDownloadDialog.InitialDir := Folder;
+    MainForm.ProjectSaveDialog.InitialDir := Folder;
     MainForm.SaveDownloadDialog.OnShow := Driver.SaveShown;
+    MainForm.ProjectSaveDialog.OnShow := Driver.SaveShown;
     Deadline := GetTickCount64 + 15000;
     repeat
       CheckSynchronize(0); Application.ProcessMessages; Sleep(50);

@@ -53,7 +53,9 @@ begin
     if MainForm.StatusLabel.Caption <> 'Local editor loaded.' then raise Exception.Create('Test page did not load.');
     if Winapi.Windows.Failed(MainForm.EditorBrowser.ControllerInterface.Set_IsVisible(1)) then raise Exception.Create('Could not activate test WebView.');
     MainForm.SaveDownloadDialog.InitialDir := ExtractFilePath(ParamStr(0));
+    MainForm.ProjectSaveDialog.InitialDir := ExtractFilePath(ParamStr(0));
     MainForm.SaveDownloadDialog.OnShow := Observer.DialogShown;
+    MainForm.ProjectSaveDialog.OnShow := Observer.DialogShown;
     MainForm.EditorBrowser.OnDownloadStarting := Observer.DownloadStarting;
     MainForm.EditorBrowser.ExecuteScript('(()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([new Uint8Array(128*1024*1024)]));a.download="shutdown-transfer-test.webstudio.zip";a.click()})()');
     Deadline := GetTickCount64 + 30000;

@@ -69,7 +69,9 @@ begin
     if Winapi.Windows.Failed(MainForm.EditorBrowser.ControllerInterface.Set_IsVisible(1)) then raise Exception.Create('Could not activate test WebView.');
     MainForm.EditorBrowser.OnDownloadStarting := Observer.Started;
     MainForm.SaveDownloadDialog.InitialDir := ExtractFilePath(ParamStr(0));
+    MainForm.ProjectSaveDialog.InitialDir := ExtractFilePath(ParamStr(0));
     MainForm.SaveDownloadDialog.OnShow := Observer.DialogShown;
+    MainForm.ProjectSaveDialog.OnShow := Observer.DialogShown;
     Deadline := GetTickCount64 + 15000;
     repeat
       CheckSynchronize(0); Application.ProcessMessages; Sleep(100);
@@ -227,7 +229,6 @@ begin
     while (MainForm.StatusLabel.Caption <> 'Download interrupted: interrupted-test.zip. Try saving again.') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
     if MainForm.StatusLabel.Caption <> 'Download interrupted: interrupted-test.zip. Try saving again.' then raise Exception.Create('Interrupted download was not reported.');
     BeforeBytes := TFile.ReadAllBytes(ExtractFilePath(ParamStr(0)) + 'saved-project.zip');
-    MainForm.SaveDownloadDialog.Options := MainForm.SaveDownloadDialog.Options - [ofOverwritePrompt];
     Observer.Operation := nil;
     MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Save project").click()');
     Deadline := GetTickCount64 + 30000;

@@ -8,12 +8,15 @@ uses
 type
   TDialogDriver = class
     Suggested: string;
+    IsProjectDialog, OffersOverwrite: Boolean;
     procedure SaveShown(Sender: TObject);
   end;
 
 procedure TDialogDriver.SaveShown(Sender: TObject);
 var Window: HWND;
 begin
+  IsProjectDialog := Sender = MainForm.ProjectSaveDialog;
+  OffersOverwrite := ofOverwritePrompt in TSaveDialog(Sender).Options;
   Window := GetParent(TSaveDialog(Sender).Handle);
   TThread.CreateAnonymousThread(
     procedure
@@ -39,6 +42,7 @@ begin
     if MainForm.StatusLabel.Caption <> 'Local editor loaded.' then raise Exception.Create('Test editor did not load.');
     if Winapi.Windows.Failed(MainForm.EditorBrowser.ControllerInterface.Set_IsVisible(1)) then raise Exception.Create('Could not activate test WebView.');
     MainForm.SaveDownloadDialog.OnShow := Driver.SaveShown;
+    MainForm.ProjectSaveDialog.OnShow := Driver.SaveShown;
     for Index := 1 to 3 do begin
       if Index = 1 then Name := 'sample.webstudio.json'
       else if Index = 2 then Name := 'sample.webstudio.zip'
@@ -51,9 +55,15 @@ begin
       while (MainForm.StatusLabel.Caption <> 'Download canceled.') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
       if MainForm.StatusLabel.Caption <> 'Download canceled.' then raise Exception.Create('Test dialog did not cancel.');
       if Index < 3 then begin
+        if not Driver.IsProjectDialog or Driver.OffersOverwrite then
+          raise Exception.Create('Project dialog offered to replace an existing file.');
         if not TRegEx.IsMatch(Driver.Suggested, '^sample-\d{8}-\d{6}\.webstudio\.(json|zip)$', [roIgnoreCase]) then
           raise Exception.Create('Unexpected project suggestion: ' + Driver.Suggested);
-      end else if Driver.Suggested <> Name then raise Exception.Create('Website filename changed: ' + Driver.Suggested);
+      end else begin
+        if Driver.IsProjectDialog or not Driver.OffersOverwrite then
+          raise Exception.Create('Website export dialog options changed.');
+        if Driver.Suggested <> Name then raise Exception.Create('Website filename changed: ' + Driver.Suggested);
+      end;
     end;
     Writeln('Timestamped JSON and ZIP project suggestions and unchanged website suggestion passed.');
   finally Driver.Free; MainForm.Free end;

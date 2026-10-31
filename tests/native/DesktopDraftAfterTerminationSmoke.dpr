@@ -68,7 +68,9 @@ begin
     until (Value = 'true') or (GetTickCount64 >= Deadline);
     if Value <> 'true' then raise Exception.Create('Sample PDF was not found after termination.');
     MainForm.SaveDownloadDialog.InitialDir := ExtractFilePath(ParamStr(0));
+    MainForm.ProjectSaveDialog.InitialDir := ExtractFilePath(ParamStr(0));
     MainForm.SaveDownloadDialog.OnShow := Driver.SaveShown;
+    MainForm.ProjectSaveDialog.OnShow := Driver.SaveShown;
     MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Save project").click()');
     Deadline := GetTickCount64 + 30000;
     while (MainForm.StatusLabel.Caption <> 'Download completed: recovered-draft.zip') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(50) end;

@@ -104,7 +104,9 @@ begin
   until (Value = 'true') or (GetTickCount64 >= Deadline);
   if Value <> 'true' then raise Exception.Create('Newer draft did not reach storage before termination.');
   MainForm.SaveDownloadDialog.InitialDir := Folder;
+  MainForm.ProjectSaveDialog.InitialDir := Folder;
   MainForm.SaveDownloadDialog.OnShow := Observer.SaveShown;
+  MainForm.ProjectSaveDialog.OnShow := Observer.SaveShown;
   MainForm.EditorBrowser.OnDownloadStarting := Observer.DownloadStarting;
   MainForm.EditorBrowser.ExecuteScript('(()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([new Uint8Array(128*1024*1024)]));a.download="termination-test.webstudio.zip";a.click()})()');
   Deadline := GetTickCount64 + 30000;
