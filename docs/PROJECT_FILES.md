@@ -58,6 +58,8 @@ The Win64 `tests/native/ProjectSaveSmoke.dpr` test compiled and ran with RAD Stu
 
 `desktop/project/WebStudio.ProjectOpen.pas` adds a read-only operation for a native-caller-selected absolute drive path. The caller sets a maximum byte count before allocation, and the read denies concurrent write access while the file is open. The native smoke test checks a multi-chunk round trip, empty input, size limits, relative-path rejection and an exclusively locked file. The operation does not parse or validate projects, resolve hostile filesystem paths, show a dialog or connect to the editor; those remain the host's responsibility.
 
+`SaveProjectRecoveryZip` can create a new ZIP containing the current bytes of a caller-selected project file before a change. The caller chooses an absolute ZIP path and a source-size limit; an existing recovery ZIP is never intentionally overwritten. A Win64 isolated test verified the archived bytes, unchanged source, rejection of an existing ZIP, size limits and a locked source. The operation holds the project and ZIP in memory, is not connected to the editor, and does not perform a save, establish conflict detection, or prove crash recovery. The caller must decide when and where to create a recovery snapshot and handle failures before changing the project.
+
 ## M3 update
 
 Projects with imported media now save as `.webstudio.zip` files, containing the manifest and media; projects without media save as JSON. Opening a ZIP validates and restores its media into a separate browser project. See MEDIA_LIBRARY.md for details and limitations. The earlier statement that assets are not integrated describes M1 only.
