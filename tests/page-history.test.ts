@@ -13,6 +13,38 @@ beforeEach(() => {
 })
 
 describe('page history', () => {
+  it.each(['{"state":{"config":null},"version":2}', '{"state":{"config":{"name":"Future","blocks":[]}},"version":99}'])('protects incompatible editor storage %s', async (stored) => {
+    storage.set('openpage-config', stored)
+    try {
+      await useConfigStore.persist.rehydrate()
+      useConfigStore.getState().addPage('In memory', '/memory')
+      expect(storage.get('openpage-config')).toBe(stored)
+    } finally {
+      storage.delete('openpage-config')
+      await useConfigStore.persist.rehydrate()
+    }
+  })
+  it('keeps edits in memory when local draft storage fails', () => {
+    const write = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => { throw new Error('storage full') })
+    try {
+      expect(() => useConfigStore.getState().addPage('News', '/news')).not.toThrow()
+      expect(useConfigStore.getState().config.pages?.[1].name).toBe('News')
+    } finally { write.mockRestore() }
+  })
+  it('rejects invalid or missing page renames without changing history or content', () => {
+    const id = useConfigStore.getState().addPage('News', '/news')
+    const before = useConfigStore.getState()
+    expect(() => before.renamePage(id, '   ')).toThrow('Page name is required')
+    expect(() => before.renamePage('missing', 'Other')).toThrow('Page no longer exists')
+    expect(useConfigStore.getState().config).toEqual(before.config)
+    expect(useConfigStore.getState().undoStack).toEqual(before.undoStack)
+    before.renamePage(id, 'News')
+    expect(useConfigStore.getState().undoStack).toEqual(before.undoStack)
+    before.renamePage(id, 'Updates')
+    expect(useConfigStore.getState().config.pages![1].name).toBe('Updates')
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().config.pages![1].name).toBe('News')
+  })
   it('saves and undoes page search metadata without affecting another page', () => {
     const id = useConfigStore.getState().addPage('News', '/news')
     useConfigStore.getState().updatePageSeo(id, 'News title', 'News description')

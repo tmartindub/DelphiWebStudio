@@ -1,8 +1,11 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import { produce } from 'immer'
+import { toast } from 'sonner'
 import type { BlockConfig, SiteConfig, ThemeConfig, PageConfig } from '@/blocks/types'
 import { validateProjectConfig } from '@/project/project-file'
+
+export let configDraftReadFailed = false
 
 function ensurePages(config: SiteConfig): PageConfig[] {
   if (config.pages && config.pages.length > 0) return config.pages
@@ -216,14 +219,16 @@ export const useConfigStore = create<ConfigState>()(
           }
         }),
 
-      renamePage: (id, name) =>
-        set((state) => ({
-          ...pushUndo(state, 'Rename page'),
-          config: produce(withPages(state.config), (draft) => {
-            const page = draft.pages!.find((p) => p.id === id)
-            if (page) page.name = name
-          }),
-        })),
+      renamePage: (id, name) => set((state) => {
+        const page = ensurePages(state.config).find(item => item.id === id)
+        if (!page) throw new Error('Page no longer exists.')
+        if (page.name === name) return state
+        if (!name.trim()) throw new Error('Page name is required.')
+        const changed = produce(withPages(state.config), draft => {
+          draft.pages!.find(item => item.id === id)!.name = name
+        })
+        return { ...pushUndo(state, 'Rename page'), config: changed }
+      }),
 
       changePagePath: (id, path, updateLinks = false) => set(state => {
         const pages = ensurePages(state.config)
@@ -320,6 +325,37 @@ export const useConfigStore = create<ConfigState>()(
     }),
     {
       name: 'openpage-config',
+      storage: createJSONStorage(() => {
+        return {
+          getItem: key => {
+            try {
+              const value = window.localStorage.getItem(key)
+              if (value !== null) {
+                const stored: unknown = JSON.parse(value)
+                if (!stored || typeof stored !== 'object' || Array.isArray(stored)) throw new Error('Invalid draft storage.')
+                const envelope = stored as Record<string, unknown>
+                if (!envelope.state || typeof envelope.state !== 'object' || Array.isArray(envelope.state)) throw new Error('Invalid draft state.')
+                const config = (envelope.state as Record<string, unknown>).config
+                if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('Invalid draft config.')
+                if (envelope.version !== undefined && (!Number.isInteger(envelope.version) || (envelope.version as number) < 0 || (envelope.version as number) > 2)) throw new Error('Unsupported draft version.')
+              }
+              configDraftReadFailed = false
+              return value
+            } catch {
+              configDraftReadFailed = true
+              toast.error('Local drafts could not be read. Existing drafts are protected from overwrite; save any new work to a separate project file and restart to retry.', { id: 'draft-storage-read-failed', duration: Infinity, closeButton: true })
+              return null
+            }
+          },
+          setItem: (key, value) => {
+            if (configDraftReadFailed) return
+            try { window.localStorage.setItem(key, value) } catch {
+              toast.error('Local draft storage failed. Save a separate project file before closing; recent edits may not survive a restart.', { id: 'draft-storage-failed', duration: Infinity, closeButton: true })
+            }
+          },
+          removeItem: key => { if (!configDraftReadFailed) window.localStorage.removeItem(key) },
+        }
+      }),
       version: 2,
       partialize: (state) => ({ config: state.config, activePageId: state.activePageId }),
       migrate: (persisted, version) => {

@@ -8,9 +8,21 @@ Set `VITE_WEBSTUDIO_PROJECTS=true` before starting Vite or building. The flag de
 
 Open accepts unversioned OpenPage SiteConfig JSON or WebStudio schema 2. Each open creates an independent local draft and never edits the selected file. A legacy file is upgraded in memory and saved as a new `.webstudio.json` download. The original is the recovery source; no automatic in-place migration occurs. Repeated opens retain the document projectId but have distinct local draft IDs. Duplicate assigns a new document identity.
 
+Use the pencil button on a dashboard project card to rename the project. Saving includes that project name, so reopening the file retains it. The website's own name remains separate. Older files without a project name continue to open using their site name. An isolated browser test renamed the five-page sample, saved and reopened it, and checked both names.
+
+After confirming removal of a dashboard project, use **Undo** in the notification within 15 seconds to restore its project entry and existing media references. An isolated browser test restored a five-page project and its PDF. This undo is temporary and does not replace a separate project file; the current implementation leaves the removed project's media in local storage.
+
+Suggested project and website download filenames avoid Windows reserved device names and fall back to `site` if the name cannot supply a usable filename. This changes the suggested filename only; the project and website names remain unchanged. An isolated browser check covered reserved names, punctuation-only names and non-Latin names.
+
 Save validates a snapshot and starts a JSON download. Browser download settings determine the final location and collision filename. The message says a download was requested and asks the user to choose a destination if prompted; it does not claim an atomic filesystem write or confirmed disk durability. Existing browser draft autosave remains available. Native atomic saves and recovery are later work.
 
 While the editor is open, changes are written to the browser draft as the editor state changes, without waiting for a later screen refresh. Browser storage can still be cleared or fail, so use **Save project** to keep a separate portable copy.
+
+An isolated browser test opened a five-page project with a PDF, edited News, closed the test browser normally, restarted it with the same isolated profile, and reopened the draft. The edit and original PDF bytes remained available in a subsequent project ZIP. This checks a clean browser restart, not a crash, power loss, disk failure, cleared storage or the desktop native-save workflow.
+
+If writing local draft storage fails, the editor keeps the current in-memory edits and displays a persistent warning to save a separate project file before closing. A browser test simulated storage quota failures and confirmed that a subsequent separate project download contained the current edit. A restart before saving can still lose changes; this is not crash recovery.
+
+If a local draft cannot be read, contains malformed JSON, has an incompatible basic structure, or uses a newer storage version, the editor warns on startup and prevents writes to the affected stored draft for that session. Save any new work separately before restarting to retry. Isolated browser tests simulated inaccessible and incompatible storage, confirmed the original stored values were unchanged, and requested a separate project download. This does not repair corrupted data or detect every possible invalid storage structure.
 
 Save downloads the snapshot captured when the command starts. If the project changes while that snapshot is prepared, newer edits stay in the browser draft and a notice asks you to save again to include them.
 
@@ -40,6 +52,10 @@ With the feature enabled, Export produces a ZIP containing a separate HTML file 
 
 Native safe save/recovery and portable assets remain outstanding. Existing footer/navbar links are not yet bound to page IDs. The feature gate remains experimental until the complete acceptance tests pass.
 
+## Five-page project and media round trip
+
+An isolated browser test opened the five-page sample, imported the sample bulletin PDF, edited News to link to About and the PDF, saved a project ZIP and reopened it as a separate copy. It then exported a website ZIP and verified all five HTML files, the edited text, the rewritten About link, the PDF link, and the original PDF bytes in both ZIPs. This is one browser workflow, not proof of native atomic saving, recovery or all page and asset combinations. The test did not publish a website.
+
 ## Native create-only save increment
 
 `desktop/project/WebStudio.ProjectSave.pas` can write a caller-supplied byte snapshot to a uniquely named temporary file beside a new target, flush it, and move it into place without a replace flag. It rejects relative paths and does not overwrite an existing target. The caller must choose the destination and validate the snapshot; this unit is not connected to the editor or a file dialog. It does not implement Save over an existing project, crash recovery, conflict detection, a transactional multi-file project, or protection against a hostile process changing the destination directory.
@@ -47,6 +63,8 @@ Native safe save/recovery and portable assets remain outstanding. Existing foote
 The Win64 `tests/native/ProjectSaveSmoke.dpr` test compiled and ran with RAD Studio 37.0. It checked a multi-chunk file, an empty file, failure to overwrite an existing file, relative and missing-directory rejection, and temporary-file cleanup. The implementation relies on Windows file APIs; see Microsoft's [MoveFileEx documentation](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw) for platform semantics. This is an initial native storage increment, not a completed save or recovery workflow.
 
 `desktop/project/WebStudio.ProjectOpen.pas` adds a read-only operation for a native-caller-selected absolute drive path. The caller sets a maximum byte count before allocation, and the read denies concurrent write access while the file is open. The native smoke test checks a multi-chunk round trip, empty input, size limits, relative-path rejection and an exclusively locked file. The operation does not parse or validate projects, resolve hostile filesystem paths, show a dialog or connect to the editor; those remain the host's responsibility.
+
+`SaveProjectRecoveryZip` can create a new ZIP containing the current bytes of a caller-selected project file before a change. The caller chooses an absolute ZIP path and a source-size limit; an existing recovery ZIP is never intentionally overwritten. A Win64 isolated test verified the archived bytes, unchanged source, rejection of an existing ZIP, size limits and a locked source. The operation holds the project and ZIP in memory, is not connected to the editor, and does not perform a save, establish conflict detection, or prove crash recovery. The caller must decide when and where to create a recovery snapshot and handle failures before changing the project.
 
 ## M3 update
 
@@ -60,6 +78,8 @@ New exports embed generated Tailwind styles and use installed system font fallba
 
 Page addresses can be changed with the link icon beside the active page. Home stays at `/`; other paths are validated and the change can be undone. The dialog offers to update Content text links and known Hero, CTA, Banner and Navbar button links in the same undoable change. External bookmarks and links in other content are not rewritten, so check them after changing an address.
 
+Page renames require a nonempty name. Invalid or unchanged rename requests leave the project and undo history unchanged; a valid rename can be undone and redone.
+
 Use the magnifying glass beside the active page to set its search title and description. The exported page uses these for HTML and sharing metadata; blank fields fall back to the site-wide settings. These edits are saved with the project and can be undone.
 
 If a public site URL is configured in Settings, ZIP export also writes canonical and sharing URLs for each page using that address and its subfolder. Enter the final address carefully; the app does not verify or publish the website.
@@ -67,6 +87,8 @@ If a public site URL is configured in Settings, ZIP export also writes canonical
 ## Media integrity check
 
 Before opening or saving, known block media IDs and local `assets/` paths are checked against the project media list, including references inside nested items. Missing or mismatched media and duplicate IDs or case-colliding paths produce an error rather than a portable file with silently broken references. An unsuccessful open leaves the current project selected; an unsuccessful save leaves the editing state intact. Unknown block types are preserved and their plugin-specific references are not interpreted. Restoring missing files and native crash-safe saving remain future work.
+
+When a project ZIP is reopened and saved, unrecognized metadata on retained media entries is preserved by media ID while current names, paths, checksums and other known fields are updated. An isolated browser test verified an additional nested metadata field and the original PDF bytes survived a ZIP round trip. Unknown metadata is preserved without interpreting it and may need review after replacing a file.
 
 ## Page links in ZIP exports
 
@@ -107,3 +129,7 @@ Article pages use optional `webstudioArticle` metadata on ordinary pages. Drafts
 For Hero, CTA, Banner and Navbar buttons rendered by the HTML exporter, unsupported link schemes, protocol-relative URLs, backslashes and control characters are exported as text rather than active links. **Check site** reports destinations it can inspect; project validation may reject some invalid URLs earlier. This check does not cover every URL field or plugin and is not a complete security audit.
 
 In the experimental Delphi desktop shell, Save project and Export prompt for a destination using a Windows Save dialog. Cancelling the dialog cancels the download; choosing an existing file invokes the dialog's overwrite confirmation. The dialog test used an isolated profile and legacy-dialog automation; normal interactive and clean-machine testing remain open. This is still a browser-download snapshot, not a completed native atomic project save.
+
+Opening a project rejects a JSON file or ZIP manifest larger than 100 MiB before reading its contents. Saving also stops before downloading a manifest above that limit so the application does not produce a project it cannot reopen. The ZIP may be larger when it contains media. This limit helps prevent excessive manifest allocation; it is not a complete defense against every oversized or malformed archive.
+
+An isolated browser check rejected an oversized JSON file and a ZIP whose manifest metadata claimed more than 100 MiB, then opened the five-page sample in the same session. Another browser check simulated an oversized serialized manifest, verified that no download was started, then restored the normal size and saved the sample. This does not test every archive or complete native save and recovery.
