@@ -154,6 +154,8 @@ In an isolated test, closing the shell during an active staged project download 
 
 The current shell source warns on the first attempt to close while a project download is active or a save dialog is pending. Wait for the status line to report the outcome, or close a second time to interrupt it. Isolated Win64 tests checked the warning, the deliberate second close and normal closing after a completed save. This does not prevent forced termination, power loss or interruption while the browser is still preparing a download; older previews do not include the warning.
 
+An isolated test also forcibly terminated its own test process during an active staged project download. A separate last-good test project remained unchanged, but no staged file was observed afterward. This was one forced-process termination, not a power-loss test; it did not establish whether recent editor changes survived in local draft storage.
+
 An isolated test recovered both JSON and ZIP copies of the five-page sample, reopened each in the editor, and verified that the website export contained all five pages. This test did not simulate a power failure or recover a damaged media archive.
 
 A separate isolated test recovered a five-page project ZIP containing the sample PDF, reopened it, and exported all five pages with an edited page link and the original PDF bytes intact. The native recovery test used legacy dialogs and a completed staged file; it did not simulate a power failure or establish that an interrupted download is complete.
