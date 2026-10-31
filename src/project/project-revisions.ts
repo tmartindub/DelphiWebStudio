@@ -4,6 +4,7 @@ export interface ProjectRevision {
   createdAt: number
   filename: string
   contents: Blob
+  sha256?: string
 }
 
 export class ProjectRevisions {
@@ -24,7 +25,9 @@ export class ProjectRevisions {
 
   async save(projectId: string, filename: string, contents: Blob): Promise<ProjectRevision> {
     if (!projectId || !filename || !(contents instanceof Blob) || !contents.size) throw new Error('The revision is incomplete.')
-    const revision: ProjectRevision = { id: crypto.randomUUID(), projectId, createdAt: Date.now(), filename, contents }
+    const digest = await crypto.subtle.digest('SHA-256', await contents.arrayBuffer())
+    const sha256 = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+    const revision: ProjectRevision = { id: crypto.randomUUID(), projectId, createdAt: Date.now(), filename, contents, sha256 }
     const database = await this.database
     await new Promise<void>((resolve, reject) => {
       const transaction = database.transaction('revisions', 'readwrite')
@@ -34,6 +37,16 @@ export class ProjectRevisions {
       transaction.onabort = () => reject(transaction.error ?? new Error('Saving the local revision was cancelled.'))
     })
     return revision
+  }
+
+  async verify(revision: ProjectRevision): Promise<boolean> {
+    if (!(revision.contents instanceof Blob) || !revision.contents.size) throw new Error('The local revision is incomplete.')
+    if (revision.sha256 === undefined) return false
+    if (!/^[a-f0-9]{64}$/.test(revision.sha256)) throw new Error('The local revision checksum is invalid.')
+    const digest = await crypto.subtle.digest('SHA-256', await revision.contents.arrayBuffer())
+    const actual = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+    if (actual !== revision.sha256) throw new Error('The local revision is damaged; its checksum does not match.')
+    return true
   }
 
   async list(projectId?: string): Promise<ProjectRevision[]> {

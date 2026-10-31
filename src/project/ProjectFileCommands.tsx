@@ -19,6 +19,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
   const [revisionsError, setRevisionsError] = useState(false)
   const [confirmRevision, setConfirmRevision] = useState<string | null>(null)
   const [removingRevision, setRemovingRevision] = useState(false)
+  const [checkingRevision, setCheckingRevision] = useState<string | null>(null)
   const navigate = useNavigate()
   const config = useConfigStore(state => state.config)
   const activeProjectId = useEditorStore(state => state.activeProjectId)
@@ -116,6 +117,22 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       setOpening(false)
       useEditorStore.getState().setMediaImporting(false)
     }
+  }
+
+  async function openRevision(revision: ProjectRevision) {
+    if (checkingRevision || useEditorStore.getState().mediaImporting) return
+    const originalProjectId = useEditorStore.getState().activeProjectId
+    const originalConfig = useConfigStore.getState().config
+    setCheckingRevision(revision.id)
+    try {
+      await new ProjectRevisions().verify(revision)
+      if (useEditorStore.getState().activeProjectId !== originalProjectId || useConfigStore.getState().config !== originalConfig) {
+        throw new Error('The current project changed while checking the revision. Your edits remain; try again.')
+      }
+      await openProjectFile(new File([revision.contents], revision.filename, { type: revision.contents.type }))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'The local revision could not be checked.')
+    } finally { setCheckingRevision(null) }
   }
 
   async function saveProject(checkpoint = false) {
@@ -218,7 +235,8 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
           {revisions.map(revision => <div key={revision.id} className="mt-2 border-t border-border-default pt-2">
             {allRevisions && <span className="block break-all text-text-1">{revision.filename}</span>}
             <span className="block text-text-2">{new Date(revision.createdAt).toLocaleString()}</span>
-            <button type="button" disabled={mediaImporting} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => void openProjectFile(new File([revision.contents], revision.filename, { type: revision.contents.type }))}>Open as a separate project</button>
+            {revision.sha256 === undefined && <span className="block text-text-2">Older revision: no checksum available.</span>}
+            <button type="button" disabled={mediaImporting || !!checkingRevision} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => void openRevision(revision)}>{checkingRevision === revision.id ? 'Checking revision…' : 'Open as a separate project'}</button>
             {confirmRevision === revision.id ? <div className="mt-1">
               <p className="text-text-2">Remove this local revision? This cannot be undone.</p>
               <button type="button" disabled={removingRevision} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => {
