@@ -5,7 +5,7 @@ interface
 
 uses
   Winapi.Windows, Winapi.WebView2, System.SysUtils, System.Classes,
-  Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Edge, Vcl.Dialogs;
+  Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Edge, Vcl.Dialogs, Vcl.Menus;
 
 type
   TMainForm = class(TForm)
@@ -16,6 +16,14 @@ type
     SaveDownloadDialog: TSaveDialog;
     RecoveryOpenDialog: TOpenDialog;
     RecoverySaveDialog: TSaveDialog;
+    ProjectMenu: TMainMenu;
+    ProjectMenuItem: TMenuItem;
+    BackupProjectItem: TMenuItem;
+    RestoreBackupItem: TMenuItem;
+    BackupSourceDialog: TOpenDialog;
+    BackupSaveDialog: TSaveDialog;
+    BackupOpenDialog: TOpenDialog;
+    BackupRestoreDialog: TSaveDialog;
     procedure FormCreate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure EditorBrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HResult);
@@ -26,6 +34,8 @@ type
     procedure EditorBrowserPermissionRequested(Sender: TCustomEdgeBrowser; Args: TPermissionRequestedEventArgs);
     procedure EditorBrowserDownloadStarting(Sender: TCustomEdgeBrowser; Args: TDownloadStartingEventArgs);
     procedure RecoverStageButtonClick(Sender: TObject);
+    procedure BackupProjectItemClick(Sender: TObject);
+    procedure RestoreBackupItemClick(Sender: TObject);
   private
     FDownloadPending: Boolean;
     FActiveProjectSaves: Integer;
@@ -36,7 +46,7 @@ var MainForm: TMainForm;
 
 implementation
 
-uses Winapi.ActiveX, System.IOUtils, WebStudio.ProjectSave;
+uses Winapi.ActiveX, System.IOUtils, System.Zip, WebStudio.ProjectSave;
 
 {$R *.dfm}
 
@@ -202,6 +212,67 @@ begin
     Args.ArgsInterface.Set_State(COREWEBVIEW2_PERMISSION_STATE_DENY);
     if Allowed then StatusLabel.Caption := 'Update the WebView2 Runtime to permit another download.';
   end;
+end;
+
+procedure TMainForm.BackupProjectItemClick(Sender: TObject);
+const MaximumProjectBytes: UInt64 = 256 * 1024 * 1024;
+var SourcePath, BackupPath: string;
+begin
+  if not BackupSourceDialog.Execute then Exit;
+  SourcePath := BackupSourceDialog.FileName;
+  if not SameText(TPath.GetExtension(SourcePath), '.json') and
+     not SameText(TPath.GetExtension(SourcePath), '.zip') then begin
+    StatusLabel.Caption := 'Backup requires a JSON or ZIP project.';
+    Exit;
+  end;
+  BackupSaveDialog.InitialDir := TPath.GetDirectoryName(SourcePath);
+  BackupSaveDialog.FileName := TPath.GetFileNameWithoutExtension(SourcePath) + '-recovery.zip';
+  if not BackupSaveDialog.Execute then Exit;
+  BackupPath := BackupSaveDialog.FileName;
+  try
+    SaveProjectRecoveryZip(SourcePath, BackupPath, MaximumProjectBytes);
+    StatusLabel.Hint := BackupPath;
+    StatusLabel.Caption := 'Project backup created: ' + ExtractFileName(BackupPath);
+  except on E: Exception do begin
+    StatusLabel.Hint := E.Message;
+    StatusLabel.Caption := 'Backup failed: ' + E.Message;
+  end end;
+end;
+
+procedure TMainForm.RestoreBackupItemClick(Sender: TObject);
+const MaximumProjectBytes: UInt64 = 256 * 1024 * 1024;
+  MaximumArchiveBytes: UInt64 = 257 * 1024 * 1024;
+var BackupPath, OriginalName, Extension, TargetPath: string; Archive: TZipFile;
+begin
+  if not BackupOpenDialog.Execute then Exit;
+  BackupPath := BackupOpenDialog.FileName;
+  try
+    if UInt64(TFile.GetSize(BackupPath)) > MaximumArchiveBytes then
+      raise EArgumentException.Create('Backup ZIP exceeds the 257 MiB limit.');
+    Archive := TZipFile.Create;
+    try
+      Archive.Open(BackupPath, zmRead);
+      if Archive.FileCount <> 1 then raise EArgumentException.Create('Backup ZIP must contain one project file.');
+      OriginalName := Archive.FileName[0];
+      if (OriginalName = '') or (Pos('/', OriginalName) > 0) or (Pos('\', OriginalName) > 0) then
+        raise EArgumentException.Create('Backup ZIP contains an invalid filename.');
+      Extension := LowerCase(TPath.GetExtension(OriginalName));
+      if (Extension <> '.json') and (Extension <> '.zip') then
+        raise EArgumentException.Create('Backup ZIP must contain a JSON or ZIP project.');
+    finally Archive.Free end;
+    BackupRestoreDialog.InitialDir := TPath.GetDirectoryName(BackupPath);
+    BackupRestoreDialog.FileName := 'Recovered-' + OriginalName;
+    if not BackupRestoreDialog.Execute then Exit;
+    TargetPath := BackupRestoreDialog.FileName;
+    if not SameText(TPath.GetExtension(TargetPath), Extension) then
+      raise EArgumentException.Create('The restored project requires the ' + Extension + ' extension.');
+    RestoreProjectRecoveryZip(BackupPath, TargetPath, MaximumArchiveBytes, MaximumProjectBytes);
+    StatusLabel.Hint := TargetPath;
+    StatusLabel.Caption := 'Backup restored; open to verify: ' + ExtractFileName(TargetPath);
+  except on E: Exception do begin
+    StatusLabel.Hint := E.Message;
+    StatusLabel.Caption := 'Restore failed: ' + E.Message;
+  end end;
 end;
 
 procedure TMainForm.RecoverStageButtonClick(Sender: TObject);
