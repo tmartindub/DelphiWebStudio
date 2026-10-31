@@ -10,6 +10,10 @@ uses System.SysUtils;
   user confirmation, session checks, and the in-memory project snapshot. }
 procedure SaveNewProjectFile(const TargetPath: string; const Contents: TBytes);
 
+{ Flushes a staged file and moves it to a new path in the same directory.
+  Neither a failed move nor an existing target deletes the staged file. }
+procedure CommitStagedProjectFile(const StagedPath, TargetPath: string);
+
 { Creates a ZIP containing the current source file at a new, caller-selected
   recovery path. This does not replace the project or grant permission to do
   so. The caller must choose paths, a byte limit and a recovery policy. }
@@ -24,6 +28,33 @@ procedure RestoreProjectRecoveryZip(const RecoveryZipPath, NewTargetPath: string
 implementation
 
 uses Winapi.Windows, System.IOUtils, System.Classes, System.Zip, WebStudio.ProjectOpen;
+
+procedure CommitStagedProjectFile(const StagedPath, TargetPath: string);
+var
+  FullStage, FullTarget: string;
+  FileHandle: THandle;
+begin
+  if (Length(StagedPath) < 4) or not CharInSet(StagedPath[1], ['A'..'Z', 'a'..'z']) or
+    (StagedPath[2] <> ':') or not CharInSet(StagedPath[3], ['\', '/']) or
+    (Length(TargetPath) < 4) or not CharInSet(TargetPath[1], ['A'..'Z', 'a'..'z']) or
+    (TargetPath[2] <> ':') or not CharInSet(TargetPath[3], ['\', '/']) then
+    raise EArgumentException.Create('Select absolute drive paths for the project files.');
+  FullStage := TPath.GetFullPath(StagedPath);
+  FullTarget := TPath.GetFullPath(TargetPath);
+  if SameText(FullStage, FullTarget) or
+    not SameText(TPath.GetDirectoryName(FullStage), TPath.GetDirectoryName(FullTarget)) or
+    (TPath.GetFileName(FullStage) = '') or (TPath.GetFileName(FullTarget) = '') then
+    raise EArgumentException.Create('The staged file and new project must have different names in the same folder.');
+  FileHandle := CreateFile(PChar(FullStage), GENERIC_WRITE, 0, nil, OPEN_EXISTING,
+    FILE_ATTRIBUTE_NORMAL or FILE_FLAG_WRITE_THROUGH, 0);
+  if FileHandle = INVALID_HANDLE_VALUE then RaiseLastOSError;
+  try
+    if not FlushFileBuffers(FileHandle) then RaiseLastOSError;
+  finally
+    CloseHandle(FileHandle);
+  end;
+  if not MoveFileEx(PChar(FullStage), PChar(FullTarget), MOVEFILE_WRITE_THROUGH) then RaiseLastOSError;
+end;
 
 procedure SaveNewProjectFile(const TargetPath: string; const Contents: TBytes);
 var
