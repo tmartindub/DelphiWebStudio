@@ -1426,6 +1426,11 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     if (unknown) throw new Error(`Page ${page.name} contains unsupported block ${unknown.type}; it cannot be exported safely.`)
   }
   const paths = pages.map(page => page.path === '/' ? 'index.html' : `${page.path.slice(1)}.html`)
+  for (const page of pages) {
+    if (page.path.split('/').some(segment => /^(com|lpt)[¹²³](?:\.|$)/i.test(segment))) {
+      throw new Error(`Page ${page.name} has a Windows-reserved address. Change its page address before exporting.`)
+    }
+  }
   if (new Set(paths.map(path => path.toLowerCase())).size !== paths.length) throw new Error('Page paths produce duplicate export filenames.')
   if (paths.some((path, index) => paths.some((other, otherIndex) => index !== otherIndex && other.toLowerCase().startsWith(`${path.toLowerCase()}/`)))) {
     throw new Error('Page paths produce conflicting file and folder names.')
