@@ -31,7 +31,7 @@ begin
   MainForm.EditorBrowserDownloadStarting(Sender, Args);
 end;
 
-var Deadline: UInt64; Observer: TDownloadObserver; State: COREWEBVIEW2_DOWNLOAD_STATE; Folder, LastGood, Marker: string;
+var Deadline: UInt64; Observer: TDownloadObserver; State: COREWEBVIEW2_DOWNLOAD_STATE; Folder, LastGood, Marker, Value: string;
 begin
   Folder := ExtractFilePath(ParamStr(0));
   LastGood := TPath.Combine(Folder, 'last-good-project.webstudio.json');
@@ -46,6 +46,33 @@ begin
   while (MainForm.StatusLabel.Caption <> 'Local editor loaded.') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
   if MainForm.StatusLabel.Caption <> 'Local editor loaded.' then raise Exception.Create('Test editor did not load.');
   if Winapi.Windows.Failed(MainForm.EditorBrowser.ControllerInterface.Set_IsVisible(1)) then raise Exception.Create('Could not activate test WebView.');
+  Deadline := GetTickCount64 + 15000;
+  repeat
+    CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+    Value := MainForm.EditorBrowser.ExecuteScript('!!Array.from(document.querySelectorAll("button")).find(b=>b.textContent.includes("Connect a community or club"))', '');
+  until (Value = 'true') or (GetTickCount64 >= Deadline);
+  if Value <> 'true' then raise Exception.Create('Community starter was not found.');
+  MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.includes("Connect a community or club")).click()');
+  Deadline := GetTickCount64 + 15000;
+  repeat
+    CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+    Value := MainForm.EditorBrowser.ExecuteScript('!!document.querySelector("[aria-label=\"hero block\"]")', '');
+  until (Value = 'true') or (GetTickCount64 >= Deadline);
+  if Value <> 'true' then raise Exception.Create('Hero block was not found.');
+  MainForm.EditorBrowser.ExecuteScript('document.querySelector("[aria-label=\"hero block\"]").click()');
+  Deadline := GetTickCount64 + 15000;
+  repeat
+    CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+    Value := MainForm.EditorBrowser.ExecuteScript('!!Array.from(document.querySelectorAll("input")).find(i=>i.value==="Community")', '');
+  until (Value = 'true') or (GetTickCount64 >= Deadline);
+  if Value <> 'true' then raise Exception.Create('Headline editor was not found.');
+  MainForm.EditorBrowser.ExecuteScript('(()=>{const i=Array.from(document.querySelectorAll("input")).find(e=>e.value==="Community");Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(i,"Draft survives forced termination");i.dispatchEvent(new Event("input",{bubbles:true}));})()');
+  Deadline := GetTickCount64 + 15000;
+  repeat
+    CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+    Value := MainForm.EditorBrowser.ExecuteScript('!!localStorage.getItem("openpage-projects")?.includes("Draft survives forced termination")', '');
+  until (Value = 'true') or (GetTickCount64 >= Deadline);
+  if Value <> 'true' then raise Exception.Create('Test edit did not reach local draft storage.');
   MainForm.SaveDownloadDialog.InitialDir := Folder;
   MainForm.SaveDownloadDialog.OnShow := Observer.SaveShown;
   MainForm.EditorBrowser.OnDownloadStarting := Observer.DownloadStarting;
