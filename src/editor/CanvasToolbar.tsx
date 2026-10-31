@@ -227,7 +227,7 @@ function DeletePageDialog({ page, linkedPages, onCancel, onConfirm }: {
 
 export function CanvasToolbar() {
   const navigate = useNavigate()
-  const { viewport, setViewport, mode, setMode, toggleJsonDrawer, jsonDrawerOpen, toggleHistory, togglePreview, toggleShortcutsModal, previewMode, activeProjectId } = useEditorStore()
+  const { viewport, setViewport, customViewportWidth, setCustomViewportWidth, mode, setMode, toggleJsonDrawer, jsonDrawerOpen, toggleHistory, togglePreview, toggleShortcutsModal, previewMode, activeProjectId } = useEditorStore()
   const { undo, redo, canUndo, canRedo } = useConfigStore()
   const undoStack = useConfigStore((s) => s.undoStack)
   const redoStack = useConfigStore((s) => s.redoStack)
@@ -368,10 +368,10 @@ export function CanvasToolbar() {
             key={value}
             title={label}
             aria-label={label}
-            aria-pressed={viewport === value}
+            aria-pressed={viewport === value && customViewportWidth === null}
             onClick={() => setViewport(value)}
             className={`w-7 h-7 rounded flex items-center justify-center text-xs transition-all ${
-              viewport === value
+              viewport === value && customViewportWidth === null
                 ? 'bg-bg-3 text-text-0'
                 : 'text-text-3 hover:text-text-1 hover:bg-bg-3'
             }`}
@@ -379,6 +379,13 @@ export function CanvasToolbar() {
             <Icon size={14} />
           </button>
         ))}
+        <label className="flex items-center gap-1 text-xs text-text-1" title="Adjust the simulated screen width">
+          <span>Width</span>
+          <input type="range" aria-label="Preview width" min={320} max={1920} step={1}
+            value={customViewportWidth ?? (viewport === 'desktop' ? 1200 : viewport === 'tablet' ? 768 : 375)}
+            onChange={event => setCustomViewportWidth(Number(event.target.value))} className="w-20" />
+          <span className="w-12 tabular-nums">{customViewportWidth ?? (viewport === 'desktop' ? 1200 : viewport === 'tablet' ? 768 : 375)}px</span>
+        </label>
 
         <div className="w-px h-5 bg-border-default mx-1" />
 

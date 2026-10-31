@@ -21,7 +21,7 @@ export function Canvas() {
   const activePageId = useConfigStore((s) => s.activePageId)
   const activeArticle = pages?.find(page => page.id === activePageId)?.webstudioArticle
   const setActivePage = useConfigStore((s) => s.setActivePage)
-  const { selectedBlockId, selectBlock, viewport, activeProjectId, previewMode } = useEditorStore()
+  const { selectedBlockId, selectBlock, viewport, customViewportWidth, activeProjectId, previewMode } = useEditorStore()
   const revision = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.mediaRevision ?? 0)
   const searchEnabled = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.settings?.siteSearch === 'on')
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
@@ -52,12 +52,12 @@ export function Canvas() {
   const resolved = useMemo(() => resolveTheme(theme), [theme])
   const cssVars = useMemo(() => themeToCSS(resolved), [resolved])
 
-  const maxWidth = viewport === 'desktop' ? '1200px' : viewport === 'tablet' ? '768px' : '375px'
+  const previewWidth = customViewportWidth ?? (viewport === 'desktop' ? 1200 : viewport === 'tablet' ? 768 : 375)
 
   const canvasContent = (
     <div
-      className="@container outline outline-1 rounded-xl min-h-[400px] relative z-[1] overflow-hidden transition-all duration-300 mx-auto"
-      style={{ width: '100%', maxWidth, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', outlineColor: 'var(--color-border-default)', overflowWrap: 'anywhere' } as React.CSSProperties}
+      className="@container outline outline-1 rounded-xl min-h-[400px] relative z-[1] overflow-hidden transition-all duration-300 mx-auto shrink-0"
+      style={{ width: `${previewWidth}px`, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', outlineColor: 'var(--color-border-default)', overflowWrap: 'anywhere' } as React.CSSProperties}
       onClick={(e) => {
         if (previewMode && !e.defaultPrevented && e.target instanceof Element) {
           const link = e.target.closest('a[href]')
@@ -137,7 +137,7 @@ export function Canvas() {
       />
 
       {viewport === 'tablet' ? (
-        <div className="relative z-[1] shrink-0 mx-auto w-[792px]">
+        <div className="relative z-[1] shrink-0 mx-auto" style={{ width: previewWidth + 24 }}>
           {/* Tablet frame */}
           <div className="border-[12px] border-bg-4 rounded-2xl bg-bg-4 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
             <div className="rounded-lg overflow-hidden">
@@ -146,7 +146,7 @@ export function Canvas() {
           </div>
         </div>
       ) : viewport === 'mobile' ? (
-        <div className="relative z-[1] shrink-0 mx-auto w-[395px]">
+        <div className="relative z-[1] shrink-0 mx-auto" style={{ width: previewWidth + 20 }}>
           {/* Phone frame */}
           <div className="border-[10px] border-bg-4 rounded-[2rem] bg-bg-4 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
             {/* Notch */}

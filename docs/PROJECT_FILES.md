@@ -8,6 +8,8 @@ In the editor's **Components** tab, select a section on the page, enter a name u
 
 To share a header (Navbar) or Footer across pages, select it and choose **Share across pages** in its controls. A copy is added to each other page, and property or layout edits update the shared copies. New pages receive the shared sections. The command will not replace another existing header or footer; remove competing sections first. **Stop sharing across pages** makes the existing copies independent. Both operations can be undone; deleting one copy removes it from that page only.
 
+The Desktop, Tablet and Mobile buttons preview widths of 1,200, 768 and 375 pixels. Use the **Width** slider for any width from 320 to 1,920 pixels; selecting a device button restores its preset. If the editor window is narrower than the chosen width, scroll horizontally to see the rest of the preview. Check the exported website on actual devices as well: a preview cannot reproduce every browser or device behavior.
+
 Set `VITE_WEBSTUDIO_PROJECTS=true` before starting Vite or building. The flag defaults off in `.env.example`. With it enabled, **Open project** appears on Dashboard and the editor; **Save project** appears while a project is open. These commands are separate from the existing HTML Export command and from Publish.
 
 Open accepts unversioned OpenPage SiteConfig JSON or WebStudio schema 2. Each open creates an independent local draft and never edits the selected file. A legacy file is upgraded in memory and saved as a new `.webstudio.json` download. The original is the recovery source; no automatic in-place migration occurs. Repeated opens retain the document projectId but have distinct local draft IDs. Duplicate assigns a new document identity.

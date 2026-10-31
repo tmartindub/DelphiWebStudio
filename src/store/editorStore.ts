@@ -6,6 +6,7 @@ export type EditorMode = 'beginner' | 'designer' | 'professional'
 interface EditorState {
   selectedBlockId: string | null
   viewport: Viewport
+  customViewportWidth: number | null
   mode: EditorMode
   mediaImporting: boolean
   jsonDrawerOpen: boolean
@@ -19,6 +20,7 @@ interface EditorState {
   generationError: string | null
   selectBlock: (id: string | null) => void
   setViewport: (vp: Viewport) => void
+  setCustomViewportWidth: (width: number) => void
   setMode: (mode: EditorMode) => void
   setMediaImporting: (importing: boolean) => void
   toggleJsonDrawer: () => void
@@ -34,6 +36,7 @@ interface EditorState {
 export const useEditorStore = create<EditorState>()((set) => ({
   selectedBlockId: null,
   viewport: 'desktop',
+  customViewportWidth: null,
   mode: 'beginner',
   mediaImporting: false,
   jsonDrawerOpen: false,
@@ -45,7 +48,8 @@ export const useEditorStore = create<EditorState>()((set) => ({
   generationPrompt: null,
   generationError: null,
   selectBlock: (id) => set({ selectedBlockId: id }),
-  setViewport: (vp) => set({ viewport: vp }),
+  setViewport: (vp) => set({ viewport: vp, customViewportWidth: null }),
+  setCustomViewportWidth: (width) => set(Number.isFinite(width) ? { customViewportWidth: Math.max(320, Math.min(1920, Math.round(width))) } : {}),
   setMode: (mode) => set({ mode, jsonDrawerOpen: mode === 'professional' }),
   setMediaImporting: (mediaImporting) => set({ mediaImporting }),
   toggleJsonDrawer: () => set((s) => ({ jsonDrawerOpen: !s.jsonDrawerOpen })),
