@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import JSZip from 'jszip'
 import { exportSiteZip } from '../src/lib/export-html'
+import { createProjectFile, parseProjectFile, serializeProjectFile } from '../src/project/project-file'
 import type { SiteConfig } from '../src/blocks/types'
 
 const pages = [
@@ -62,6 +63,14 @@ describe('multi-page export', () => {
     const invalid = structuredClone(config)
     invalid.pages![1].path = '/index'
     await expect(exportSiteZip(invalid)).rejects.toThrow('duplicate export filenames')
+  })
+
+  it.each(['/COM¹', '/pages/lpt².html', '/com³/details'])('keeps a project with %s readable but blocks an incompatible Windows export', async path => {
+    const site = structuredClone(config)
+    site.pages![1].path = path
+    const project = createProjectFile(site, 'test-project')
+    expect(parseProjectFile(serializeProjectFile(project)).project.config.pages![1].path).toBe(path)
+    await expect(exportSiteZip(site)).rejects.toThrow('Windows-reserved address')
   })
 
   it('packages referenced PDF bytes and uses the correct nested relative path', async () => {
