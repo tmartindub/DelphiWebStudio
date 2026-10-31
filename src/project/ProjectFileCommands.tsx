@@ -210,7 +210,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
           if (useEditorStore.getState().activeProjectId === project.id) setRevisionsError(true)
         }
         const currentProject = useProjectsStore.getState().projects.find(item => item.id === project.id)
-        if (useEditorStore.getState().activeProjectId !== project.id || useConfigStore.getState().config !== config || currentProject?.name !== project.name || JSON.stringify(currentProject?.settings ?? {}) !== JSON.stringify(project.settings ?? {})) {
+        if (!currentProject || useEditorStore.getState().activeProjectId !== project.id || useConfigStore.getState().config !== config || currentProject.name !== project.name || (currentProject.mediaRevision ?? 0) !== (project.mediaRevision ?? 0) || JSON.stringify(currentProject.settings ?? {}) !== JSON.stringify(project.settings ?? {})) {
           toast.warning('An earlier snapshot was saved as a local revision. Newer edits remain in the draft.')
         } else toast.success('Local revision saved. Keep a separate project file as a backup.')
         return
@@ -223,7 +223,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       URL.revokeObjectURL(url)
       useProjectsStore.getState().saveProjectFile(project.id, projectDocument)
       const currentProject = useProjectsStore.getState().projects.find(item => item.id === project.id)
-      if (useEditorStore.getState().activeProjectId !== project.id || useConfigStore.getState().config !== config || currentProject?.name !== project.name || JSON.stringify(currentProject?.settings ?? {}) !== JSON.stringify(project.settings ?? {})) {
+      if (!currentProject || useEditorStore.getState().activeProjectId !== project.id || useConfigStore.getState().config !== config || currentProject.name !== project.name || (currentProject.mediaRevision ?? 0) !== (project.mediaRevision ?? 0) || JSON.stringify(currentProject.settings ?? {}) !== JSON.stringify(project.settings ?? {})) {
         toast.warning('An earlier snapshot was prepared. Newer changes remain in the draft; save again to include them.')
       } else toast('Project file download requested. Choose a destination if prompted.')
     } catch (error) {
