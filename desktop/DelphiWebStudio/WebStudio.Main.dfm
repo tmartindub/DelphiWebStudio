@@ -8,6 +8,7 @@ object MainForm: TMainForm
   Constraints.MinWidth = 640
   Position = poScreenCenter
   OnCreate = FormCreate
+  OnCloseQuery = FormCloseQuery
   object StatusPanel: TPanel
     Left = 0
     Top = 0

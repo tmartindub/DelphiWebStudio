@@ -53,6 +53,11 @@ begin
     while not Observer.DialogShownOnce and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
     if not Observer.DialogShownOnce then raise Exception.Create('The save dialog did not open.');
     if Winapi.Windows.Failed(Observer.Operation.Get_State(State)) or (State <> COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS) then raise Exception.Create('The download had finished before the shell closed.');
+    if MainForm.CloseQuery then raise Exception.Create('The first close was not blocked during a project save.');
+    if Pos('A save is in progress.', MainForm.StatusLabel.Caption) <> 1 then raise Exception.Create('The close warning was not shown.');
+    MainForm.StatusLabel.Caption := 'Another status update';
+    if MainForm.CloseQuery then raise Exception.Create('A replaced warning did not cause another close warning.');
+    if not MainForm.CloseQuery then raise Exception.Create('An explicit second close was not allowed.');
     MainForm.Free;
     MainForm := nil;
     State := COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS;
