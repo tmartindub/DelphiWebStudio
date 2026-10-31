@@ -24,7 +24,9 @@ Save validates a snapshot and starts a JSON download. Browser download settings 
 
 While the editor is open, changes are written to the browser draft as the editor state changes, without waiting for a later screen refresh. Browser storage can still be cleared or fail, so use **Save project** to keep a separate portable copy.
 
-The History panel shows the current session's undo steps, not a durable revision archive. Opening a project or closing the app clears those steps; save separate project files to retain earlier versions. History entries can be activated with the keyboard. A browser test checked the notice and keyboard restoration of a page edit.
+The History panel shows the current session's undo steps. Opening a project or closing the app clears those steps. History entries can be activated with the keyboard. A browser test checked the notice and keyboard restoration of a page edit.
+
+Use **Local revisions** and **Create local revision** to keep an additional snapshot of the current pages, settings and project media in this app's local browser storage. Open a revision as a separate local project to inspect or save it; the current project is not overwritten. A browser test created a five-page revision with a PDF, restarted the browser, reopened the revision and verified its pages and PDF bytes. Revisions are not a substitute for separate project files: clearing browser data, changing profiles, storage failure or device failure can remove them. They are created only when requested and remain associated with the local project in which they were created. They are not included in exported project files, automatically pruned, or synchronized across computers.
 
 An isolated browser test opened a five-page project with a PDF, edited News, closed the test browser normally, restarted it with the same isolated profile, and reopened the draft. The edit and original PDF bytes remained available in a subsequent project ZIP. This checks a clean browser restart, not a crash, power loss, disk failure, cleared storage or the desktop native-save workflow.
 

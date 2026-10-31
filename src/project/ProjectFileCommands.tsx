@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FolderOpen, Save } from 'lucide-react'
 import { toast } from 'sonner'
@@ -8,17 +8,31 @@ import { useProjectsStore } from '@/store/projectsStore'
 import { createProjectFile, parseProjectFile, portableProjectsEnabled, serializeProjectFile, validateProjectMedia } from './project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
 import JSZip from 'jszip'
+import { ProjectRevisions, type ProjectRevision } from './project-revisions'
 
 /** Explicit portable-file commands; browser draft recovery remains separate. */
 export function ProjectFileCommands() {
   const inputRef = useRef<HTMLInputElement>(null)
   const [opening, setOpening] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [revisions, setRevisions] = useState<ProjectRevision[]>([])
+  const [revisionsError, setRevisionsError] = useState(false)
   const navigate = useNavigate()
   const config = useConfigStore(state => state.config)
   const activeProjectId = useEditorStore(state => state.activeProjectId)
   const mediaImporting = useEditorStore(state => state.mediaImporting)
   const project = useProjectsStore(state => state.projects.find(item => item.id === activeProjectId))
+
+  useEffect(() => {
+    let active = true
+    setRevisions([])
+    setRevisionsError(false)
+    if (portableProjectsEnabled && activeProjectId) {
+      void Promise.resolve().then(() => new ProjectRevisions().list(activeProjectId)).then(items => { if (active) setRevisions(items) })
+        .catch(() => { if (active) setRevisionsError(true) })
+    }
+    return () => { active = false }
+  }, [activeProjectId])
 
   if (!portableProjectsEnabled) return null
 
@@ -26,6 +40,10 @@ export function ProjectFileCommands() {
     const input = event.currentTarget
     const file = input.files?.[0]
     if (!file) return
+    try { await openProjectFile(file) } finally { input.value = '' }
+  }
+
+  async function openProjectFile(file: File) {
     if (useEditorStore.getState().mediaImporting) return
     const originalProjectId = useEditorStore.getState().activeProjectId
     const originalConfig = useConfigStore.getState().config
@@ -93,13 +111,12 @@ export function ProjectFileCommands() {
       if (createdProjectId) useProjectsStore.getState().deleteProject(createdProjectId)
       toast.error(error instanceof Error ? error.message : 'Project could not be opened.')
     } finally {
-      input.value = ''
       setOpening(false)
       useEditorStore.getState().setMediaImporting(false)
     }
   }
 
-  async function saveProject() {
+  async function saveProject(checkpoint = false) {
     if (!project || useEditorStore.getState().mediaImporting) return
     setSaving(true)
     useEditorStore.getState().setMediaImporting(true)
@@ -143,6 +160,21 @@ export function ProjectFileCommands() {
         download = manifestBlob
         filename = `${basename}.webstudio.json`
       }
+      if (checkpoint) {
+        const library = new ProjectRevisions()
+        await library.save(project.id, filename, download)
+        try {
+          const items = await library.list(project.id)
+          if (useEditorStore.getState().activeProjectId === project.id) { setRevisions(items); setRevisionsError(false) }
+        } catch {
+          if (useEditorStore.getState().activeProjectId === project.id) setRevisionsError(true)
+        }
+        const currentProject = useProjectsStore.getState().projects.find(item => item.id === project.id)
+        if (useEditorStore.getState().activeProjectId !== project.id || useConfigStore.getState().config !== config || currentProject?.name !== project.name || JSON.stringify(currentProject?.settings ?? {}) !== JSON.stringify(project.settings ?? {})) {
+          toast.warning('An earlier snapshot was saved as a local revision. Newer edits remain in the draft.')
+        } else toast.success('Local revision saved. Keep a separate project file as a backup.')
+        return
+      }
       const url = URL.createObjectURL(download)
       const link = window.document.createElement('a')
       link.href = url
@@ -174,6 +206,19 @@ export function ProjectFileCommands() {
         className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
         <Save size={14} />{saving ? 'Preparing project…' : 'Save project'}
       </button>}
+      {project && <details className="relative text-xs">
+        <summary className="cursor-pointer rounded px-2 py-1 text-text-1 hover:bg-bg-3">Local revisions</summary>
+        <div className="absolute right-0 top-full z-50 mt-1 w-80 max-h-80 overflow-y-auto rounded border border-border-default bg-bg-1 p-3 shadow-lg">
+          <p className="mb-2 text-text-2">Revisions are stored on this computer. Save a separate project file for backup. Opening a revision creates a separate local project.</p>
+          <button type="button" disabled={mediaImporting} onClick={() => void saveProject(true)} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50">{saving ? 'Preparing project…' : 'Create local revision'}</button>
+          {revisionsError && <p role="alert" className="mt-2 text-text-1">Local revisions could not be read. Existing revisions were not changed.</p>}
+          {!revisionsError && revisions.length === 0 && <p className="mt-2 text-text-2">No local revisions yet.</p>}
+          {revisions.map(revision => <div key={revision.id} className="mt-2 border-t border-border-default pt-2">
+            <span className="block text-text-2">{new Date(revision.createdAt).toLocaleString()}</span>
+            <button type="button" disabled={mediaImporting} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => void openProjectFile(new File([revision.contents], revision.filename, { type: revision.contents.type }))}>Open as a separate project</button>
+          </div>)}
+        </div>
+      </details>}
     </div>
   )
 }
