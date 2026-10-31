@@ -83,6 +83,19 @@ begin
     finally
       Archive.Free;
     end;
+    Buffer.Position := 0;
+    Archive := TZipFile.Create;
+    try
+      Archive.Open(Buffer, zmRead);
+      if (Archive.FileCount <> 1) or (Archive.FileName[0] <> TPath.GetFileName(SourcePath)) then
+        raise EWriteError.Create('Recovery ZIP has an unexpected entry. The project was not changed.');
+      Archive.Read(0, VerifiedBytes);
+      if (Length(VerifiedBytes) <> Length(ProjectBytes)) or
+        ((Length(ProjectBytes) > 0) and not CompareMem(@VerifiedBytes[0], @ProjectBytes[0], Length(ProjectBytes))) then
+        raise EWriteError.Create('Recovery ZIP contents could not be verified. The project was not changed.');
+    finally
+      Archive.Free;
+    end;
     if UInt64(Buffer.Size) > UInt64(High(NativeInt)) then
       raise EArgumentException.Create('Recovery ZIP is too large.');
     SetLength(ZipBytes, NativeInt(Buffer.Size));
