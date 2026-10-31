@@ -69,7 +69,7 @@ object MainForm: TMainForm
   object ProjectSaveDialog: TSaveDialog
     Filter = 'WebStudio project files|*.json;*.zip'
     Options = [ofHideReadOnly, ofNoChangeDir, ofPathMustExist, ofEnableSizing]
-    Title = 'Save project using a new filename'
+    Title = 'Save project'
     Left = 808
     Top = 48
   end
@@ -122,6 +122,16 @@ object MainForm: TMainForm
     Options = [ofHideReadOnly, ofNoChangeDir, ofPathMustExist, ofEnableSizing]
     Title = 'Restore a project using a new filename'
     Left = 744
+    Top = 48
+  end
+  object ReplaceConfirmDialog: TTaskDialog
+    Caption = 'Replace project'
+    CommonButtons = [tcbYes, tcbNo]
+    DefaultButton = tcbNo
+    MainIcon = 1
+    Text = 'Replace the selected project? A recovery ZIP of the existing file will be created in a recovery folder beside it first. Projects larger than 512 MiB cannot be replaced yet.'
+    Title = 'Replace the existing project?'
+    Left = 872
     Top = 48
   end
 end

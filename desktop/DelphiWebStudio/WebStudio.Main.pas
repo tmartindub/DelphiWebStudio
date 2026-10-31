@@ -25,6 +25,7 @@ type
     BackupSaveDialog: TSaveDialog;
     BackupOpenDialog: TOpenDialog;
     BackupRestoreDialog: TSaveDialog;
+    ReplaceConfirmDialog: TTaskDialog;
     procedure FormCreate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure EditorBrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HResult);
@@ -47,7 +48,7 @@ var MainForm: TMainForm;
 
 implementation
 
-uses Winapi.ActiveX, System.IOUtils, System.Zip, WebStudio.ProjectSave;
+uses Winapi.ActiveX, System.IOUtils, System.Zip, System.JSON, System.UITypes, WebStudio.ProjectSave;
 
 {$R *.dfm}
 
@@ -59,13 +60,17 @@ type
     FFileName: string;
     FStagedPath: string;
     FTargetPath: string;
+    FReplaceExisting: Boolean;
+    FConfirmedOriginal: TByHandleFileInformation;
     FFinished: Boolean;
   public
-    constructor Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName, AStagedPath, ATargetPath: string);
+    constructor Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName, AStagedPath, ATargetPath: string;
+      AReplaceExisting: Boolean; const AConfirmedOriginal: TByHandleFileInformation);
     function Invoke(const sender: ICoreWebView2DownloadOperation; const args: IUnknown): HResult; stdcall;
   end;
 
-constructor TDownloadStateHandler.Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName, AStagedPath, ATargetPath: string);
+constructor TDownloadStateHandler.Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName, AStagedPath, ATargetPath: string;
+  AReplaceExisting: Boolean; const AConfirmedOriginal: TByHandleFileInformation);
 begin
   inherited Create;
   FOwner := AOwner;
@@ -73,10 +78,15 @@ begin
   FFileName := AFileName;
   FStagedPath := AStagedPath;
   FTargetPath := ATargetPath;
+  FReplaceExisting := AReplaceExisting;
+  FConfirmedOriginal := AConfirmedOriginal;
 end;
 
 function TDownloadStateHandler.Invoke(const sender: ICoreWebView2DownloadOperation; const args: IUnknown): HResult;
-var State: COREWEBVIEW2_DOWNLOAD_STATE;
+var State: COREWEBVIEW2_DOWNLOAD_STATE; RecoveryZip, RetainedOriginal: string;
+  StageStream, EntryStream: TStream; Zip: TZipFile; ZipHeader: TZipHeader;
+  Bytes: TBytes; Document, Config, Pages: TJSONValue; Index, ManifestIndex, ManifestCount: Integer;
+  ExtraByte: Byte; ValidatedStage: TByHandleFileInformation;
 begin
   Result := S_OK;
   if not IsWindow(FOwnerWindow) or (FindControl(FOwnerWindow) <> FOwner) or
@@ -91,12 +101,80 @@ begin
     if State = COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED then begin
       if FStagedPath <> '' then begin
         try
-          CommitStagedProjectFile(FStagedPath, FTargetPath);
+          if FReplaceExisting then begin
+            FOwner.StatusLabel.Caption := 'Checking project before replacement...';
+            FOwner.StatusLabel.Update;
+            StageStream := TFileStream.Create(FStagedPath, fmOpenRead or fmShareDenyWrite);
+            try
+              if not GetFileInformationByHandle(TFileStream(StageStream).Handle, ValidatedStage) then RaiseLastOSError;
+              if SameText(TPath.GetExtension(FTargetPath), '.json') then begin
+                if (StageStream.Size <= 0) or (StageStream.Size > 100 * 1024 * 1024) then
+                  raise EArgumentException.Create('The staged project manifest is empty or exceeds 100 MiB.');
+                SetLength(Bytes, Integer(StageStream.Size));
+                StageStream.ReadBuffer(Bytes[0], Length(Bytes));
+              end else begin
+                Zip := TZipFile.Create;
+                try
+                  Zip.Open(StageStream, zmRead);
+                  ManifestIndex := -1; ManifestCount := 0;
+                  for Index := 0 to Zip.FileCount - 1 do
+                    if Zip.FileName[Index] = 'project.webstudio.json' then begin
+                      ManifestIndex := Index; Inc(ManifestCount);
+                    end;
+                  if ManifestCount <> 1 then raise EArgumentException.Create('The staged ZIP must contain one project manifest.');
+                  ZipHeader := Zip.FileInfo[ManifestIndex];
+                  if ZipHeader.IsEncrypted or (ZipHeader.UncompressedSize64 = 0) or
+                    (ZipHeader.UncompressedSize64 > 100 * 1024 * 1024) then
+                    raise EArgumentException.Create('The staged project manifest is encrypted, empty or exceeds 100 MiB.');
+                  Zip.Read(ManifestIndex, EntryStream, ZipHeader, True);
+                  try
+                    SetLength(Bytes, Integer(Zip.FileInfo[ManifestIndex].UncompressedSize64));
+                    EntryStream.ReadBuffer(Bytes[0], Length(Bytes));
+                    if EntryStream.Read(ExtraByte, 1) <> 0 then raise EArgumentException.Create('The staged manifest has unexpected data.');
+                  finally EntryStream.Free end;
+                finally Zip.Free end;
+              end;
+            finally StageStream.Free end;
+            if not TEncoding.UTF8.IsBufferValid(Bytes) then raise EArgumentException.Create('The staged project manifest is not valid UTF-8.');
+            Document := TJSONObject.ParseJSONValue(TEncoding.UTF8.GetString(Bytes));
+            try
+              if not (Document is TJSONObject) or not (TJSONObject(Document).GetValue('format') is TJSONString) or
+                (TJSONObject(Document).GetValue('format').Value <> 'webstudio') or
+                not (TJSONObject(Document).GetValue('schemaVersion') is TJSONNumber) or
+                (TJSONObject(Document).GetValue('schemaVersion').Value <> '2') or
+                not (TJSONObject(Document).GetValue('projectId') is TJSONString) or
+                (TJSONObject(Document).GetValue('projectId').Value = '') then
+                raise EArgumentException.Create('The staged file is not a supported WebStudio project.');
+              Config := TJSONObject(Document).GetValue('config');
+              if not (Config is TJSONObject) or not (TJSONObject(Config).GetValue('name') is TJSONString) then
+                raise EArgumentException.Create('The staged project configuration is invalid.');
+              Pages := TJSONObject(Config).GetValue('pages');
+              if not (Pages is TJSONArray) or (TJSONArray(Pages).Count = 0) then
+                raise EArgumentException.Create('The staged project has no pages.');
+            finally Document.Free end;
+            FOwner.StatusLabel.Caption := 'Creating recovery ZIP before replacing project...';
+            FOwner.StatusLabel.Update;
+            ReplaceStagedProjectFile(FStagedPath, FTargetPath, 512 * 1024 * 1024,
+              FConfirmedOriginal, ValidatedStage, RecoveryZip, RetainedOriginal);
+            FOwner.StatusLabel.Hint := 'Recovery ZIP: ' + RecoveryZip;
+            if RetainedOriginal <> '' then begin
+              FOwner.StatusLabel.Hint := FOwner.StatusLabel.Hint + sLineBreak + 'Original also retained: ' + RetainedOriginal;
+              FOwner.StatusLabel.Caption := 'Project replaced; original also retained. Hover for paths.';
+            end else FOwner.StatusLabel.Caption := 'Project replaced. Recovery ZIP: ' + RecoveryZip;
+            Exit;
+          end else CommitStagedProjectFile(FStagedPath, FTargetPath);
         except
-          if Assigned(FOwner.RecoveryOpenDialog) then FOwner.RecoveryOpenDialog.InitialDir := TPath.GetDirectoryName(FStagedPath);
-          FOwner.StatusLabel.Hint := FStagedPath;
-          FOwner.StatusLabel.Caption := 'Project not saved. Check staged file: ' + FStagedPath;
-          Exit;
+          on E: Exception do begin
+            if Assigned(FOwner.RecoveryOpenDialog) then FOwner.RecoveryOpenDialog.InitialDir := TPath.GetDirectoryName(FStagedPath);
+            if FReplaceExisting then begin
+              FOwner.StatusLabel.Hint := E.Message + sLineBreak + 'Staged file: ' + FStagedPath;
+              FOwner.StatusLabel.Caption := 'Replacement needs attention. Hover here for recovery details.';
+            end else begin
+              FOwner.StatusLabel.Hint := FStagedPath;
+              FOwner.StatusLabel.Caption := 'Project not saved. Check staged file: ' + FStagedPath;
+            end;
+            Exit;
+          end;
         end;
       end;
       FOwner.StatusLabel.Hint := '';
@@ -327,6 +405,9 @@ var
   OwnerWindow: HWND;
   Allowed: Boolean;
   ActiveDialog: TSaveDialog;
+  ReplaceExisting: Boolean;
+  ConfirmedOriginal: TByHandleFileInformation;
+  SelectedHandle: THandle;
 begin
   Address := nil;
   Suggested := nil;
@@ -371,6 +452,8 @@ begin
               if ActiveDialog.Execute then begin
                 SelectedPath := ActiveDialog.FileName;
                 StagedPath := '';
+                ReplaceExisting := False;
+                FillChar(ConfirmedOriginal, SizeOf(ConfirmedOriginal), 0);
                 if LowerCase(SuggestedName).EndsWith('.webstudio.json') or LowerCase(SuggestedName).EndsWith('.webstudio.zip') then begin
                   if not SameText(TPath.GetExtension(SelectedPath), TPath.GetExtension(SuggestedName)) then begin
                     DownloadArgs.Set_Cancel(1);
@@ -378,11 +461,26 @@ begin
                     FDownloadPending := False;
                     Exit;
                   end;
-                  if TFile.Exists(SelectedPath) or TDirectory.Exists(SelectedPath) then begin
+                  if TDirectory.Exists(SelectedPath) then begin
                     DownloadArgs.Set_Cancel(1);
-                    StatusLabel.Caption := 'Existing project was not replaced. Save using a new filename.';
+                    StatusLabel.Caption := 'Choose a project filename, not a folder.';
                     FDownloadPending := False;
                     Exit;
+                  end;
+                  if TFile.Exists(SelectedPath) then begin
+                    SelectedHandle := CreateFile(PChar(SelectedPath), GENERIC_READ, FILE_SHARE_READ or FILE_SHARE_DELETE,
+                      nil, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+                    if SelectedHandle = INVALID_HANDLE_VALUE then RaiseLastOSError;
+                    try if not GetFileInformationByHandle(SelectedHandle, ConfirmedOriginal) then RaiseLastOSError
+                    finally CloseHandle(SelectedHandle) end;
+                    ReplaceConfirmDialog.FooterText := SelectedPath;
+                    if not ReplaceConfirmDialog.Execute(OwnerWindow) or (ReplaceConfirmDialog.ModalResult <> mrYes) then begin
+                      DownloadArgs.Set_Cancel(1);
+                      StatusLabel.Caption := 'Replacement canceled; existing project was not changed.';
+                      FDownloadPending := False;
+                      Exit;
+                    end;
+                    ReplaceExisting := True;
                   end;
                   if CreateGUID(StageId) <> 0 then raise EInvalidOpException.Create('Could not create a staged filename.');
                   StagedPath := TPath.Combine(TPath.GetDirectoryName(SelectedPath), '.webstudio-download-' + GUIDToString(StageId) + '.tmp');
@@ -394,7 +492,8 @@ begin
                   DownloadArgs.Set_Cancel(1);
                   StatusLabel.Caption := 'The download could not start.';
                 end else begin
-                  StateHandler := TDownloadStateHandler.Create(Self, OwnerWindow, ExtractFileName(ActiveDialog.FileName), StagedPath, ActiveDialog.FileName);
+                  StateHandler := TDownloadStateHandler.Create(Self, OwnerWindow, ExtractFileName(ActiveDialog.FileName), StagedPath, ActiveDialog.FileName,
+                    ReplaceExisting, ConfirmedOriginal);
                   if Winapi.Windows.Failed(Operation.add_StateChanged(StateHandler, StateToken)) then begin
                     if StagedPath <> '' then begin
                       DownloadArgs.Set_Cancel(1);

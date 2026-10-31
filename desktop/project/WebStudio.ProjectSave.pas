@@ -3,7 +3,7 @@ unit WebStudio.ProjectSave;
 
 interface
 
-uses System.SysUtils;
+uses Winapi.Windows, System.SysUtils;
 
 { Creates a new project file selected by a trusted native caller. This
   operation never replaces an existing path. The caller owns validation,
@@ -19,7 +19,8 @@ procedure CommitStagedProjectFile(const StagedPath, TargetPath: string);
   and obtain explicit confirmation. On failure, inspect all named files;
   Windows may have moved the original even when replacement reports an error. }
 procedure ReplaceStagedProjectFile(const StagedPath, TargetPath: string;
-  MaximumSourceBytes: UInt64; out RecoveryZipPath, RetainedOriginalPath: string);
+  MaximumSourceBytes: UInt64; const ConfirmedOriginal, ValidatedStage: TByHandleFileInformation;
+  out RecoveryZipPath, RetainedOriginalPath: string);
 
 { Creates a ZIP containing the current source file at a new, caller-selected
   recovery path. This does not replace the project or grant permission to do
@@ -34,14 +35,15 @@ procedure RestoreProjectRecoveryZip(const RecoveryZipPath, NewTargetPath: string
 
 implementation
 
-uses Winapi.Windows, System.IOUtils, System.Classes, System.Zip, WebStudio.ProjectOpen;
+uses System.IOUtils, System.Classes, System.Zip, WebStudio.ProjectOpen;
 
 function SetFileInformationByHandle(FileHandle: THandle; FileInformationClass: Integer;
   FileInformation: Pointer; BufferSize: DWORD): BOOL; stdcall;
   external 'kernel32.dll' name 'SetFileInformationByHandle';
 
 procedure ReplaceStagedProjectFile(const StagedPath, TargetPath: string;
-  MaximumSourceBytes: UInt64; out RecoveryZipPath, RetainedOriginalPath: string);
+  MaximumSourceBytes: UInt64; const ConfirmedOriginal, ValidatedStage: TByHandleFileInformation;
+  out RecoveryZipPath, RetainedOriginalPath: string);
 const FileDispositionInfo = 4;
 var
   FullStage, FullTarget, RecoveryDir, RawDir, RawPath: string;
@@ -78,12 +80,26 @@ begin
   try
     try
       if not GetFileInformationByHandle(OriginalHandle, OriginalInfo) then RaiseLastOSError;
+      if (OriginalInfo.dwVolumeSerialNumber <> ConfirmedOriginal.dwVolumeSerialNumber) or
+        (OriginalInfo.nFileIndexHigh <> ConfirmedOriginal.nFileIndexHigh) or
+        (OriginalInfo.nFileIndexLow <> ConfirmedOriginal.nFileIndexLow) or
+        (OriginalInfo.nFileSizeHigh <> ConfirmedOriginal.nFileSizeHigh) or
+        (OriginalInfo.nFileSizeLow <> ConfirmedOriginal.nFileSizeLow) or
+        not CompareMem(@OriginalInfo.ftLastWriteTime, @ConfirmedOriginal.ftLastWriteTime, SizeOf(TFileTime)) then
+        raise EWriteError.Create('The project changed after replacement was confirmed.');
       StageHandle := CreateFile(PChar(FullStage), GENERIC_WRITE, 0, nil, OPEN_EXISTING,
         FILE_ATTRIBUTE_NORMAL or FILE_FLAG_WRITE_THROUGH, 0);
       if StageHandle = INVALID_HANDLE_VALUE then RaiseLastOSError;
       try
         if not FlushFileBuffers(StageHandle) or not GetFileInformationByHandle(StageHandle, StageInfo) then RaiseLastOSError;
       finally CloseHandle(StageHandle) end;
+      if (StageInfo.dwVolumeSerialNumber <> ValidatedStage.dwVolumeSerialNumber) or
+        (StageInfo.nFileIndexHigh <> ValidatedStage.nFileIndexHigh) or
+        (StageInfo.nFileIndexLow <> ValidatedStage.nFileIndexLow) or
+        (StageInfo.nFileSizeHigh <> ValidatedStage.nFileSizeHigh) or
+        (StageInfo.nFileSizeLow <> ValidatedStage.nFileSizeLow) or
+        not CompareMem(@StageInfo.ftLastWriteTime, @ValidatedStage.ftLastWriteTime, SizeOf(TFileTime)) then
+        raise EWriteError.Create('The staged file changed after validation.');
       if CreateGUID(Id) <> 0 then raise EInvalidOpException.Create('Could not create a recovery folder name.');
       RecoveryDir := TPath.Combine(TPath.GetDirectoryName(FullTarget), '.webstudio-recovery-' + GUIDToString(Id));
       if not CreateDirectory(PChar(RecoveryDir), nil) then RaiseLastOSError;

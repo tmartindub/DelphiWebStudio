@@ -1,11 +1,17 @@
 program DesktopDownloadSmoke;
 {$APPTYPE CONSOLE}
-uses Winapi.Windows, Winapi.Messages, Winapi.ActiveX, Winapi.WebView2, Winapi.CommDlg, Winapi.Dlgs, System.SysUtils, System.Classes, System.IOUtils, Vcl.Forms, Vcl.Edge, Vcl.Dialogs, WebStudio.Main in 'WebStudio.Main.pas' {MainForm};
+{$IFDEF TEST_MANIFEST}{$R 'test.res'}{$ENDIF}
+uses Winapi.Windows, Winapi.Messages, Winapi.ActiveX, Winapi.WebView2, Winapi.CommDlg, Winapi.CommCtrl, Winapi.Dlgs, System.SysUtils, System.Classes, System.IOUtils, Vcl.Forms, Vcl.Edge, Vcl.Dialogs, WebStudio.Main in 'WebStudio.Main.pas' {MainForm};
 type TDownloadObserver = class
   Count: Integer;
   Operation: ICoreWebView2DownloadOperation;
   procedure Started(Sender: TCustomEdgeBrowser; Args: TDownloadStartingEventArgs);
   procedure DialogShown(Sender: TObject);
+  procedure ConfirmShown(Sender: TObject);
+end;
+procedure TDownloadObserver.ConfirmShown(Sender: TObject);
+begin
+  PostMessage(TTaskDialog(Sender).Handle, TDM_CLICK_BUTTON, IDNO, 0);
 end;
 procedure TDownloadObserver.DialogShown(Sender: TObject);
 var Target, RaceTarget: string; Window: HWND;
@@ -72,6 +78,7 @@ begin
     MainForm.ProjectSaveDialog.InitialDir := ExtractFilePath(ParamStr(0));
     MainForm.SaveDownloadDialog.OnShow := Observer.DialogShown;
     MainForm.ProjectSaveDialog.OnShow := Observer.DialogShown;
+    MainForm.ReplaceConfirmDialog.OnDialogCreated := Observer.ConfirmShown;
     Deadline := GetTickCount64 + 15000;
     repeat
       CheckSynchronize(0); Application.ProcessMessages; Sleep(100);
@@ -235,8 +242,8 @@ begin
     while (Observer.Count < 6) and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
     if Observer.Count <> 6 then raise Exception.Create('Collision test did not start.');
     Deadline := GetTickCount64 + 30000;
-    while (MainForm.StatusLabel.Caption <> 'Existing project was not replaced. Save using a new filename.') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
-    if MainForm.StatusLabel.Caption <> 'Existing project was not replaced. Save using a new filename.' then raise Exception.Create('Existing project collision was not reported.');
+    while (MainForm.StatusLabel.Caption <> 'Replacement canceled; existing project was not changed.') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if MainForm.StatusLabel.Caption <> 'Replacement canceled; existing project was not changed.' then raise Exception.Create('Replacement cancellation was not reported.');
     AfterBytes := TFile.ReadAllBytes(ExtractFilePath(ParamStr(0)) + 'saved-project.zip');
     if (Length(BeforeBytes) <> Length(AfterBytes)) or ((Length(BeforeBytes) > 0) and not CompareMem(@BeforeBytes[0], @AfterBytes[0], Length(BeforeBytes))) then raise Exception.Create('Existing project changed during collision.');
     Observer.Operation := nil;
