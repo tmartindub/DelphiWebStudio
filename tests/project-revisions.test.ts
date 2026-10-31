@@ -39,4 +39,18 @@ describe('local project revisions', () => {
     expect(revisions).toHaveLength(1)
     expect(await revisions[0].contents.text()).toBe('original')
   })
+
+  it('removes only the selected revision of the selected project', async () => {
+    const projectId = crypto.randomUUID()
+    const otherId = crypto.randomUUID()
+    const library = new ProjectRevisions()
+    const first = await library.save(projectId, 'site.webstudio.json', new Blob(['first']))
+    const second = await library.save(projectId, 'site.webstudio.json', new Blob(['second']))
+    const other = await library.save(otherId, 'other.webstudio.json', new Blob(['other']))
+    await expect(library.remove(projectId, other.id)).rejects.toThrow('no longer available')
+    await library.remove(projectId, first.id)
+    expect((await library.list(projectId)).map(item => item.id)).toEqual([second.id])
+    expect(await (await library.list(otherId))[0].contents.text()).toBe('other')
+    await expect(library.remove(projectId, first.id)).rejects.toThrow('no longer available')
+  })
 })

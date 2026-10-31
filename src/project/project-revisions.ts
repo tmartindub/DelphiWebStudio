@@ -44,4 +44,22 @@ export class ProjectRevisions {
       request.onerror = () => reject(request.error ?? new Error('Local revisions could not be read.'))
     })
   }
+
+  async remove(projectId: string, revisionId: string): Promise<void> {
+    const database = await this.database
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction('revisions', 'readwrite')
+      const store = transaction.objectStore('revisions')
+      let mismatch = false
+      const request = store.get(revisionId)
+      request.onsuccess = () => {
+        const revision = request.result as ProjectRevision | undefined
+        if (!revision || revision.projectId !== projectId) { mismatch = true; transaction.abort(); return }
+        store.delete(revisionId)
+      }
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(mismatch ? new Error('The revision is no longer available.') : transaction.error ?? new Error('The revision could not be removed.'))
+      transaction.onabort = () => reject(mismatch ? new Error('The revision is no longer available.') : transaction.error ?? new Error('Removing the revision was cancelled.'))
+    })
+  }
 }

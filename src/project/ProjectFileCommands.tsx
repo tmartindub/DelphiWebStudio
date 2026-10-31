@@ -17,6 +17,8 @@ export function ProjectFileCommands() {
   const [saving, setSaving] = useState(false)
   const [revisions, setRevisions] = useState<ProjectRevision[]>([])
   const [revisionsError, setRevisionsError] = useState(false)
+  const [confirmRevision, setConfirmRevision] = useState<string | null>(null)
+  const [removingRevision, setRemovingRevision] = useState(false)
   const navigate = useNavigate()
   const config = useConfigStore(state => state.config)
   const activeProjectId = useEditorStore(state => state.activeProjectId)
@@ -27,6 +29,7 @@ export function ProjectFileCommands() {
     let active = true
     setRevisions([])
     setRevisionsError(false)
+    setConfirmRevision(null)
     if (portableProjectsEnabled && activeProjectId) {
       void Promise.resolve().then(() => new ProjectRevisions().list(activeProjectId)).then(items => { if (active) setRevisions(items) })
         .catch(() => { if (active) setRevisionsError(true) })
@@ -216,6 +219,19 @@ export function ProjectFileCommands() {
           {revisions.map(revision => <div key={revision.id} className="mt-2 border-t border-border-default pt-2">
             <span className="block text-text-2">{new Date(revision.createdAt).toLocaleString()}</span>
             <button type="button" disabled={mediaImporting} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => void openProjectFile(new File([revision.contents], revision.filename, { type: revision.contents.type }))}>Open as a separate project</button>
+            {confirmRevision === revision.id ? <div className="mt-1">
+              <p className="text-text-2">Remove this local revision? This cannot be undone.</p>
+              <button type="button" disabled={removingRevision} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => {
+                if (!project) return
+                setRemovingRevision(true)
+                void new ProjectRevisions().remove(project.id, revision.id).then(() => {
+                  if (useEditorStore.getState().activeProjectId === project.id) setRevisions(current => current.filter(item => item.id !== revision.id))
+                  setConfirmRevision(null)
+                  toast('Local revision removed.')
+                }).catch(() => toast.error('The local revision could not be removed.')).finally(() => setRemovingRevision(false))
+              }}>Remove revision</button>
+              <button type="button" disabled={removingRevision} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => setConfirmRevision(null)}>Cancel</button>
+            </div> : <button type="button" className="rounded px-2 py-1 text-text-2 hover:bg-bg-3" onClick={() => setConfirmRevision(revision.id)}>Remove…</button>}
           </div>)}
         </div>
       </details>}
