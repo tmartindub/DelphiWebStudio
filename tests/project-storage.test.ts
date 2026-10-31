@@ -61,7 +61,13 @@ describe('portable project storage', () => {
       await useProjectsStore.persist.rehydrate()
     }
   })
-  it.each(['{"state":{"projects":"invalid"},"version":0}', '{"state":{"projects":[]},"version":99}'])('protects incompatible project storage %s', async (stored) => {
+  it.each([
+    '{"state":{"projects":"invalid"},"version":0}',
+    '{"state":{"projects":[]},"version":99}',
+    '{"state":{"projects":[null]},"version":0}',
+    '{"state":{"projects":[{"id":"one"}]},"version":0}',
+    '{"state":{"projects":[{"id":"same","name":"One"},{"id":"same","name":"Two"}]},"version":0}',
+  ])('protects incompatible project storage %s', async (stored) => {
     storedValues.set('openpage-projects', stored)
     try {
       await useProjectsStore.persist.rehydrate()
