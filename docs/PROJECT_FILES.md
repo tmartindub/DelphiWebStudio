@@ -158,6 +158,8 @@ An isolated test also forcibly terminated its own test process during an active 
 
 In a follow-up isolated forced-termination test, the editor first wrote a changed headline to its local draft, then its test process was terminated during a staged download. A new test shell using the same isolated profile reopened the draft and displayed that headline. This covers one edit after it reached local storage; it does not establish survival of unsaved edits, media writes, cleared storage, all shutdown timings or power loss.
 
+Another isolated run imported the sample PDF and wrote a headline before terminating the test process during a staged save. The restarted shell reopened the draft, listed the PDF and saved a new project ZIP containing the headline and original PDF bytes. Both changes had completed storage before termination; this does not test interruption during a media write, cleared storage, every shutdown timing or power loss.
+
 An isolated test recovered both JSON and ZIP copies of the five-page sample, reopened each in the editor, and verified that the website export contained all five pages. This test did not simulate a power failure or recover a damaged media archive.
 
 A separate isolated test recovered a five-page project ZIP containing the sample PDF, reopened it, and exported all five pages with an edited page link and the original PDF bytes intact. The native recovery test used legacy dialogs and a completed staged file; it did not simulate a power failure or establish that an interrupted download is complete.
