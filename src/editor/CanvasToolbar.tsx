@@ -445,7 +445,7 @@ export function CanvasToolbar() {
           onClick={toggleHistory}
           className="h-7 px-2 rounded flex items-center gap-1 text-[11px] text-text-3 hover:text-text-1 hover:bg-bg-3 transition-all"
           title="History (H)"
-          aria-label="Toggle version history"
+          aria-label="Toggle undo history"
         >
           <Clock size={13} />
           <span>History</span>

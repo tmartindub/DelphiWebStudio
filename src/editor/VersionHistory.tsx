@@ -54,11 +54,12 @@ export function VersionHistory() {
       <div className="px-4 py-3.5 border-b border-border-default flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Clock size={14} className="text-text-2" />
-          <h3 className="text-sm font-semibold">Version History</h3>
+          <h3 className="text-sm font-semibold">Session undo history</h3>
           <span className="text-[10px] text-text-3">({entries.length})</span>
         </div>
         <button
           onClick={toggleHistory}
+          aria-label="Close undo history"
           className="w-7 h-7 rounded flex items-center justify-center text-text-3 hover:text-text-0 hover:bg-bg-3 transition-colors"
         >
           <X size={14} />
@@ -67,6 +68,7 @@ export function VersionHistory() {
 
       {/* History list */}
       <div className="flex-1 overflow-y-auto p-2">
+        <p className="p-2 text-[11px] text-text-2">History is cleared when you open another project or close the app. Save separate project files to keep earlier versions.</p>
         {/* Current state */}
         <div className="p-3 rounded-lg bg-green-glow mb-0.5">
           <div className="flex items-center gap-1.5 text-[11px] text-text-2 mb-1">
@@ -79,24 +81,25 @@ export function VersionHistory() {
         </div>
 
         {entries.map((entry, i) => (
-          <div
+          <button
             key={i}
+            type="button"
             onClick={() => {
               for (let n = 0; n <= i; n++) useConfigStore.getState().undo()
             }}
-            className="p-3 rounded-lg cursor-pointer transition-colors mb-0.5 hover:bg-bg-3 group"
+            className="w-full text-left p-3 rounded-lg cursor-pointer transition-colors mb-0.5 hover:bg-bg-3 focus-visible:outline-2 focus-visible:outline-green group"
           >
             <div className="flex items-center gap-1.5 text-[11px] text-text-2 mb-1">
               <span>{timeAgo(entry.timestamp)}</span>
               <span className="text-[9px] px-1.5 py-0.5 rounded-full font-semibold bg-status-blue/10 text-status-blue">
-                manual
+                edit
               </span>
             </div>
             <div className="flex items-center justify-between">
               <div className="text-[12.5px] text-text-1">{entry.label}</div>
               <RotateCcw size={12} className="text-text-3 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
-          </div>
+          </button>
         ))}
 
         {entries.length === 0 && (
