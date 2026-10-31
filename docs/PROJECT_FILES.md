@@ -16,6 +16,8 @@ Use the pencil button on a dashboard project card to rename the project. Saving 
 
 After confirming removal of a dashboard project, use **Undo** in the notification within 15 seconds to restore its project entry and existing media references. An isolated browser test restored a five-page project and its PDF. This undo is temporary and does not replace a separate project file; the current implementation leaves the removed project's media in local storage.
 
+Duplicate copies the project and its media into a separate local draft. If the source project changes or is removed while its media is being copied, duplication stops and asks you to try again instead of showing an outdated copy. Media already staged for that stopped copy may remain in local storage without a visible project. Tests cover source rename, removal and a reported media change during copying; they do not establish protection from every cross-window or storage-level race.
+
 Suggested project and website download filenames avoid Windows reserved device names and fall back to `site` if the name cannot supply a usable filename. This changes the suggested filename only; the project and website names remain unchanged. An isolated browser check covered reserved names, punctuation-only names and non-Latin names.
 
 Save validates a snapshot and starts a JSON download. Browser download settings determine the final location and collision filename. The message says a download was requested and asks the user to choose a destination if prompted; it does not claim an atomic filesystem write or confirmed disk durability. Existing browser draft autosave remains available. Native atomic saves and recovery are later work.

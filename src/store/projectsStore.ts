@@ -109,6 +109,9 @@ export const useProjectsStore = create<ProjectsState>()(
         if (clone.settings) delete clone.settings.deployAccessKey
         if (clone.projectFile?.settings) delete clone.projectFile.settings.deployAccessKey
         await new ProjectMediaLibrary().copyProject(id, newId)
+        if (useProjectsStore.getState().projects.find(project => project.id === id) !== original) {
+          throw new Error('The project changed while it was being duplicated. Try again.')
+        }
         set((s) => ({ projects: [clone, ...s.projects] }))
         return newId
       },

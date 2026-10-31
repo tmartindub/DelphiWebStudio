@@ -260,7 +260,7 @@ function ProjectCard({ project }: { project: Project }) {
         {/* Action buttons */}
         <div className="absolute top-2 right-2 z-10 flex gap-1">
           <button
-            onClick={(e) => { e.stopPropagation(); void duplicateProject(project.id).then(id => { if (id) toast('Project duplicated'); else toast.error('Project not found.') }).catch(() => toast.error('Project could not be duplicated. The original was not changed.')) }}
+            onClick={(e) => { e.stopPropagation(); void duplicateProject(project.id).then(id => { if (id) toast('Project duplicated'); else toast.error('Project not found.') }).catch((error: unknown) => toast.error(error instanceof Error && error.message === 'The project changed while it was being duplicated. Try again.' ? error.message : 'Project could not be duplicated. The original was not changed.')) }}
             aria-label={`Duplicate ${project.name}`}
             className="p-1.5 rounded-md border bg-bg-0/80 border-border-default text-text-3 opacity-0 group-hover:opacity-100 hover:text-green hover:border-green/30 transition-all"
           >

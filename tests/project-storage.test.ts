@@ -116,6 +116,21 @@ describe('portable project storage', () => {
     expect(document.projectId).toBe('original-file-id')
   })
 
+  it.each(['rename', 'delete', 'media change'])('does not expose a stale duplicate after a concurrent %s', async change => {
+    const first = useProjectsStore.getState().addProject('Original', document)
+    let finishCopy!: () => void
+    const copy = vi.spyOn(ProjectMediaLibrary.prototype, 'copyProject').mockImplementation(() => new Promise(resolve => { finishCopy = resolve }))
+    try {
+      const pending = useProjectsStore.getState().duplicateProject(first)
+      if (change === 'rename') useProjectsStore.getState().renameProject(first, 'Changed')
+      if (change === 'delete') useProjectsStore.getState().deleteProject(first)
+      if (change === 'media change') useProjectsStore.getState().mediaChanged(first)
+      finishCopy()
+      await expect(pending).rejects.toThrow('The project changed while it was being duplicated. Try again.')
+      expect(useProjectsStore.getState().projects.some(project => project.name.endsWith(' (Copy)'))).toBe(false)
+    } finally { copy.mockRestore() }
+  })
+
   it('duplicates media with stable references and isolates subsequent changes', async () => {
     const first = useProjectsStore.getState().addProject('Original', document)
     const library = new ProjectMediaLibrary()
