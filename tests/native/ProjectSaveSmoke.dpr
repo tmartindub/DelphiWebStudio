@@ -1,10 +1,11 @@
 program ProjectSaveSmoke;
 {$APPTYPE CONSOLE}
+{$B-}
 uses System.SysUtils, System.IOUtils, System.Classes, System.Zip, WebStudio.ProjectSave in '..\..\desktop\project\WebStudio.ProjectSave.pas', WebStudio.ProjectOpen in '..\..\desktop\project\WebStudio.ProjectOpen.pas';
 var
   Id: TGUID;
   Folder, Target, EmptyTarget, RecoveryTarget, NestedRecovery, EmptyRecovery, UnicodeTarget, UnicodeRecovery,
-  RestoredTarget, RestoredEmpty, RestoredZip, RestoredUnicode, InvalidTarget, CorruptRecovery, MultiRecovery, TraversalRecovery, CrcRecovery: string;
+  RestoredTarget, RestoredEmpty, RestoredZip, RestoredUnicode, InvalidTarget, CorruptRecovery, MultiRecovery, TraversalRecovery, CrcRecovery, MismatchNameRecovery, MismatchCrcRecovery: string;
   Data, Actual, RecoveryBytes, OriginalName, InvalidName: TBytes;
   Index, MatchCount, DataOffset: Integer;
   Rejected: Boolean;
@@ -32,6 +33,8 @@ begin
   MultiRecovery := TPath.Combine(Folder, 'multi-recovery.zip');
   TraversalRecovery := TPath.Combine(Folder, 'traversal-recovery.zip');
   CrcRecovery := TPath.Combine(Folder, 'crc-recovery.zip');
+  MismatchNameRecovery := TPath.Combine(Folder, 'mismatch-name.zip');
+  MismatchCrcRecovery := TPath.Combine(Folder, 'mismatch-crc.zip');
   try
     SetLength(Data, 1048587);
     for Index := 0 to High(Data) do Data[Index] := Byte(Index mod 251);
@@ -168,6 +171,29 @@ begin
     try RestoreProjectRecoveryZip(TraversalRecovery, InvalidTarget, TFile.GetSize(TraversalRecovery), Length(Data));
     except on E: EArgumentException do Rejected := True end;
     if not Rejected or TFile.Exists(InvalidTarget) then raise Exception.Create('Traversal recovery ZIP was accepted.');
+    Actual := TFile.ReadAllBytes(RecoveryTarget);
+    if (Length(Actual) < 30 + Length(OriginalName)) or not CompareMem(@Actual[30], @OriginalName[0], Length(OriginalName)) then
+      raise Exception.Create('Could not prepare the mismatched local filename archive.');
+    Actual[30] := Actual[30] xor 1;
+    SaveNewProjectFile(MismatchNameRecovery, Actual);
+    Rejected := False;
+    try RestoreProjectRecoveryZip(MismatchNameRecovery, InvalidTarget, TFile.GetSize(MismatchNameRecovery), Length(Data));
+    except on E: EArgumentException do Rejected := True end;
+    if not Rejected or TFile.Exists(InvalidTarget) then raise Exception.Create('Mismatched recovery filename headers were accepted.');
+    Actual := TFile.ReadAllBytes(RecoveryTarget);
+    MatchCount := 0;
+    for Index := 0 to Length(Actual) - 46 - Length(OriginalName) do
+      if (Actual[Index] = $50) and (Actual[Index + 1] = $4B) and (Actual[Index + 2] = $01) and (Actual[Index + 3] = $02) and
+        CompareMem(@Actual[Index + 46], @OriginalName[0], Length(OriginalName)) then begin
+        Actual[Index + 16] := Actual[Index + 16] xor 1;
+        Inc(MatchCount);
+      end;
+    if MatchCount <> 1 then raise Exception.Create('Could not prepare the mismatched CRC archive.');
+    SaveNewProjectFile(MismatchCrcRecovery, Actual);
+    Rejected := False;
+    try RestoreProjectRecoveryZip(MismatchCrcRecovery, InvalidTarget, TFile.GetSize(MismatchCrcRecovery), Length(Data));
+    except on E: EArgumentException do Rejected := True; on E: EZipCRCException do Rejected := True end;
+    if not Rejected or TFile.Exists(InvalidTarget) then raise Exception.Create('Mismatched recovery CRC was accepted.');
     Buffer := TMemoryStream.Create;
     try
       Archive := TZipFile.Create;
@@ -213,7 +239,7 @@ begin
     try SaveNewProjectFile(TPath.Combine(Folder, 'missing\project.json'), nil);
     except on E: EOSError do Rejected := True end;
     if not Rejected then raise Exception.Create('Missing folder was accepted.');
-    if Length(TDirectory.GetFiles(Folder)) <> 15 then raise Exception.Create('Temporary files were left behind.');
+    if Length(TDirectory.GetFiles(Folder)) <> 17 then raise Exception.Create('Temporary files were left behind.');
     Writeln('Native create-only save, bounded open, ZIP snapshot and restore passed.');
   finally
     if TFile.Exists(Target) then TFile.Delete(Target);
@@ -231,6 +257,8 @@ begin
     if TFile.Exists(MultiRecovery) then TFile.Delete(MultiRecovery);
     if TFile.Exists(TraversalRecovery) then TFile.Delete(TraversalRecovery);
     if TFile.Exists(CrcRecovery) then TFile.Delete(CrcRecovery);
+    if TFile.Exists(MismatchNameRecovery) then TFile.Delete(MismatchNameRecovery);
+    if TFile.Exists(MismatchCrcRecovery) then TFile.Delete(MismatchCrcRecovery);
     TDirectory.Delete(Folder, False);
   end;
 end.

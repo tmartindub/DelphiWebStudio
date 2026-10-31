@@ -151,8 +151,12 @@ begin
         raise EArgumentException.Create('Recovery project is encrypted or exceeds the allowed size.');
       Archive.Read(0, EntryStream, LocalHeader, True);
       try
-        if LocalHeader.UncompressedSize64 <> Header.UncompressedSize64 then
-          raise EArgumentException.Create('Recovery ZIP entry sizes do not match.');
+        if (LocalHeader.UncompressedSize64 <> Header.UncompressedSize64) or
+          (LocalHeader.CRC32 <> Header.CRC32) or
+          (LocalHeader.CompressionMethod <> Header.CompressionMethod) or
+          (LocalHeader.IsEncrypted <> Header.IsEncrypted) or
+          (Archive.GetHeaderFileName(LocalHeader) <> EntryName) then
+          raise EArgumentException.Create('Recovery ZIP entry headers do not match.');
         SetLength(ProjectBytes, NativeInt(Header.UncompressedSize64));
         Offset := 0;
         while Offset < Length(ProjectBytes) do begin
