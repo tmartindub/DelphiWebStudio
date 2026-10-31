@@ -151,7 +151,8 @@ begin
         raise EArgumentException.Create('Recovery project is encrypted or exceeds the allowed size.');
       Archive.Read(0, EntryStream, LocalHeader, True);
       try
-        if (LocalHeader.UncompressedSize64 <> Header.UncompressedSize64) or
+        if (LocalHeader.CompressedSize64 <> Header.CompressedSize64) or
+          (LocalHeader.UncompressedSize64 <> Header.UncompressedSize64) or
           (LocalHeader.CRC32 <> Header.CRC32) or
           (LocalHeader.CompressionMethod <> Header.CompressionMethod) or
           (LocalHeader.IsEncrypted <> Header.IsEncrypted) or

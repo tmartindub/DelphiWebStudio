@@ -5,7 +5,7 @@ uses System.SysUtils, System.IOUtils, System.Classes, System.Zip, WebStudio.Proj
 var
   Id: TGUID;
   Folder, Target, EmptyTarget, RecoveryTarget, NestedRecovery, EmptyRecovery, UnicodeTarget, UnicodeRecovery,
-  RestoredTarget, RestoredEmpty, RestoredZip, RestoredUnicode, InvalidTarget, CorruptRecovery, MultiRecovery, TraversalRecovery, CrcRecovery, MismatchNameRecovery, MismatchCrcRecovery: string;
+  RestoredTarget, RestoredEmpty, RestoredZip, RestoredUnicode, InvalidTarget, CorruptRecovery, MultiRecovery, TraversalRecovery, CrcRecovery, MismatchNameRecovery, MismatchCrcRecovery, MismatchSizeRecovery: string;
   Data, Actual, RecoveryBytes, OriginalName, InvalidName: TBytes;
   Index, MatchCount, DataOffset: Integer;
   Rejected: Boolean;
@@ -35,6 +35,7 @@ begin
   CrcRecovery := TPath.Combine(Folder, 'crc-recovery.zip');
   MismatchNameRecovery := TPath.Combine(Folder, 'mismatch-name.zip');
   MismatchCrcRecovery := TPath.Combine(Folder, 'mismatch-crc.zip');
+  MismatchSizeRecovery := TPath.Combine(Folder, 'mismatch-size.zip');
   try
     SetLength(Data, 1048587);
     for Index := 0 to High(Data) do Data[Index] := Byte(Index mod 251);
@@ -194,6 +195,13 @@ begin
     try RestoreProjectRecoveryZip(MismatchCrcRecovery, InvalidTarget, TFile.GetSize(MismatchCrcRecovery), Length(Data));
     except on E: EArgumentException do Rejected := True; on E: EZipCRCException do Rejected := True end;
     if not Rejected or TFile.Exists(InvalidTarget) then raise Exception.Create('Mismatched recovery CRC was accepted.');
+    Actual := TFile.ReadAllBytes(RecoveryTarget);
+    Actual[18] := Actual[18] xor 1;
+    SaveNewProjectFile(MismatchSizeRecovery, Actual);
+    Rejected := False;
+    try RestoreProjectRecoveryZip(MismatchSizeRecovery, InvalidTarget, TFile.GetSize(MismatchSizeRecovery), Length(Data));
+    except on E: EArgumentException do Rejected := True; on E: EZipException do Rejected := True end;
+    if not Rejected or TFile.Exists(InvalidTarget) then raise Exception.Create('Mismatched recovery compressed sizes were accepted.');
     Buffer := TMemoryStream.Create;
     try
       Archive := TZipFile.Create;
@@ -239,7 +247,7 @@ begin
     try SaveNewProjectFile(TPath.Combine(Folder, 'missing\project.json'), nil);
     except on E: EOSError do Rejected := True end;
     if not Rejected then raise Exception.Create('Missing folder was accepted.');
-    if Length(TDirectory.GetFiles(Folder)) <> 17 then raise Exception.Create('Temporary files were left behind.');
+    if Length(TDirectory.GetFiles(Folder)) <> 18 then raise Exception.Create('Temporary files were left behind.');
     Writeln('Native create-only save, bounded open, ZIP snapshot and restore passed.');
   finally
     if TFile.Exists(Target) then TFile.Delete(Target);
@@ -259,6 +267,7 @@ begin
     if TFile.Exists(CrcRecovery) then TFile.Delete(CrcRecovery);
     if TFile.Exists(MismatchNameRecovery) then TFile.Delete(MismatchNameRecovery);
     if TFile.Exists(MismatchCrcRecovery) then TFile.Delete(MismatchCrcRecovery);
+    if TFile.Exists(MismatchSizeRecovery) then TFile.Delete(MismatchSizeRecovery);
     TDirectory.Delete(Folder, False);
   end;
 end.
