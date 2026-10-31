@@ -15,7 +15,7 @@ describe('local project revisions', () => {
     expect(await restored.find(item => item.id === first.id)!.contents.text()).toBe('first')
     expect(await restored.find(item => item.id === second.id)!.contents.text()).toBe('second')
     expect(restored.find(item => item.id === second.id)!.filename).toBe('site.webstudio.zip')
-    expect(await library.verify(restored.find(item => item.id === first.id)!)).toBe(true)
+    expect(await ProjectRevisions.verify(restored.find(item => item.id === first.id)!)).toBe(true)
     expect(await new ProjectRevisions().list(otherId)).toHaveLength(1)
     expect((await new ProjectRevisions().list()).filter(item => item.projectId === projectId || item.projectId === otherId)).toHaveLength(3)
   })
@@ -23,10 +23,14 @@ describe('local project revisions', () => {
   it('detects damaged revisions while retaining access to older revisions without checksums', async () => {
     const library = new ProjectRevisions()
     const revision = await library.save(crypto.randomUUID(), 'site.webstudio.json', new Blob(['original']))
-    await expect(library.verify({ ...revision, contents: new Blob(['changed']) })).rejects.toThrow('checksum does not match')
-    await expect(library.verify({ ...revision, sha256: 'invalid' })).rejects.toThrow('checksum is invalid')
-    expect(await library.verify({ ...revision, sha256: undefined })).toBe(false)
-    expect(await library.verify(revision)).toBe(true)
+    const open = vi.spyOn(indexedDB, 'open')
+    try {
+      await expect(ProjectRevisions.verify({ ...revision, contents: new Blob(['changed']) })).rejects.toThrow('checksum does not match')
+      await expect(ProjectRevisions.verify({ ...revision, sha256: 'invalid' })).rejects.toThrow('checksum is invalid')
+      expect(await ProjectRevisions.verify({ ...revision, sha256: undefined })).toBe(false)
+      expect(await ProjectRevisions.verify(revision)).toBe(true)
+      expect(open).not.toHaveBeenCalled()
+    } finally { open.mockRestore() }
   })
 
   it('rejects empty snapshots without changing existing revisions', async () => {

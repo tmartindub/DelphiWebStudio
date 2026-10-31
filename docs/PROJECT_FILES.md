@@ -32,6 +32,8 @@ New local revisions include a SHA-256 checksum that is checked before opening; a
 
 An isolated browser test altered a saved test revision and confirmed that opening was rejected without changing the project list. A separate test reopened an intact five-page revision and verified its original PDF bytes.
 
+If the current project changes while a revision checksum is being checked, opening stops and the newer edits remain in the draft. Opening also stops with a message if another media or save operation starts before verification finishes. Isolated browser tests exercised both cases and reopened an older revision that had no checksum.
+
 An isolated Win64 WebView2 test also created a local revision with an imported PDF, reopened it as a separate project in the same session, and verified that saved and exported ZIPs retained the original PDF bytes. This does not establish recovery after a desktop crash or power loss.
 
 In a separate isolated Win64 test, a completed local revision with a PDF and a newer draft were stored before the test host intentionally terminated during a staged save. After restart, the newer draft remained available and the earlier revision opened as a separate project; the last-good project file and recovered PDF bytes were unchanged. This covers one forced-process termination after storage completed, not interruption during revision writes or power loss.

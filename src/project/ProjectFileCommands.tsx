@@ -125,10 +125,11 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
     const originalConfig = useConfigStore.getState().config
     setCheckingRevision(revision.id)
     try {
-      await new ProjectRevisions().verify(revision)
+      await ProjectRevisions.verify(revision)
       if (useEditorStore.getState().activeProjectId !== originalProjectId || useConfigStore.getState().config !== originalConfig) {
         throw new Error('The current project changed while checking the revision. Your edits remain; try again.')
       }
+      if (useEditorStore.getState().mediaImporting) throw new Error('Wait for the current media or save operation to finish, then open the revision again.')
       await openProjectFile(new File([revision.contents], revision.filename, { type: revision.contents.type }))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'The local revision could not be checked.')

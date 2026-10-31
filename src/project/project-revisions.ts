@@ -39,7 +39,7 @@ export class ProjectRevisions {
     return revision
   }
 
-  async verify(revision: ProjectRevision): Promise<boolean> {
+  static async verify(revision: ProjectRevision): Promise<boolean> {
     if (!(revision.contents instanceof Blob) || !revision.contents.size) throw new Error('The local revision is incomplete.')
     if (revision.sha256 === undefined) return false
     if (!/^[a-f0-9]{64}$/.test(revision.sha256)) throw new Error('The local revision checksum is invalid.')
