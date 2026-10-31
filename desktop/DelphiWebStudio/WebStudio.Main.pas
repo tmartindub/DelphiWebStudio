@@ -210,6 +210,12 @@ begin
                 SelectedPath := SaveDownloadDialog.FileName;
                 StagedPath := '';
                 if LowerCase(SuggestedName).EndsWith('.webstudio.json') or LowerCase(SuggestedName).EndsWith('.webstudio.zip') then begin
+                  if not SameText(TPath.GetExtension(SelectedPath), TPath.GetExtension(SuggestedName)) then begin
+                    DownloadArgs.Set_Cancel(1);
+                    StatusLabel.Caption := 'Project requires the ' + TPath.GetExtension(SuggestedName) + ' extension. Save again with that extension.';
+                    FDownloadPending := False;
+                    Exit;
+                  end;
                   if TFile.Exists(SelectedPath) or TDirectory.Exists(SelectedPath) then begin
                     DownloadArgs.Set_Cancel(1);
                     StatusLabel.Caption := 'Existing project was not replaced. Save using a new filename.';

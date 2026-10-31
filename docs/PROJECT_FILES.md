@@ -144,6 +144,8 @@ In the current experimental Delphi desktop shell source, Save project and Export
 
 In another isolated test, a file appeared at the selected destination while a staged download was in progress. Finalization left that file unchanged and retained the staged bytes for inspection. The test used synthetic data and does not cover every filesystem or process race.
 
+The shell also checks that a project destination keeps the format's `.json` or `.zip` extension, so a ZIP is not saved under a JSON name or vice versa. An isolated legacy-dialog test rejected both mismatches and then completed a correctly named save. This safeguard is in the current source; older previews may not include it.
+
 The desktop status line reports when WebView2 marks a selected download complete or interrupted, including the filename. An isolated legacy-dialog test exercised completed project and website downloads, cancellation, a repeated save and an interrupted download. A completion report is WebView2's outcome, not a guarantee of crash-safe disk durability. Modern-dialog and broader failure testing remain open.
 
 Opening a project rejects a JSON file or ZIP manifest larger than 100 MiB before reading its contents. Saving also stops before downloading a manifest above that limit so the application does not produce a project it cannot reopen. The ZIP may be larger when it contains media. This limit helps prevent excessive manifest allocation; it is not a complete defense against every oversized or malformed archive.
