@@ -198,7 +198,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
   }
 
   return (
-    <div className="flex items-center gap-2 shrink-0">
+    <div className="relative flex items-center gap-2 shrink-0">
       <input ref={inputRef} type="file" accept=".json,.zip,application/json,application/zip" className="hidden" aria-label="Choose project file" onChange={openProject} />
       <button type="button" onClick={() => inputRef.current?.click()} disabled={opening || mediaImporting}
         className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
@@ -208,9 +208,9 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
         className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
         <Save size={14} />{saving ? 'Preparing project…' : 'Save project'}
       </button>}
-      {(project || allRevisions) && <details className="relative text-xs">
+      {(project || allRevisions) && <details className="text-xs">
         <summary className="cursor-pointer rounded px-2 py-1 text-text-1 hover:bg-bg-3">{allRevisions ? 'All local revisions' : 'Local revisions'}</summary>
-        <div className="absolute right-0 top-full z-50 mt-1 w-80 max-h-80 overflow-y-auto rounded border border-border-default bg-bg-1 p-3 shadow-lg">
+        <div className={`absolute ${allRevisions ? 'left-0' : 'right-0'} top-full z-50 mt-1 w-[min(20rem,calc(100vw-2rem))] max-h-80 overflow-y-auto rounded border border-border-default bg-bg-1 p-3 shadow-lg`}>
           <p className="mb-2 text-text-2">Revisions are stored on this computer. Save a separate project file for backup. Opening a revision creates a separate local project.</p>
           {!allRevisions && <button type="button" disabled={mediaImporting} onClick={() => void saveProject(true)} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50">{saving ? 'Preparing project…' : 'Create local revision'}</button>}
           {revisionsError && <p role="alert" className="mt-2 text-text-1">Local revisions could not be read. Existing revisions were not changed.</p>}
