@@ -216,14 +216,16 @@ export const useConfigStore = create<ConfigState>()(
           }
         }),
 
-      renamePage: (id, name) =>
-        set((state) => ({
-          ...pushUndo(state, 'Rename page'),
-          config: produce(withPages(state.config), (draft) => {
-            const page = draft.pages!.find((p) => p.id === id)
-            if (page) page.name = name
-          }),
-        })),
+      renamePage: (id, name) => set((state) => {
+        const page = ensurePages(state.config).find(item => item.id === id)
+        if (!page) throw new Error('Page no longer exists.')
+        if (page.name === name) return state
+        if (!name.trim()) throw new Error('Page name is required.')
+        const changed = produce(withPages(state.config), draft => {
+          draft.pages!.find(item => item.id === id)!.name = name
+        })
+        return { ...pushUndo(state, 'Rename page'), config: changed }
+      }),
 
       changePagePath: (id, path, updateLinks = false) => set(state => {
         const pages = ensurePages(state.config)

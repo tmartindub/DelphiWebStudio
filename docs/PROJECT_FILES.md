@@ -60,6 +60,8 @@ New exports embed generated Tailwind styles and use installed system font fallba
 
 Page addresses can be changed with the link icon beside the active page. Home stays at `/`; other paths are validated and the change can be undone. The dialog offers to update Content text links and known Hero, CTA, Banner and Navbar button links in the same undoable change. External bookmarks and links in other content are not rewritten, so check them after changing an address.
 
+Page renames require a nonempty name. Invalid or unchanged rename requests leave the project and undo history unchanged; a valid rename can be undone and redone.
+
 Use the magnifying glass beside the active page to set its search title and description. The exported page uses these for HTML and sharing metadata; blank fields fall back to the site-wide settings. These edits are saved with the project and can be undone.
 
 If a public site URL is configured in Settings, ZIP export also writes canonical and sharing URLs for each page using that address and its subfolder. Enter the final address carefully; the app does not verify or publish the website.

@@ -13,6 +13,20 @@ beforeEach(() => {
 })
 
 describe('page history', () => {
+  it('rejects invalid or missing page renames without changing history or content', () => {
+    const id = useConfigStore.getState().addPage('News', '/news')
+    const before = useConfigStore.getState()
+    expect(() => before.renamePage(id, '   ')).toThrow('Page name is required')
+    expect(() => before.renamePage('missing', 'Other')).toThrow('Page no longer exists')
+    expect(useConfigStore.getState().config).toEqual(before.config)
+    expect(useConfigStore.getState().undoStack).toEqual(before.undoStack)
+    before.renamePage(id, 'News')
+    expect(useConfigStore.getState().undoStack).toEqual(before.undoStack)
+    before.renamePage(id, 'Updates')
+    expect(useConfigStore.getState().config.pages![1].name).toBe('Updates')
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().config.pages![1].name).toBe('News')
+  })
   it('saves and undoes page search metadata without affecting another page', () => {
     const id = useConfigStore.getState().addPage('News', '/news')
     useConfigStore.getState().updatePageSeo(id, 'News title', 'News description')
