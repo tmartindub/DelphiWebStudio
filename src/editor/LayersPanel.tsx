@@ -53,7 +53,8 @@ function SortableLayer({ block, isSelected, onSelect, onDuplicate, onRemove }: {
   onRemove: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id })
-  const Icon = blockIcons[block.type] || Layout
+  const Icon = Object.hasOwn(blockIcons, block.type) ? blockIcons[block.type] : Layout
+  const label = Object.hasOwn(blockLabels, block.type) ? blockLabels[block.type] : `Unsupported: ${block.type}`
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -74,7 +75,7 @@ function SortableLayer({ block, isSelected, onSelect, onDuplicate, onRemove }: {
         {...attributes}
         {...listeners}
         className="opacity-0 group-hover:opacity-100 transition-opacity text-text-3 cursor-grab active:cursor-grabbing"
-        aria-label={`Drag to reorder ${blockLabels[block.type]}`}
+        aria-label={`Drag to reorder ${label}`}
       >
         <GripVertical size={12} />
       </div>
@@ -85,20 +86,20 @@ function SortableLayer({ block, isSelected, onSelect, onDuplicate, onRemove }: {
         <Icon size={13} />
       </div>
 
-      <span className="font-medium flex-1">{blockLabels[block.type]}</span>
+      <span className="font-medium flex-1">{label}</span>
 
       <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           onClick={(e) => { e.stopPropagation(); onDuplicate() }}
           className="w-[22px] h-[22px] rounded flex items-center justify-center text-text-3 hover:bg-bg-4 hover:text-text-0 transition-all"
-          aria-label={`Duplicate ${blockLabels[block.type]}`}
+          aria-label={`Duplicate ${label}`}
         >
           <Copy size={11} />
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onRemove() }}
           className="w-[22px] h-[22px] rounded flex items-center justify-center text-text-3 hover:bg-status-red/10 hover:text-status-red transition-all"
-          aria-label={`Remove ${blockLabels[block.type]}`}
+          aria-label={`Remove ${label}`}
         >
           <Trash2 size={11} />
         </button>
