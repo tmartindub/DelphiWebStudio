@@ -55,6 +55,25 @@ describe('local project revisions', () => {
     expect(await revisions[0].contents.text()).toBe('original')
   })
 
+  it('keeps the previous revision when a new write is aborted after it starts', async () => {
+    const projectId = crypto.randomUUID()
+    const library = new ProjectRevisions()
+    const original = await library.save(projectId, 'site.webstudio.json', new Blob(['last good']))
+    const add = IDBObjectStore.prototype.add
+    const abortWrite = vi.spyOn(IDBObjectStore.prototype, 'add').mockImplementation(function (this: IDBObjectStore, ...args) {
+      const request = add.apply(this, args)
+      request.addEventListener('success', () => this.transaction.abort())
+      return request
+    })
+    try {
+      await expect(library.save(projectId, 'site.webstudio.json', new Blob(['interrupted']))).rejects.toThrow()
+    } finally { abortWrite.mockRestore() }
+    const revisions = await new ProjectRevisions().list(projectId)
+    expect(revisions.map(item => item.id)).toEqual([original.id])
+    expect(await revisions[0].contents.text()).toBe('last good')
+    expect(await ProjectRevisions.verify(revisions[0])).toBe(true)
+  })
+
   it('removes only the selected revision of the selected project', async () => {
     const projectId = crypto.randomUUID()
     const otherId = crypto.randomUUID()
