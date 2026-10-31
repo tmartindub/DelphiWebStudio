@@ -113,7 +113,8 @@ export function ProjectFileCommands() {
       const contents = serializeProjectFile(projectDocument)
       const manifestBlob = new Blob([contents], { type: 'application/json' })
       if (manifestBlob.size > 100 * 1024 * 1024) throw new Error('The project manifest exceeds the 100 MiB opening limit. Reduce project text or split the project before saving.')
-      const basename = project.name.replace(/[<>:"/\\|?*\p{Cc}]/gu, '-').trim().slice(0, 100) || 'site'
+      let basename = Array.from(project.name.replace(/[<>:"/\\|?*\p{Cc}]/gu, '-').trim()).slice(0, 100).join('').replace(/[. ]+$/, '') || 'site'
+      if (/^(con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/i.test(basename)) basename = `_${basename}`
       let download: Blob
       let filename: string
       if (assets.length) {

@@ -10,6 +10,8 @@ Open accepts unversioned OpenPage SiteConfig JSON or WebStudio schema 2. Each op
 
 Use the pencil button on a dashboard project card to rename the project. Saving includes that project name, so reopening the file retains it. The website's own name remains separate. Older files without a project name continue to open using their site name. An isolated browser test renamed the five-page sample, saved and reopened it, and checked both names.
 
+Suggested project and website download filenames avoid Windows reserved device names and fall back to `site` if the name cannot supply a usable filename. This changes the suggested filename only; the project and website names remain unchanged. An isolated browser check covered reserved names, punctuation-only names and non-Latin names.
+
 Save validates a snapshot and starts a JSON download. Browser download settings determine the final location and collision filename. The message says a download was requested and asks the user to choose a destination if prompted; it does not claim an atomic filesystem write or confirmed disk durability. Existing browser draft autosave remains available. Native atomic saves and recovery are later work.
 
 While the editor is open, changes are written to the browser draft as the editor state changes, without waiting for a later screen refresh. Browser storage can still be cleared or fail, so use **Save project** to keep a separate portable copy.
