@@ -21,6 +21,13 @@ beforeEach(() => {
 })
 
 describe('portable project storage', () => {
+  it('retains the in-memory project when local draft storage fails', () => {
+    const write = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => { throw new Error('storage full') })
+    try {
+      const id = useProjectsStore.getState().addProject('Original', document)
+      expect(useProjectsStore.getState().projects.find(project => project.id === id)?.config?.name).toBe('Imported site')
+    } finally { write.mockRestore() }
+  })
   it('opens repeated imports as independent local drafts without overwriting the original identity', () => {
     const first = useProjectsStore.getState().addProject('First', document)
     const second = useProjectsStore.getState().addProject('Second', document)

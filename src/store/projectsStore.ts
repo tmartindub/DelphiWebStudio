@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
+import { toast } from 'sonner'
 import type { SiteConfig } from '@/blocks/types'
 import type { SiteProjectFile } from '@/project/project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
@@ -142,6 +143,17 @@ export const useProjectsStore = create<ProjectsState>()(
           ),
         })),
     }),
-    { name: 'openpage-projects' }
+    {
+      name: 'openpage-projects',
+      storage: createJSONStorage(() => ({
+        getItem: key => window.localStorage.getItem(key),
+        setItem: (key, value) => {
+          try { window.localStorage.setItem(key, value) } catch {
+            toast.error('Local draft storage failed. Save a separate project file before closing; recent edits may not survive a restart.', { id: 'draft-storage-failed', duration: Infinity, closeButton: true })
+          }
+        },
+        removeItem: key => window.localStorage.removeItem(key),
+      })),
+    }
   )
 )

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
 import { produce } from 'immer'
+import { toast } from 'sonner'
 import type { BlockConfig, SiteConfig, ThemeConfig, PageConfig } from '@/blocks/types'
 import { validateProjectConfig } from '@/project/project-file'
 
@@ -322,6 +323,15 @@ export const useConfigStore = create<ConfigState>()(
     }),
     {
       name: 'openpage-config',
+      storage: createJSONStorage(() => ({
+        getItem: key => window.localStorage.getItem(key),
+        setItem: (key, value) => {
+          try { window.localStorage.setItem(key, value) } catch {
+            toast.error('Local draft storage failed. Save a separate project file before closing; recent edits may not survive a restart.', { id: 'draft-storage-failed', duration: Infinity, closeButton: true })
+          }
+        },
+        removeItem: key => window.localStorage.removeItem(key),
+      })),
       version: 2,
       partialize: (state) => ({ config: state.config, activePageId: state.activePageId }),
       migrate: (persisted, version) => {

@@ -13,6 +13,13 @@ beforeEach(() => {
 })
 
 describe('page history', () => {
+  it('keeps edits in memory when local draft storage fails', () => {
+    const write = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => { throw new Error('storage full') })
+    try {
+      expect(() => useConfigStore.getState().addPage('News', '/news')).not.toThrow()
+      expect(useConfigStore.getState().config.pages?.[1].name).toBe('News')
+    } finally { write.mockRestore() }
+  })
   it('rejects invalid or missing page renames without changing history or content', () => {
     const id = useConfigStore.getState().addPage('News', '/news')
     const before = useConfigStore.getState()
