@@ -150,7 +150,18 @@ export const useProjectsStore = create<ProjectsState>()(
       storage: createJSONStorage(() => {
         return {
           getItem: key => {
-            try { const value = window.localStorage.getItem(key); if (value !== null) JSON.parse(value); projectDraftReadFailed = false; return value } catch {
+            try {
+              const value = window.localStorage.getItem(key)
+              if (value !== null) {
+                const stored: unknown = JSON.parse(value)
+                if (!stored || typeof stored !== 'object' || Array.isArray(stored)) throw new Error('Invalid project storage.')
+                const envelope = stored as Record<string, unknown>
+                if (!envelope.state || typeof envelope.state !== 'object' || Array.isArray(envelope.state) || !Array.isArray((envelope.state as Record<string, unknown>).projects)) throw new Error('Invalid project list.')
+                if (envelope.version !== undefined && envelope.version !== 0) throw new Error('Unsupported project storage version.')
+              }
+              projectDraftReadFailed = false
+              return value
+            } catch {
               projectDraftReadFailed = true
               toast.error('Local drafts could not be read. Existing drafts are protected from overwrite; save any new work to a separate project file and restart to retry.', { id: 'draft-storage-read-failed', duration: Infinity, closeButton: true })
               return null

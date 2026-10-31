@@ -328,7 +328,20 @@ export const useConfigStore = create<ConfigState>()(
       storage: createJSONStorage(() => {
         return {
           getItem: key => {
-            try { const value = window.localStorage.getItem(key); if (value !== null) JSON.parse(value); configDraftReadFailed = false; return value } catch {
+            try {
+              const value = window.localStorage.getItem(key)
+              if (value !== null) {
+                const stored: unknown = JSON.parse(value)
+                if (!stored || typeof stored !== 'object' || Array.isArray(stored)) throw new Error('Invalid draft storage.')
+                const envelope = stored as Record<string, unknown>
+                if (!envelope.state || typeof envelope.state !== 'object' || Array.isArray(envelope.state)) throw new Error('Invalid draft state.')
+                const config = (envelope.state as Record<string, unknown>).config
+                if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('Invalid draft config.')
+                if (envelope.version !== undefined && (!Number.isInteger(envelope.version) || (envelope.version as number) < 0 || (envelope.version as number) > 2)) throw new Error('Unsupported draft version.')
+              }
+              configDraftReadFailed = false
+              return value
+            } catch {
               configDraftReadFailed = true
               toast.error('Local drafts could not be read. Existing drafts are protected from overwrite; save any new work to a separate project file and restart to retry.', { id: 'draft-storage-read-failed', duration: Infinity, closeButton: true })
               return null

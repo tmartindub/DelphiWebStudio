@@ -46,6 +46,17 @@ describe('portable project storage', () => {
       await useProjectsStore.persist.rehydrate()
     }
   })
+  it.each(['{"state":{"projects":"invalid"},"version":0}', '{"state":{"projects":[]},"version":99}'])('protects incompatible project storage %s', async (stored) => {
+    storedValues.set('openpage-projects', stored)
+    try {
+      await useProjectsStore.persist.rehydrate()
+      useProjectsStore.getState().addProject('New in memory', document)
+      expect(storedValues.get('openpage-projects')).toBe(stored)
+    } finally {
+      storedValues.delete('openpage-projects')
+      await useProjectsStore.persist.rehydrate()
+    }
+  })
   it('retains the in-memory project when local draft storage fails', () => {
     const write = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => { throw new Error('storage full') })
     try {

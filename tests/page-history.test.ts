@@ -13,6 +13,17 @@ beforeEach(() => {
 })
 
 describe('page history', () => {
+  it.each(['{"state":{"config":null},"version":2}', '{"state":{"config":{"name":"Future","blocks":[]}},"version":99}'])('protects incompatible editor storage %s', async (stored) => {
+    storage.set('openpage-config', stored)
+    try {
+      await useConfigStore.persist.rehydrate()
+      useConfigStore.getState().addPage('In memory', '/memory')
+      expect(storage.get('openpage-config')).toBe(stored)
+    } finally {
+      storage.delete('openpage-config')
+      await useConfigStore.persist.rehydrate()
+    }
+  })
   it('keeps edits in memory when local draft storage fails', () => {
     const write = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => { throw new Error('storage full') })
     try {
