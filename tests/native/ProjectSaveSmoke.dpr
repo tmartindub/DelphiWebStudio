@@ -3,7 +3,7 @@ program ProjectSaveSmoke;
 uses System.SysUtils, System.IOUtils, System.Classes, System.Zip, WebStudio.ProjectSave in '..\..\desktop\project\WebStudio.ProjectSave.pas', WebStudio.ProjectOpen in '..\..\desktop\project\WebStudio.ProjectOpen.pas';
 var
   Id: TGUID;
-  Folder, Target, EmptyTarget, RecoveryTarget: string;
+  Folder, Target, EmptyTarget, RecoveryTarget, NestedRecovery, EmptyRecovery: string;
   Data, Actual, RecoveryBytes: TBytes;
   Index: Integer;
   Rejected: Boolean;
@@ -17,6 +17,8 @@ begin
   Target := TPath.Combine(Folder, 'project.webstudio.json');
   EmptyTarget := TPath.Combine(Folder, 'empty.webstudio.json');
   RecoveryTarget := TPath.Combine(Folder, 'recovery.zip');
+  NestedRecovery := TPath.Combine(Folder, 'nested-recovery.zip');
+  EmptyRecovery := TPath.Combine(Folder, 'empty-recovery.zip');
   try
     SetLength(Data, 1048587);
     for Index := 0 to High(Data) do Data[Index] := Byte(Index mod 251);
@@ -50,6 +52,15 @@ begin
     finally Archive.Free end;
     if Length(RecoveryBytes) <> Length(Data) then raise Exception.Create('Recovery byte count differs.');
     for Index := 0 to High(Data) do if Data[Index] <> RecoveryBytes[Index] then raise Exception.Create('Recovery bytes differ.');
+    Actual := TFile.ReadAllBytes(RecoveryTarget);
+    SaveProjectRecoveryZip(RecoveryTarget, NestedRecovery, Length(Actual));
+    Archive := TZipFile.Create;
+    try
+      Archive.Open(NestedRecovery, zmRead);
+      Archive.Read('recovery.zip', RecoveryBytes);
+    finally Archive.Free end;
+    if Length(Actual) <> Length(RecoveryBytes) then raise Exception.Create('ZIP project recovery length differs.');
+    for Index := 0 to High(Actual) do if Actual[Index] <> RecoveryBytes[Index] then raise Exception.Create('ZIP project recovery bytes differ.');
     Rejected := False;
     try SaveProjectRecoveryZip(Target, RecoveryTarget, Length(Data));
     except on E: EOSError do Rejected := True end;
@@ -83,6 +94,13 @@ begin
     SaveNewProjectFile(EmptyTarget, nil);
     if TFile.GetSize(EmptyTarget) <> 0 then raise Exception.Create('Empty file differs.');
     if Length(ReadProjectFile(EmptyTarget, 0)) <> 0 then raise Exception.Create('Empty read differs.');
+    SaveProjectRecoveryZip(EmptyTarget, EmptyRecovery, 0);
+    Archive := TZipFile.Create;
+    try
+      Archive.Open(EmptyRecovery, zmRead);
+      Archive.Read('empty.webstudio.json', RecoveryBytes);
+    finally Archive.Free end;
+    if Length(RecoveryBytes) <> 0 then raise Exception.Create('Empty recovery differs.');
     Rejected := False;
     try ReadProjectFile('relative.webstudio.json', 100);
     except on E: EArgumentException do Rejected := True end;
@@ -95,12 +113,14 @@ begin
     try SaveNewProjectFile(TPath.Combine(Folder, 'missing\project.json'), nil);
     except on E: EOSError do Rejected := True end;
     if not Rejected then raise Exception.Create('Missing folder was accepted.');
-    if Length(TDirectory.GetFiles(Folder)) <> 3 then raise Exception.Create('Temporary files were left behind.');
+    if Length(TDirectory.GetFiles(Folder)) <> 5 then raise Exception.Create('Temporary files were left behind.');
     Writeln('Native create-only save, bounded open and ZIP recovery snapshot passed.');
   finally
     if TFile.Exists(Target) then TFile.Delete(Target);
     if TFile.Exists(EmptyTarget) then TFile.Delete(EmptyTarget);
     if TFile.Exists(RecoveryTarget) then TFile.Delete(RecoveryTarget);
+    if TFile.Exists(NestedRecovery) then TFile.Delete(NestedRecovery);
+    if TFile.Exists(EmptyRecovery) then TFile.Delete(EmptyRecovery);
     TDirectory.Delete(Folder, False);
   end;
 end.
