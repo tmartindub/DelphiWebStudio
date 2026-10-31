@@ -83,7 +83,7 @@ export function checkSite(config: SiteConfig): SiteIssue[] {
       if (['pdfViewer', 'document', 'audio', 'mediaVideo'].includes(block.type) && !(typeof block.props.src === 'string' && block.props.src.trim())) add('This media block has no file selected. Add a file from Media.')
       if (block.type === 'video') {
         const url = typeof block.props.url === 'string' ? block.props.url : ''
-        const valid = block.variant === 'vimeo' ? /vimeo\.com\/(\d+)/.test(url) : /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([a-zA-Z0-9_-]{11})/.test(url)
+        const valid = block.variant === 'vimeo' ? /^(?:https?:\/\/)?(?:(?:www\.)?vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)(?=[/?#]|$)/i.test(url.trim()) : /^(?:https?:\/\/)?(?:(?:www\.|m\.)?youtube\.com\/(?:watch\?(?:[^#]*&)?v=|(?:embed|v|shorts|live)\/)|(?:www\.)?youtu\.be\/)([a-zA-Z0-9_-]{11})(?=[?&#/]|$)/i.test(url.trim())
         if (!valid) add(`Video has no supported ${block.variant === 'vimeo' ? 'Vimeo' : 'YouTube'} address and will show a placeholder.`)
       }
       if (['features', 'testimonials', 'stats', 'faq', 'team', 'logocloud'].includes(block.type)) {
