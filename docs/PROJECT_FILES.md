@@ -30,6 +30,8 @@ Use **Local revisions** and **Create local revision** to keep an additional snap
 
 An isolated Win64 WebView2 test also created a local revision with an imported PDF, reopened it as a separate project in the same session, and verified that saved and exported ZIPs retained the original PDF bytes. This does not establish recovery after a desktop crash or power loss.
 
+In a separate isolated Win64 test, a completed local revision with a PDF and a newer draft were stored before the test host intentionally terminated during a staged save. After restart, the newer draft remained available and the earlier revision opened as a separate project; the last-good project file and recovered PDF bytes were unchanged. This covers one forced-process termination after storage completed, not interruption during revision writes or power loss.
+
 An isolated browser test opened a five-page project with a PDF, edited News, closed the test browser normally, restarted it with the same isolated profile, and reopened the draft. The edit and original PDF bytes remained available in a subsequent project ZIP. This checks a clean browser restart, not a crash, power loss, disk failure, cleared storage or the desktop native-save workflow.
 
 If writing local draft storage fails, the editor keeps the current in-memory edits and displays a persistent warning to save a separate project file before closing. A browser test simulated storage quota failures and confirmed that a subsequent separate project download contained the current edit. A restart before saving can still lose changes; this is not crash recovery.

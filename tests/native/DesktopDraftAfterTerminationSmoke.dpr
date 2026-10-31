@@ -36,16 +36,30 @@ begin
     Deadline := GetTickCount64 + 15000;
     repeat
       CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
-      Value := MainForm.EditorBrowser.ExecuteScript('!!localStorage.getItem("openpage-projects")?.includes("Draft survives forced termination") && !!document.querySelector("[aria-label=\"Duplicate Community\"]")', '');
+      Value := MainForm.EditorBrowser.ExecuteScript('!!localStorage.getItem("openpage-projects")?.includes("Newer draft survives termination") && !!document.querySelector("[aria-label=\"Duplicate Community\"]")', '');
     until (Value = 'true') or (GetTickCount64 >= Deadline);
     if Value <> 'true' then raise Exception.Create('Edited draft was not found after termination.');
     MainForm.EditorBrowser.ExecuteScript('document.querySelector("[aria-label=\"Duplicate Community\"]").closest(".card-lift").click()');
     Deadline := GetTickCount64 + 15000;
     repeat
       CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
-      Value := MainForm.EditorBrowser.ExecuteScript('document.body.innerText.includes("Draft survives forced termination")', '');
+      Value := MainForm.EditorBrowser.ExecuteScript('document.body.innerText.includes("Newer draft survives termination")', '');
     until (Value = 'true') or (GetTickCount64 >= Deadline);
     if Value <> 'true' then raise Exception.Create('Edited draft did not reopen in the editor.');
+    MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("summary")).find(e=>e.textContent.trim()==="Local revisions").click()');
+    Deadline := GetTickCount64 + 15000;
+    repeat
+      CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+      Value := MainForm.EditorBrowser.ExecuteScript('!!Array.from(document.querySelectorAll("button")).find(e=>e.textContent.trim()==="Open as a separate project")', '');
+    until (Value = 'true') or (GetTickCount64 >= Deadline);
+    if Value <> 'true' then raise Exception.Create('Local revision did not survive termination.');
+    MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(e=>e.textContent.trim()==="Open as a separate project").click()');
+    Deadline := GetTickCount64 + 30000;
+    repeat
+      CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+      Value := MainForm.EditorBrowser.ExecuteScript('document.body.innerText.includes("Draft survives forced termination") && !!localStorage.getItem("openpage-projects")?.includes("Newer draft survives termination")', '');
+    until (Value = 'true') or (GetTickCount64 >= Deadline);
+    if Value <> 'true' then raise Exception.Create('Revision did not open separately with the newer draft preserved.');
     MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Media").click()');
     Deadline := GetTickCount64 + 15000;
     repeat
@@ -59,6 +73,6 @@ begin
     Deadline := GetTickCount64 + 30000;
     while (MainForm.StatusLabel.Caption <> 'Download completed: recovered-draft.zip') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(50) end;
     if MainForm.StatusLabel.Caption <> 'Download completed: recovered-draft.zip' then raise Exception.Create('Recovered draft could not be saved.');
-    Writeln('The edited local draft and PDF reopened and saved after forced test-host termination.');
+    Writeln('The local revision and PDF reopened after forced termination; the newer draft remained intact.');
   finally Driver.Free; MainForm.Free end;
 end.

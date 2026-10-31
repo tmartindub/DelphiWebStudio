@@ -89,6 +89,20 @@ begin
     Value := MainForm.EditorBrowser.ExecuteScript('!!Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Preview PDF")', '');
   until (Value = 'true') or (GetTickCount64 >= Deadline);
   if Value <> 'true' then raise Exception.Create('Sample PDF was not imported before termination.');
+  MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("summary")).find(e=>e.textContent.trim()==="Local revisions").click();Array.from(document.querySelectorAll("button")).find(e=>e.textContent.trim()==="Create local revision").click()');
+  Deadline := GetTickCount64 + 30000;
+  repeat
+    CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+    Value := MainForm.EditorBrowser.ExecuteScript('!!Array.from(document.querySelectorAll("button")).find(e=>e.textContent.trim()==="Open as a separate project")', '');
+  until (Value = 'true') or (GetTickCount64 >= Deadline);
+  if Value <> 'true' then raise Exception.Create('Local revision was not saved before termination.');
+  MainForm.EditorBrowser.ExecuteScript('(()=>{const i=Array.from(document.querySelectorAll("input")).find(e=>e.value==="Draft survives forced termination");Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(i,"Newer draft survives termination");i.dispatchEvent(new Event("input",{bubbles:true}));})()');
+  Deadline := GetTickCount64 + 15000;
+  repeat
+    CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+    Value := MainForm.EditorBrowser.ExecuteScript('!!localStorage.getItem("openpage-projects")?.includes("Newer draft survives termination")', '');
+  until (Value = 'true') or (GetTickCount64 >= Deadline);
+  if Value <> 'true' then raise Exception.Create('Newer draft did not reach storage before termination.');
   MainForm.SaveDownloadDialog.InitialDir := Folder;
   MainForm.SaveDownloadDialog.OnShow := Observer.SaveShown;
   MainForm.EditorBrowser.OnDownloadStarting := Observer.DownloadStarting;
