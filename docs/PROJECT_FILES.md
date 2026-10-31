@@ -24,6 +24,8 @@ If writing local draft storage fails, the editor keeps the current in-memory edi
 
 If a local draft cannot be read, contains malformed JSON, has an incompatible basic structure, or uses a newer storage version, the editor warns on startup and prevents writes to the affected stored draft for that session. Save any new work separately before restarting to retry. Isolated browser tests simulated inaccessible and incompatible storage, confirmed the original stored values were unchanged, and requested a separate project download. This does not repair corrupted data or detect every possible invalid storage structure.
 
+The basic checks also reject malformed project entries, missing project identities or names, and duplicate local project IDs. Automated storage tests verify that the original stored text is not overwritten in these cases; the checks do not validate every field in a draft.
+
 Save downloads the snapshot captured when the command starts. If the project changes while that snapshot is prepared, newer edits stay in the browser draft and a notice asks you to save again to include them.
 
 ## Format and preservation
