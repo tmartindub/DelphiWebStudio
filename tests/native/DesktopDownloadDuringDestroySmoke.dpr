@@ -26,7 +26,7 @@ end;
 procedure TDownloadObserver.DialogShown(Sender: TObject);
 var Window: HWND; Target: string;
 begin
-  Target := TPath.Combine(ExtractFilePath(ParamStr(0)), 'shutdown-transfer-test.bin');
+  Target := TPath.Combine(ExtractFilePath(ParamStr(0)), 'shutdown-transfer-test.zip');
   if TFile.Exists(Target) then raise Exception.Create('Test destination already exists.');
   Window := GetParent(TSaveDialog(Sender).Handle);
   SendMessage(Window, CDM_SETCONTROLTEXT, edt1, LPARAM(PChar(ExtractFileName(Target))));
@@ -55,7 +55,7 @@ begin
     MainForm.SaveDownloadDialog.InitialDir := ExtractFilePath(ParamStr(0));
     MainForm.SaveDownloadDialog.OnShow := Observer.DialogShown;
     MainForm.EditorBrowser.OnDownloadStarting := Observer.DownloadStarting;
-    MainForm.EditorBrowser.ExecuteScript('(()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([new Uint8Array(128*1024*1024)]));a.download="shutdown-transfer-test.bin";a.click()})()');
+    MainForm.EditorBrowser.ExecuteScript('(()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([new Uint8Array(128*1024*1024)]));a.download="shutdown-transfer-test.webstudio.zip";a.click()})()');
     Deadline := GetTickCount64 + 30000;
     while not Observer.DialogShownOnce and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
     if not Observer.DialogShownOnce then raise Exception.Create('The save dialog did not open.');

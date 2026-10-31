@@ -286,6 +286,7 @@ begin
     Deadline := GetTickCount64 + 30000;
     while (MainForm.StatusLabel.Caption <> 'Download completed: extension-retry.zip') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
     if (Observer.Count <> 12) or (MainForm.StatusLabel.Caption <> 'Download completed: extension-retry.zip') then raise Exception.Create('Save after extension mismatch did not complete.');
+    if not MainForm.CloseQuery then raise Exception.Create('Closing was blocked after the project save completed.');
     Writeln('Desktop project save and site export downloads completed.');
     Writeln('Desktop editor imported and rendered a sample PDF in the preview and page.');
   finally
