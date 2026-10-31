@@ -136,6 +136,26 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
     } finally { setCheckingRevision(null) }
   }
 
+  async function downloadRevision(revision: ProjectRevision) {
+    if (checkingRevision || useEditorStore.getState().mediaImporting) return
+    setCheckingRevision(revision.id)
+    try {
+      const verified = await ProjectRevisions.verify(revision)
+      if (!/\.webstudio\.(json|zip)$/i.test(revision.filename)) throw new Error('The revision filename is not a WebStudio project filename.')
+      const url = URL.createObjectURL(revision.contents)
+      try {
+        const link = window.document.createElement('a')
+        link.href = url
+        link.download = revision.filename
+        link.click()
+      } finally { URL.revokeObjectURL(url) }
+      if (verified) toast('Revision download requested. Choose a new filename if prompted.')
+      else toast.warning('Older revision has no checksum. Download requested; open the file to verify it.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'The local revision could not be downloaded.')
+    } finally { setCheckingRevision(null) }
+  }
+
   async function saveProject(checkpoint = false) {
     if (!project || useEditorStore.getState().mediaImporting) return
     setSaving(true)
@@ -238,6 +258,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
             <span className="block text-text-2">{new Date(revision.createdAt).toLocaleString()}</span>
             {revision.sha256 === undefined && <span className="block text-text-2">Older revision: no checksum available.</span>}
             <button type="button" disabled={mediaImporting || !!checkingRevision} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => void openRevision(revision)}>{checkingRevision === revision.id ? 'Checking revision…' : 'Open as a separate project'}</button>
+            <button type="button" disabled={mediaImporting || !!checkingRevision} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => void downloadRevision(revision)}>Save revision as file</button>
             {confirmRevision === revision.id ? <div className="mt-1">
               <p className="text-text-2">Remove this local revision? This cannot be undone.</p>
               <button type="button" disabled={removingRevision} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => {
