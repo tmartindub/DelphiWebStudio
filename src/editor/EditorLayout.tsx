@@ -163,6 +163,7 @@ export function EditorLayout() {
   useAutoSaveToProject()
   useGenerationOrchestration()
   const previewMode = useEditorStore((s) => s.previewMode)
+  const mode = useEditorStore((s) => s.mode)
   const activeProjectId = useEditorStore((s) => s.activeProjectId)
 
   if (!activeProjectId) {
@@ -172,7 +173,7 @@ export function EditorLayout() {
   return (
     <div className="h-full flex flex-col relative">
       <div className="flex-1 flex overflow-hidden">
-        {!previewMode && <LeftSidebar />}
+        {!previewMode && <LeftSidebar key={`left-${mode}`} />}
         <div className="flex-1 flex flex-col min-w-0 relative">
           <CanvasToolbar />
           <div className="flex-1 flex flex-col overflow-hidden relative">
@@ -181,7 +182,7 @@ export function EditorLayout() {
             <GenerationOverlay />
           </div>
         </div>
-        {!previewMode && <RightSidebar />}
+        {!previewMode && <RightSidebar key={`right-${mode}`} />}
       </div>
       <VersionHistory />
     </div>

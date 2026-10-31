@@ -126,7 +126,8 @@ function ComponentsPanel() {
 type Tab = 'layers' | 'components' | 'media' | 'articles'
 
 export function LeftSidebar() {
-  const [tab, setTab] = useState<Tab>('layers')
+  const mode = useEditorStore((state) => state.mode)
+  const [tab, setTab] = useState<Tab>(() => mode === 'beginner' ? 'components' : 'layers')
 
   return (
     <div className="hidden md:flex w-[280px] bg-bg-1 border-r border-border-default flex-col shrink-0">

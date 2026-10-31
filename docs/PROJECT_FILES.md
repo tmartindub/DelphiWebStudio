@@ -6,6 +6,8 @@ Last changed: 2026-10-31. Tracking: issue #2. M1 is not complete and this is not
 
 The dashboard offers Personal, Portfolio, Community, Church, School club, Business, Documentation and Blog starters. Each begins with editable prompts suited to its purpose; replace the prompts with your own information. **Start blank** creates an empty site instead.
 
+The editor's **Mode** menu chooses an initial workspace: Beginner opens Components, Designer opens Layers and the Design panel when no block is selected, and Professional opens Layers and the editable project JSON. All modes work on the same project and you can switch panels yourself. Professional HTML/CSS/JS source editing is not yet implemented.
+
 In the editor's **Components** tab, select a section on the page, enter a name under **Reusable sections**, and choose **Save selected section**. Select another page and click the saved name to insert an independent copy; later edits to a copy do not change the saved section. Saved sections belong to the project and are included when it is saved. Removing a saved section does not remove copies already on pages, and can be undone.
 
 To share a header (Navbar) or Footer across pages, select it and choose **Share across pages** in its controls. A copy is added to each other page, and property or layout edits update the shared copies. New pages receive the shared sections. The command will not replace another existing header or footer; remove competing sections first. **Stop sharing across pages** makes the existing copies independent. Both operations can be undone; deleting one copy removes it from that page only.

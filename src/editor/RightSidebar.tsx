@@ -9,6 +9,7 @@ type Tab = 'properties' | 'design'
 
 export function RightSidebar() {
   const selectedBlockId = useEditorStore((s) => s.selectedBlockId)
+  const mode = useEditorStore((s) => s.mode)
   const blocks = useConfigStore((s) => {
     const pages = s.config.pages
     if (!pages || pages.length === 0) return s.config.blocks
@@ -17,7 +18,7 @@ export function RightSidebar() {
   })
   const selectedBlock = blocks.find((b) => b.id === selectedBlockId)
   const [selection, setSelection] = useState<{ blockId: string | null; tab: Tab }>({
-    blockId: null, tab: 'properties',
+    blockId: null, tab: mode === 'designer' ? 'design' : 'properties',
   })
   if (selection.blockId !== selectedBlockId) {
     setSelection({ blockId: selectedBlockId, tab: selectedBlock ? 'properties' : selection.tab })
