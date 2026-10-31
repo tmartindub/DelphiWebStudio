@@ -216,7 +216,7 @@ begin
 end;
 
 procedure TMainForm.BackupProjectItemClick(Sender: TObject);
-const MaximumProjectBytes: UInt64 = 256 * 1024 * 1024;
+const MaximumProjectBytes: UInt64 = 512 * 1024 * 1024;
 var SourcePath, BackupPath: string;
 begin
   if not BackupSourceDialog.Execute then Exit;
@@ -241,15 +241,15 @@ begin
 end;
 
 procedure TMainForm.RestoreBackupItemClick(Sender: TObject);
-const MaximumProjectBytes: UInt64 = 256 * 1024 * 1024;
-  MaximumArchiveBytes: UInt64 = 257 * 1024 * 1024;
+const MaximumProjectBytes: UInt64 = 512 * 1024 * 1024;
+  MaximumArchiveBytes: UInt64 = 513 * 1024 * 1024;
 var BackupPath, OriginalName, Extension, TargetPath: string; Archive: TZipFile;
 begin
   if not BackupOpenDialog.Execute then Exit;
   BackupPath := BackupOpenDialog.FileName;
   try
     if UInt64(TFile.GetSize(BackupPath)) > MaximumArchiveBytes then
-      raise EArgumentException.Create('Backup ZIP exceeds the 257 MiB limit.');
+      raise EArgumentException.Create('Backup ZIP exceeds the 513 MiB limit.');
     Archive := TZipFile.Create;
     try
       Archive.Open(BackupPath, zmRead);

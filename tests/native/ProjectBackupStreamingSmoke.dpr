@@ -6,7 +6,7 @@ uses Winapi.Windows, Winapi.PsAPI, System.SysUtils, System.Classes, System.IOUti
   WebStudio.ProjectSave in '..\..\desktop\project\WebStudio.ProjectSave.pas',
   WebStudio.ProjectOpen in '..\..\desktop\project\WebStudio.ProjectOpen.pas';
 const ChunkCount = 1536;
-var Id: TGUID; Folder, Source, Backup: string; FileStream, Entry: TStream;
+var Id: TGUID; Folder, Source, Backup, Restored: string; FileStream, Entry: TStream;
   Archive: TZipFile; Header: TZipHeader; BeforeMemory, AfterMemory: TProcessMemoryCounters;
   Buffer, ReadBuffer: array[0..65535] of Byte; Index, Count: Integer; Extra: Byte;
 begin
@@ -16,16 +16,18 @@ begin
   TDirectory.CreateDirectory(Folder);
   Source := TPath.Combine(Folder, 'large.webstudio.zip');
   Backup := TPath.Combine(Folder, 'large-backup.zip');
+  Restored := TPath.Combine(Folder, 'large-restored.webstudio.zip');
   for Index := 0 to High(Buffer) do Buffer[Index] := Byte(Index mod 251);
   FileStream := TFileStream.Create(Source, fmCreate);
   try for Index := 1 to ChunkCount do FileStream.WriteBuffer(Buffer, SizeOf(Buffer)) finally FileStream.Free end;
   FillChar(BeforeMemory, SizeOf(BeforeMemory), 0); BeforeMemory.cb := SizeOf(BeforeMemory);
   if not GetProcessMemoryInfo(GetCurrentProcess, @BeforeMemory, SizeOf(BeforeMemory)) then RaiseLastOSError;
   SaveProjectRecoveryZip(Source, Backup, UInt64(ChunkCount) * SizeOf(Buffer));
+  RestoreProjectRecoveryZip(Backup, Restored, TFile.GetSize(Backup), UInt64(ChunkCount) * SizeOf(Buffer));
   FillChar(AfterMemory, SizeOf(AfterMemory), 0); AfterMemory.cb := SizeOf(AfterMemory);
   if not GetProcessMemoryInfo(GetCurrentProcess, @AfterMemory, SizeOf(AfterMemory)) then RaiseLastOSError;
   if AfterMemory.PeakWorkingSetSize > BeforeMemory.PeakWorkingSetSize + 64 * 1024 * 1024 then
-    raise Exception.Create('Recovery ZIP preparation used unexpectedly high working memory.');
+    raise Exception.Create('Recovery ZIP backup and restore used unexpectedly high working memory.');
   Archive := TZipFile.Create;
   try
     Archive.Open(Backup, zmRead);
@@ -39,6 +41,14 @@ begin
       if Entry.Read(Extra, 1) <> 0 then raise Exception.Create('Backup contains extra data.');
     finally Entry.Free end;
   finally Archive.Free end;
+  FileStream := TFileStream.Create(Restored, fmOpenRead or fmShareDenyWrite);
+  try
+    for Index := 1 to ChunkCount do begin
+      Count := FileStream.Read(ReadBuffer, SizeOf(ReadBuffer));
+      if (Count <> SizeOf(Buffer)) or not CompareMem(@Buffer[0], @ReadBuffer[0], Count) then raise Exception.Create('Restored data differs.');
+    end;
+    if FileStream.Read(Extra, 1) <> 0 then raise Exception.Create('Restored project contains extra data.');
+  finally FileStream.Free end;
   if TFile.GetSize(Source) <> Int64(ChunkCount) * SizeOf(Buffer) then raise Exception.Create('Source size changed.');
-  Writeln('Streamed 96 MiB recovery ZIP with bounded working memory and verified every byte.');
+  Writeln('Streamed 96 MiB recovery backup and restore with bounded working memory and verified every byte.');
 end.

@@ -98,7 +98,7 @@ object MainForm: TMainForm
   object BackupSourceDialog: TOpenDialog
     Filter = 'Project files|*.json;*.zip'
     Options = [ofHideReadOnly, ofNoChangeDir, ofFileMustExist, ofPathMustExist, ofEnableSizing]
-    Title = 'Select a project to back up (up to 256 MiB)'
+    Title = 'Select a project to back up (up to 512 MiB)'
     Left = 552
     Top = 48
   end
