@@ -102,52 +102,70 @@ end;
 procedure SaveProjectRecoveryZip(const SourcePath, RecoveryZipPath: string;
   MaximumSourceBytes: UInt64);
 var
-  ProjectBytes, ZipBytes, VerifiedBytes: TBytes;
+  Source: TFileStream;
+  StagedStream, EntryStream: TStream;
   Archive: TZipFile;
-  Buffer: TMemoryStream;
+  Header: TZipHeader;
+  SourceBuffer, EntryBuffer: array[0..65535] of Byte;
+  Count, ReadCount: Integer;
+  StageHandle: THandle;
+  StagePath, FullRecovery: string;
+  Id: TGUID;
+  StageCreated: Boolean;
 begin
   if not SameText(TPath.GetExtension(RecoveryZipPath), '.zip') then
     raise EArgumentException.Create('The recovery file must have a .zip extension.');
-  ProjectBytes := ReadProjectFile(SourcePath, MaximumSourceBytes);
-  Buffer := TMemoryStream.Create;
+  if (Length(SourcePath) < 4) or not CharInSet(SourcePath[1], ['A'..'Z', 'a'..'z']) or
+    (SourcePath[2] <> ':') or not CharInSet(SourcePath[3], ['\', '/']) or
+    (Length(RecoveryZipPath) < 4) or not CharInSet(RecoveryZipPath[1], ['A'..'Z', 'a'..'z']) or
+    (RecoveryZipPath[2] <> ':') or not CharInSet(RecoveryZipPath[3], ['\', '/']) then
+    raise EArgumentException.Create('Select absolute drive paths for the project files.');
+  FullRecovery := TPath.GetFullPath(RecoveryZipPath);
+  Source := TFileStream.Create(TPath.GetFullPath(SourcePath), fmOpenRead or fmShareDenyWrite);
   try
-    Archive := TZipFile.Create;
+    if (Source.Size < 0) or (UInt64(Source.Size) > MaximumSourceBytes) then
+      raise EArgumentException.Create('Project file exceeds the allowed size.');
+    if CreateGUID(Id) <> 0 then raise EInvalidOpException.Create('Could not create a temporary file name.');
+    StagePath := TPath.Combine(TPath.GetDirectoryName(FullRecovery), '.webstudio-' + GUIDToString(Id) + '.tmp');
+    StageHandle := CreateFile(PChar(StagePath), GENERIC_READ or GENERIC_WRITE, 0, nil, CREATE_NEW,
+      FILE_ATTRIBUTE_NORMAL or FILE_FLAG_WRITE_THROUGH, 0);
+    if StageHandle = INVALID_HANDLE_VALUE then RaiseLastOSError;
+    StageCreated := True;
     try
-      Archive.Open(Buffer, zmWrite);
-      Archive.Add(ProjectBytes, TPath.GetFileName(SourcePath));
-      Archive.Close;
+      try
+        StagedStream := THandleStream.Create(StageHandle);
+        try
+          Archive := TZipFile.Create;
+          try
+            Archive.Open(StagedStream, zmWrite);
+            Archive.Add(Source, TPath.GetFileName(SourcePath));
+            Archive.Close;
+            StagedStream.Position := 0;
+            Archive.Open(StagedStream, zmRead);
+            if (Archive.FileCount <> 1) or (Archive.FileName[0] <> TPath.GetFileName(SourcePath)) then
+              raise EWriteError.Create('Recovery ZIP has an unexpected entry. The project was not changed.');
+            Source.Position := 0;
+            Archive.Read(0, EntryStream, Header, True);
+            try
+              repeat
+                Count := Source.Read(SourceBuffer, SizeOf(SourceBuffer));
+                ReadCount := EntryStream.Read(EntryBuffer, Count);
+                if (ReadCount <> Count) or ((Count > 0) and not CompareMem(@SourceBuffer[0], @EntryBuffer[0], Count)) then
+                  raise EWriteError.Create('Recovery ZIP contents could not be verified. The project was not changed.');
+              until Count = 0;
+              if EntryStream.Read(EntryBuffer, 1) <> 0 then
+                raise EWriteError.Create('Recovery ZIP contains unexpected data. The project was not changed.');
+            finally EntryStream.Free end;
+          finally Archive.Free end;
+          if not FlushFileBuffers(StageHandle) then RaiseLastOSError;
+        finally StagedStream.Free end;
+      finally CloseHandle(StageHandle) end;
+      CommitStagedProjectFile(StagePath, FullRecovery);
+      StageCreated := False;
     finally
-      Archive.Free;
+      if StageCreated then Winapi.Windows.DeleteFile(PChar(StagePath));
     end;
-    Buffer.Position := 0;
-    Archive := TZipFile.Create;
-    try
-      Archive.Open(Buffer, zmRead);
-      if (Archive.FileCount <> 1) or (Archive.FileName[0] <> TPath.GetFileName(SourcePath)) then
-        raise EWriteError.Create('Recovery ZIP has an unexpected entry. The project was not changed.');
-      Archive.Read(0, VerifiedBytes);
-      if (Length(VerifiedBytes) <> Length(ProjectBytes)) or
-        ((Length(ProjectBytes) > 0) and not CompareMem(@VerifiedBytes[0], @ProjectBytes[0], Length(ProjectBytes))) then
-        raise EWriteError.Create('Recovery ZIP contents could not be verified. The project was not changed.');
-    finally
-      Archive.Free;
-    end;
-    if UInt64(Buffer.Size) > UInt64(High(NativeInt)) then
-      raise EArgumentException.Create('Recovery ZIP is too large.');
-    SetLength(ZipBytes, NativeInt(Buffer.Size));
-    if Length(ZipBytes) > 0 then Move(Buffer.Memory^, ZipBytes[0], Length(ZipBytes));
-    SaveNewProjectFile(RecoveryZipPath, ZipBytes);
-    VerifiedBytes := ReadProjectFile(RecoveryZipPath, UInt64(Length(ZipBytes)));
-    if (Length(VerifiedBytes) <> Length(ZipBytes)) or
-      ((Length(ZipBytes) > 0) and not CompareMem(@VerifiedBytes[0], @ZipBytes[0], Length(ZipBytes))) then
-      raise EWriteError.CreateFmt('Recovery ZIP could not be verified: %s. The project was not changed.', [RecoveryZipPath]);
-    VerifiedBytes := ReadProjectFile(SourcePath, MaximumSourceBytes);
-    if (Length(VerifiedBytes) <> Length(ProjectBytes)) or
-      ((Length(ProjectBytes) > 0) and not CompareMem(@VerifiedBytes[0], @ProjectBytes[0], Length(ProjectBytes))) then
-      raise EWriteError.CreateFmt('The project changed during recovery creation. The earlier ZIP remains at %s.', [RecoveryZipPath]);
-  finally
-    Buffer.Free;
-  end;
+  finally Source.Free end;
 end;
 
 procedure RestoreProjectRecoveryZip(const RecoveryZipPath, NewTargetPath: string;
