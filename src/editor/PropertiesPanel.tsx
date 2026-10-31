@@ -135,7 +135,8 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
           { key: 'logoImage', label: 'Logo Image URL', type: 'image' },
           { key: 'description', label: 'Description', type: 'textarea' },
           { key: 'copyright', label: 'Copyright', type: 'text' },
-          { key: 'links', label: 'Links', type: 'array-strings' },
+          { key: 'links', label: 'Legacy text-only labels', type: 'array-strings' },
+          { key: 'navItems', label: 'Navigation destinations', type: 'array-items' },
         ],
       },
       {
@@ -528,6 +529,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
         // Fallback templates by block type + field key
         const blockTemplates: Partial<Record<string, Record<string, Record<string, string>>>> = {
           navbar: { navItems: { label: '', url: '' } },
+          footer: { navItems: { label: '', url: '' } },
           testimonials: { items: { name: '', role: '', quote: '' } },
           stats: { items: { value: '', label: '' } },
           faq: { items: { question: '', answer: '' } },
@@ -569,7 +571,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                     }}
                     className="w-full px-1.5 py-1 rounded border border-border-subtle bg-bg-3 text-text-0 text-[11px] outline-none focus:border-green"
                   />
-                  {block.type === 'navbar' && field.key === 'navItems' && key === 'url' && portableProjectsEnabled && (pages ?? []).some(page => page.webstudioArticle?.status !== 'draft') && <select
+                  {(block.type === 'navbar' || block.type === 'footer') && field.key === 'navItems' && key === 'url' && portableProjectsEnabled && (pages ?? []).some(page => page.webstudioArticle?.status !== 'draft') && <select
                     aria-label={`Choose a page for ${field.label} item ${i + 1}`}
                     value={(pages ?? []).some(page => page.path === val && page.webstudioArticle?.status !== 'draft') ? val : ''}
                     onChange={event => {

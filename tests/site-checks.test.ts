@@ -10,6 +10,12 @@ const config: SiteConfig = { name: 'Community', pages: [
 ], blocks: [hero] }
 
 describe('local site checks', () => {
+  it('checks missing footer navigation destinations', () => {
+    const copy = structuredClone(config)
+    copy.pages![0].blocks.push({ id: 'footer', type: 'footer', variant: 'simple', props: { navItems: [{ label: 'Missing', url: '/missing' }] } })
+    copy.blocks = copy.pages![0].blocks
+    expect(checkSite(copy).some(issue => issue.blockId === 'footer' && issue.message.includes('does not match a site page'))).toBe(true)
+  })
   it('recognizes common video links consistently in checks and export', () => {
     const cases = [
       ['youtube', 'https://m.youtube.com/watch?feature=share&v=abcdefghijk', 'https://www.youtube-nocookie.com/embed/abcdefghijk'],
