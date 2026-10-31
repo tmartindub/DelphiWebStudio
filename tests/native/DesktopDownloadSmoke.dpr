@@ -19,6 +19,9 @@ begin
   else if Count = 7 then Target := ExtractFilePath(ParamStr(0)) + 'save-after-collision.zip'
   else if Count = 8 then Target := ExtractFilePath(ParamStr(0)) + 'interrupted-project.zip'
   else if Count = 9 then Target := ExtractFilePath(ParamStr(0)) + 'race-target.zip'
+  else if Count = 10 then Target := ExtractFilePath(ParamStr(0)) + 'wrong-project.json'
+  else if Count = 11 then Target := ExtractFilePath(ParamStr(0)) + 'wrong-project.zip'
+  else if Count = 12 then Target := ExtractFilePath(ParamStr(0)) + 'extension-retry.zip'
   else raise Exception.Create('Unexpected dialog.');
   if (Count <> 6) and TFile.Exists(Target) then raise Exception.Create('Test output already exists.');
   Window := GetParent(TSaveDialog(Sender).Handle);
@@ -262,6 +265,27 @@ begin
     if TFile.ReadAllText(ExtractFilePath(ParamStr(0)) + 'race-target.zip') <> 'external change' then raise Exception.Create('Late destination collision replaced external data.');
     Value := Copy(MainForm.StatusLabel.Caption, Length('Project not saved. Check staged file: ') + 1, MaxInt);
     if not TFile.Exists(Value) or (TFile.GetSize(Value) <> 128 * 1024 * 1024) then raise Exception.Create('Staged bytes were not retained after late collision.');
+    Observer.Operation := nil;
+    MainForm.EditorBrowser.ExecuteScript('(()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["zip"]));a.download="test.webstudio.zip";a.click()})()');
+    Deadline := GetTickCount64 + 30000;
+    while (Observer.Count < 10) and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    Deadline := GetTickCount64 + 30000;
+    while (MainForm.StatusLabel.Caption <> 'Project requires the .zip extension. Save again with that extension.') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if (Observer.Count <> 10) or (MainForm.StatusLabel.Caption <> 'Project requires the .zip extension. Save again with that extension.') or TFile.Exists(ExtractFilePath(ParamStr(0)) + 'wrong-project.json') then raise Exception.Create('ZIP project accepted a JSON filename.');
+    Observer.Operation := nil;
+    MainForm.EditorBrowser.ExecuteScript('(()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["json"]));a.download="test.webstudio.json";a.click()})()');
+    Deadline := GetTickCount64 + 30000;
+    while (Observer.Count < 11) and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    Deadline := GetTickCount64 + 30000;
+    while (MainForm.StatusLabel.Caption <> 'Project requires the .json extension. Save again with that extension.') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if (Observer.Count <> 11) or (MainForm.StatusLabel.Caption <> 'Project requires the .json extension. Save again with that extension.') or TFile.Exists(ExtractFilePath(ParamStr(0)) + 'wrong-project.zip') then raise Exception.Create('JSON project accepted a ZIP filename.');
+    Observer.Operation := nil;
+    MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Save project").click()');
+    Deadline := GetTickCount64 + 30000;
+    while (Observer.Count < 12) and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    Deadline := GetTickCount64 + 30000;
+    while (MainForm.StatusLabel.Caption <> 'Download completed: extension-retry.zip') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if (Observer.Count <> 12) or (MainForm.StatusLabel.Caption <> 'Download completed: extension-retry.zip') then raise Exception.Create('Save after extension mismatch did not complete.');
     Writeln('Desktop project save and site export downloads completed.');
     Writeln('Desktop editor imported and rendered a sample PDF in the preview and page.');
   finally
