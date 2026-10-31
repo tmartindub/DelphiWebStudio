@@ -1,5 +1,5 @@
 import { type ReactNode, useRef, useEffect } from 'react'
-import { Copy, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import { Copy, Trash2, ChevronUp, ChevronDown, Globe } from 'lucide-react'
 import { toast } from 'sonner'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
@@ -20,7 +20,7 @@ export function BlockWrapper({ block, isSelected, onSelect, children }: Props) {
     const page = pages.find((p) => p.id === s.activePageId) ?? pages[0]
     return page.blocks
   })
-  const { duplicateBlock, removeBlock, moveBlock } = useConfigStore()
+  const { duplicateBlock, removeBlock, moveBlock, shareSectionAcrossPages, unshareSection } = useConfigStore()
   const { selectedBlockId, selectBlock } = useEditorStore()
   const previewMode = useEditorStore((s) => s.previewMode)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -70,6 +70,7 @@ export function BlockWrapper({ block, isSelected, onSelect, children }: Props) {
       aria-selected={isSelected}
       tabIndex={0}
       onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           onSelect()
@@ -92,6 +93,24 @@ export function BlockWrapper({ block, isSelected, onSelect, children }: Props) {
           isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
         }`}
       >
+        {(block.type === 'navbar' || block.type === 'footer') && <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            try {
+              if (block.webstudioSharedSectionId) {
+                unshareSection(block.id)
+                toast('Sections are now independent on each page')
+              } else {
+                shareSectionAcrossPages(block.id)
+                toast('Section shared across pages; edits update every copy')
+              }
+            } catch (error) { toast.error(error instanceof Error ? error.message : 'Section could not be shared') }
+          }}
+          className="w-6 h-6 rounded bg-bg-2/80 border border-border-default flex items-center justify-center text-text-3 hover:text-text-0"
+          title={block.webstudioSharedSectionId ? 'Stop sharing across pages' : 'Share across pages'}
+          aria-label={block.webstudioSharedSectionId ? `Stop sharing ${block.type} across pages` : `Share ${block.type} across pages`}
+        ><Globe size={12} /></button>}
         {!isFirst && (
           <button
             onClick={(e) => { e.stopPropagation(); moveBlock(index, index - 1) }}

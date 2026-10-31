@@ -39,6 +39,8 @@ interface ConfigState {
   addBlock: (block: BlockConfig, index?: number) => void
   removeBlock: (id: string) => void
   duplicateBlock: (id: string) => void
+  shareSectionAcrossPages: (id: string) => void
+  unshareSection: (id: string) => void
   saveReusableSection: (blockId: string, name: string) => void
   removeReusableSection: (id: string) => void
   insertReusableSection: (id: string) => void
@@ -132,7 +134,12 @@ export const useConfigStore = create<ConfigState>()(
             const page = draft.pages!.find((p) => p.id === state.activePageId)
             if (!page) return
             const block = page.blocks.find((b) => b.id === id)
-            if (block) Object.assign(block, updates)
+            if (block) {
+              const sharedId = block.webstudioSharedSectionId
+              for (const item of draft.pages!.flatMap(item => item.blocks)) {
+                if (item === block || (sharedId && item.webstudioSharedSectionId === sharedId)) Object.assign(item, updates)
+              }
+            }
             draft.blocks = (draft.pages!.find(p => p.path === '/') ?? draft.pages![0]).blocks
           }),
         })),
@@ -144,7 +151,12 @@ export const useConfigStore = create<ConfigState>()(
             const page = draft.pages!.find((p) => p.id === state.activePageId)
             if (!page) return
             const block = page.blocks.find((b) => b.id === id)
-            if (block) Object.assign(block.props, props)
+            if (block) {
+              const sharedId = block.webstudioSharedSectionId
+              for (const item of draft.pages!.flatMap(item => item.blocks)) {
+                if (item === block || (sharedId && item.webstudioSharedSectionId === sharedId)) Object.assign(item.props, structuredClone(props))
+              }
+            }
             draft.blocks = (draft.pages!.find(p => p.path === '/') ?? draft.pages![0]).blocks
           }),
         })),
@@ -180,6 +192,7 @@ export const useConfigStore = create<ConfigState>()(
             ...JSON.parse(JSON.stringify(original)),
             id: `block-${crypto.randomUUID()}`,
           }
+          delete clone.webstudioSharedSectionId
           return {
             ...pushUndo(state, 'Duplicate block'),
             config: mutateActivePageBlocks(withPages(state.config), state.activePageId, (b) => {
@@ -189,10 +202,40 @@ export const useConfigStore = create<ConfigState>()(
           }
         }),
 
+      shareSectionAcrossPages: (id) => set(state => {
+        const pages = ensurePages(state.config)
+        const original = getPageBlocks(state.config, state.activePageId).find(block => block.id === id)
+        if (!original || !['navbar', 'footer'].includes(original.type)) throw new Error('Select a header or footer first.')
+        if (original.webstudioSharedSectionId) return state
+        if (pages.some(page => page.blocks.some(block => block.type === original.type && block.id !== id))) {
+          throw new Error(`Remove other ${original.type === 'navbar' ? 'headers' : 'footers'} before sharing this one across pages.`)
+        }
+        const sharedId = `shared-${crypto.randomUUID()}`
+        const updatedPages = pages.map(page => {
+          if (page.id === state.activePageId) return { ...page, blocks: page.blocks.map(block => block.id === id ? { ...block, webstudioSharedSectionId: sharedId } : block) }
+          const copy = { ...structuredClone(original), id: `block-${crypto.randomUUID()}`, webstudioSharedSectionId: sharedId }
+          return { ...page, blocks: original.type === 'navbar' ? [copy, ...page.blocks] : [...page.blocks, copy] }
+        })
+        return { ...pushUndo(state, 'Share section across pages'), config: { ...state.config, pages: updatedPages, blocks: (updatedPages.find(page => page.path === '/') ?? updatedPages[0]).blocks } }
+      }),
+
+      unshareSection: (id) => set(state => {
+        const original = getPageBlocks(state.config, state.activePageId).find(block => block.id === id)
+        const sharedId = original?.webstudioSharedSectionId
+        if (!sharedId) return state
+        const pages = ensurePages(state.config).map(page => ({ ...page, blocks: page.blocks.map(block => {
+          if (block.webstudioSharedSectionId !== sharedId) return block
+          const copy = { ...block }; delete copy.webstudioSharedSectionId; return copy
+        }) }))
+        return { ...pushUndo(state, 'Stop sharing section'), config: { ...state.config, pages, blocks: (pages.find(page => page.path === '/') ?? pages[0]).blocks } }
+      }),
+
       saveReusableSection: (blockId, name) => set(state => {
         const block = getPageBlocks(state.config, state.activePageId).find(item => item.id === blockId)
         if (!block || !name.trim()) return state
-        const section = { id: `section-${crypto.randomUUID()}`, name: name.trim(), block: structuredClone(block) }
+        const savedBlock = structuredClone(block)
+        delete savedBlock.webstudioSharedSectionId
+        const section = { id: `section-${crypto.randomUUID()}`, name: name.trim(), block: savedBlock }
         return { ...pushUndo(state, 'Save reusable section'), config: { ...state.config, webstudioReusableSections: [...(state.config.webstudioReusableSections ?? []), section] } }
       }),
 
@@ -227,7 +270,13 @@ export const useConfigStore = create<ConfigState>()(
       addPage: (name, path) => {
         const id = `page-${crypto.randomUUID()}`
         set((state) => {
-          const pages = [...ensurePages(state.config), { id, name, path, blocks: [] }]
+          const existingPages = ensurePages(state.config)
+          const shared = new Map<string, BlockConfig>()
+          for (const block of existingPages.flatMap(page => page.blocks)) {
+            if (block.webstudioSharedSectionId && !shared.has(block.webstudioSharedSectionId)) shared.set(block.webstudioSharedSectionId, block)
+          }
+          const sharedBlocks = [...shared.values()].map(block => ({ ...structuredClone(block), id: `block-${crypto.randomUUID()}` }))
+          const pages = [...existingPages, { id, name, path, blocks: sharedBlocks }]
           const config = validateProjectConfig({ ...state.config, pages })
           return { ...pushUndo(state, 'Add page'), config, activePageId: id }
         })

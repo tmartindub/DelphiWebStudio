@@ -13,6 +13,33 @@ beforeEach(() => {
 })
 
 describe('page history', () => {
+  it('shares a header across pages and keeps edits, new pages and undo consistent', () => {
+    useConfigStore.getState().addBlock({ id: 'header', type: 'navbar', variant: 'default', props: { logoText: 'Welcome' } })
+    useConfigStore.getState().addPage('About', '/about')
+    useConfigStore.getState().setActivePage('home')
+    useConfigStore.getState().shareSectionAcrossPages('header')
+    let pages = useConfigStore.getState().config.pages!
+    expect(pages[1].blocks[0].props.logoText).toBe('Welcome')
+    useConfigStore.getState().updateBlockProps('header', { logoText: 'Updated' })
+    pages = useConfigStore.getState().config.pages!
+    expect(pages.map(page => page.blocks[0].props.logoText)).toEqual(['Updated', 'Updated'])
+    useConfigStore.getState().addPage('News', '/news')
+    expect(useConfigStore.getState().getActivePageBlocks()[0].props.logoText).toBe('Updated')
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().config.pages).toHaveLength(2)
+    useConfigStore.getState().setActivePage('home')
+    useConfigStore.getState().unshareSection('header')
+    useConfigStore.getState().updateBlockProps('header', { logoText: 'Independent' })
+    expect(useConfigStore.getState().config.pages![1].blocks[0].props.logoText).toBe('Updated')
+  })
+
+  it('does not overwrite another page header when sharing', () => {
+    useConfigStore.getState().addBlock({ id: 'first', type: 'navbar', variant: 'default', props: {} })
+    useConfigStore.getState().addPage('About', '/about')
+    useConfigStore.getState().addBlock({ id: 'second', type: 'navbar', variant: 'default', props: {} })
+    expect(() => useConfigStore.getState().shareSectionAcrossPages('second')).toThrow('Remove other headers')
+    expect(useConfigStore.getState().config.pages!.map(page => page.blocks[0].id)).toEqual(['first', 'second'])
+  })
   it('saves a section for another page, inserts an independent copy and supports undo', () => {
     useConfigStore.getState().addBlock({ id: 'original', type: 'content', variant: 'prose', props: { body: 'Welcome' } })
     useConfigStore.getState().saveReusableSection('original', 'Welcome section')

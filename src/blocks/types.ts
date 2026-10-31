@@ -30,6 +30,7 @@ export interface BlockConfig {
   type: BlockType
   variant: BlockVariant
   props: Record<string, unknown>
+  webstudioSharedSectionId?: string
 }
 
 export interface ThemeConfig {

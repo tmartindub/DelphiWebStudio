@@ -13,6 +13,14 @@ const fivePages = {
 }
 
 describe('portable project files', () => {
+  it('retains shared header identifiers across a project save and reopen', () => {
+    const config = validateProjectConfig({ name: 'Site', pages: [
+      { id: 'home', name: 'Home', path: '/', blocks: [{ id: 'one', type: 'navbar', variant: 'default', props: { logoText: 'Site' }, webstudioSharedSectionId: 'shared' }] },
+      { id: 'about', name: 'About', path: '/about', blocks: [{ id: 'two', type: 'navbar', variant: 'default', props: { logoText: 'Site' }, webstudioSharedSectionId: 'shared' }] },
+    ] })
+    const reopened = parseProjectFile(serializeProjectFile(createProjectFile(config, 'project'))).project.config
+    expect(reopened.pages!.map(page => page.blocks[0].webstudioSharedSectionId)).toEqual(['shared', 'shared'])
+  })
   it('preserves reusable sections and checks their media references', () => {
     const config: SiteConfig = { ...legacy, webstudioReusableSections: [{ id: 'saved', name: 'Picture', block: { id: 'old', type: 'image', variant: 'hero-image', props: { assetId: 'photo', src: 'assets/photo.png' } } }] }
     const reopened = parseProjectFile(serializeProjectFile(createProjectFile(config, 'project'))).project.config

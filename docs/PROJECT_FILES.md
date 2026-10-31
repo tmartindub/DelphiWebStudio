@@ -6,6 +6,8 @@ Last changed: 2026-10-31. Tracking: issue #2. M1 is not complete and this is not
 
 In the editor's **Components** tab, select a section on the page, enter a name under **Reusable sections**, and choose **Save selected section**. Select another page and click the saved name to insert an independent copy; later edits to a copy do not change the saved section. Saved sections belong to the project and are included when it is saved. Removing a saved section does not remove copies already on pages, and can be undone.
 
+To share a header (Navbar) or Footer across pages, select it and choose **Share across pages** in its controls. A copy is added to each other page, and property or layout edits update the shared copies. New pages receive the shared sections. The command will not replace another existing header or footer; remove competing sections first. **Stop sharing across pages** makes the existing copies independent. Both operations can be undone; deleting one copy removes it from that page only.
+
 Set `VITE_WEBSTUDIO_PROJECTS=true` before starting Vite or building. The flag defaults off in `.env.example`. With it enabled, **Open project** appears on Dashboard and the editor; **Save project** appears while a project is open. These commands are separate from the existing HTML Export command and from Publish.
 
 Open accepts unversioned OpenPage SiteConfig JSON or WebStudio schema 2. Each open creates an independent local draft and never edits the selected file. A legacy file is upgraded in memory and saved as a new `.webstudio.json` download. The original is the recovery source; no automatic in-place migration occurs. Repeated opens retain the document projectId but have distinct local draft IDs. Duplicate assigns a new document identity.
