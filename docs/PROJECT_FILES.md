@@ -36,6 +36,8 @@ For version 2 editor drafts, the startup checks also protect the stored text whe
 
 Save downloads the snapshot captured when the command starts. If the project changes while that snapshot is prepared, newer edits stay in the browser draft and a notice asks you to save again to include them.
 
+While the project file is being prepared, the Save button shows **Preparing project…** and a notice asks you to keep the window open. An isolated browser test paused a media save, checked this feedback, then verified the saved PDF bytes. The desktop close warning only begins when the download or its dialog starts; it does not prevent closing during this earlier preparation step.
+
 ## Format and preservation
 
 ```json
