@@ -5,6 +5,8 @@ import type { SiteConfig } from '@/blocks/types'
 import type { SiteProjectFile } from '@/project/project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
 
+export let projectDraftReadFailed = false
+
 export interface Project {
   id: string
   name: string
@@ -145,15 +147,24 @@ export const useProjectsStore = create<ProjectsState>()(
     }),
     {
       name: 'openpage-projects',
-      storage: createJSONStorage(() => ({
-        getItem: key => window.localStorage.getItem(key),
-        setItem: (key, value) => {
-          try { window.localStorage.setItem(key, value) } catch {
-            toast.error('Local draft storage failed. Save a separate project file before closing; recent edits may not survive a restart.', { id: 'draft-storage-failed', duration: Infinity, closeButton: true })
-          }
-        },
-        removeItem: key => window.localStorage.removeItem(key),
-      })),
+      storage: createJSONStorage(() => {
+        return {
+          getItem: key => {
+            try { const value = window.localStorage.getItem(key); if (value !== null) JSON.parse(value); projectDraftReadFailed = false; return value } catch {
+              projectDraftReadFailed = true
+              toast.error('Local drafts could not be read. Existing drafts are protected from overwrite; save any new work to a separate project file and restart to retry.', { id: 'draft-storage-read-failed', duration: Infinity, closeButton: true })
+              return null
+            }
+          },
+          setItem: (key, value) => {
+            if (projectDraftReadFailed) return
+            try { window.localStorage.setItem(key, value) } catch {
+              toast.error('Local draft storage failed. Save a separate project file before closing; recent edits may not survive a restart.', { id: 'draft-storage-failed', duration: Infinity, closeButton: true })
+            }
+          },
+          removeItem: key => { if (!projectDraftReadFailed) window.localStorage.removeItem(key) },
+        }
+      }),
     }
   )
 )

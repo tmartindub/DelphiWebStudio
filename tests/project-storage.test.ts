@@ -21,6 +21,31 @@ beforeEach(() => {
 })
 
 describe('portable project storage', () => {
+  it('does not overwrite an unreadable project list', async () => {
+    useProjectsStore.getState().addProject('Existing', document)
+    const before = storedValues.get('openpage-projects')
+    const read = vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => { throw new Error('storage unavailable') })
+    try {
+      await useProjectsStore.persist.rehydrate()
+      read.mockRestore()
+      useProjectsStore.getState().addProject('New in memory', document)
+      expect(storedValues.get('openpage-projects')).toBe(before)
+    } finally {
+      read.mockRestore()
+      await useProjectsStore.persist.rehydrate()
+    }
+  })
+  it('does not overwrite a malformed stored project list', async () => {
+    storedValues.set('openpage-projects', '{damaged')
+    try {
+      await useProjectsStore.persist.rehydrate()
+      useProjectsStore.getState().addProject('New in memory', document)
+      expect(storedValues.get('openpage-projects')).toBe('{damaged')
+    } finally {
+      storedValues.delete('openpage-projects')
+      await useProjectsStore.persist.rehydrate()
+    }
+  })
   it('retains the in-memory project when local draft storage fails', () => {
     const write = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => { throw new Error('storage full') })
     try {

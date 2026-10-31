@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 import type { BlockConfig, SiteConfig, ThemeConfig, PageConfig } from '@/blocks/types'
 import { validateProjectConfig } from '@/project/project-file'
 
+export let configDraftReadFailed = false
+
 function ensurePages(config: SiteConfig): PageConfig[] {
   if (config.pages && config.pages.length > 0) return config.pages
   return [{ id: 'page-home', name: 'Home', path: '/', blocks: config.blocks }]
@@ -323,15 +325,24 @@ export const useConfigStore = create<ConfigState>()(
     }),
     {
       name: 'openpage-config',
-      storage: createJSONStorage(() => ({
-        getItem: key => window.localStorage.getItem(key),
-        setItem: (key, value) => {
-          try { window.localStorage.setItem(key, value) } catch {
-            toast.error('Local draft storage failed. Save a separate project file before closing; recent edits may not survive a restart.', { id: 'draft-storage-failed', duration: Infinity, closeButton: true })
-          }
-        },
-        removeItem: key => window.localStorage.removeItem(key),
-      })),
+      storage: createJSONStorage(() => {
+        return {
+          getItem: key => {
+            try { const value = window.localStorage.getItem(key); if (value !== null) JSON.parse(value); configDraftReadFailed = false; return value } catch {
+              configDraftReadFailed = true
+              toast.error('Local drafts could not be read. Existing drafts are protected from overwrite; save any new work to a separate project file and restart to retry.', { id: 'draft-storage-read-failed', duration: Infinity, closeButton: true })
+              return null
+            }
+          },
+          setItem: (key, value) => {
+            if (configDraftReadFailed) return
+            try { window.localStorage.setItem(key, value) } catch {
+              toast.error('Local draft storage failed. Save a separate project file before closing; recent edits may not survive a restart.', { id: 'draft-storage-failed', duration: Infinity, closeButton: true })
+            }
+          },
+          removeItem: key => { if (!configDraftReadFailed) window.localStorage.removeItem(key) },
+        }
+      }),
       version: 2,
       partialize: (state) => ({ config: state.config, activePageId: state.activePageId }),
       migrate: (persisted, version) => {

@@ -16,6 +16,8 @@ While the editor is open, changes are written to the browser draft as the editor
 
 If writing local draft storage fails, the editor keeps the current in-memory edits and displays a persistent warning to save a separate project file before closing. A browser test simulated storage quota failures and confirmed that a subsequent separate project download contained the current edit. A restart before saving can still lose changes; this is not crash recovery.
 
+If a local draft cannot be read or contains malformed JSON, the editor warns on startup and prevents writes to the affected stored draft for that session. Save any new work separately before restarting to retry. An isolated browser test simulated inaccessible storage, confirmed the original stored values were unchanged, and requested a separate project download. This does not repair corrupted data or detect every possible invalid storage structure.
+
 Save downloads the snapshot captured when the command starts. If the project changes while that snapshot is prepared, newer edits stay in the browser draft and a notice asks you to save again to include them.
 
 ## Format and preservation
