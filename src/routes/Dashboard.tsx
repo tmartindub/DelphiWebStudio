@@ -196,6 +196,7 @@ function ProjectCard({ project }: { project: Project }) {
   const navigate = useNavigate()
   const renameProject = useProjectsStore((s) => s.renameProject)
   const deleteProject = useProjectsStore((s) => s.deleteProject)
+  const restoreProject = useProjectsStore((s) => s.restoreProject)
   const duplicateProject = useProjectsStore((s) => s.duplicateProject)
   const setConfig = useConfigStore((s) => s.setConfig)
   const setActiveProject = useEditorStore((s) => s.setActiveProject)
@@ -233,6 +234,7 @@ function ProjectCard({ project }: { project: Project }) {
     e.stopPropagation()
     if (confirming) {
       deleteProject(project.id)
+      toast('Project removed.', { duration: 15000, action: { label: 'Undo', onClick: () => restoreProject(project) } })
     } else {
       setConfirming(true)
       confirmTimer.current = setTimeout(() => setConfirming(false), 2000)

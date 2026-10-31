@@ -21,6 +21,21 @@ beforeEach(() => {
 })
 
 describe('portable project storage', () => {
+  it('restores a removed project without replacing a project with the same ID', async () => {
+    const id = useProjectsStore.getState().addProject('Original', document)
+    const library = new ProjectMediaLibrary()
+    await library.import(id, new File(['original'], 'note.txt'))
+    const original = structuredClone(useProjectsStore.getState().projects.find(project => project.id === id)!)
+    useProjectsStore.getState().deleteProject(id)
+    expect(useProjectsStore.getState().projects.find(project => project.id === id)).toBeUndefined()
+    useProjectsStore.getState().restoreProject(original)
+    expect(useProjectsStore.getState().projects.find(project => project.id === id)).toEqual(original)
+    expect(await (await library.list(id))[0].content.text()).toBe('original')
+    useProjectsStore.getState().renameProject(id, 'New name')
+    useProjectsStore.getState().restoreProject(original)
+    expect(useProjectsStore.getState().projects.filter(project => project.id === id)).toHaveLength(1)
+    expect(useProjectsStore.getState().projects.find(project => project.id === id)?.name).toBe('New name')
+  })
   it('does not overwrite an unreadable project list', async () => {
     useProjectsStore.getState().addProject('Existing', document)
     const before = storedValues.get('openpage-projects')

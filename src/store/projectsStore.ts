@@ -45,6 +45,7 @@ interface ProjectsState {
   mediaChanged: (id: string) => void
   duplicateProject: (id: string) => Promise<string | null>
   deleteProject: (id: string) => void
+  restoreProject: (project: Project) => void
   renameProject: (id: string, name: string) => void
   updateProjectConfig: (id: string, config: SiteConfig) => void
   updateProjectSettings: (id: string, settings: Partial<ProjectSettings>) => void
@@ -114,6 +115,8 @@ export const useProjectsStore = create<ProjectsState>()(
         set((state) => ({
           projects: state.projects.filter((p) => p.id !== id),
         })),
+      restoreProject: (project) => set(state => state.projects.some(item => item.id === project.id)
+        ? state : { projects: [structuredClone(project), ...state.projects] }),
       renameProject: (id, name) =>
         set((state) => ({
           projects: state.projects.map((p) =>
