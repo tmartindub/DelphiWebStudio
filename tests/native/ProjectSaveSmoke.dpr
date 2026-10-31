@@ -7,6 +7,7 @@ var
   Folder, Target, EmptyTarget, RecoveryTarget, NestedRecovery, EmptyRecovery, UnicodeTarget, UnicodeRecovery,
   RestoredTarget, RestoredEmpty, RestoredZip, RestoredUnicode, InvalidTarget, CorruptRecovery, MultiRecovery, TraversalRecovery, CrcRecovery, MismatchNameRecovery, MismatchCrcRecovery, MismatchSizeRecovery: string;
   Data, Actual, RecoveryBytes, OriginalName, InvalidName: TBytes;
+  StagedPath, StagedFinal, CollisionStage: string;
   Index, MatchCount, DataOffset: Integer;
   Rejected: Boolean;
   LockedFile: TFileStream;
@@ -36,9 +37,34 @@ begin
   MismatchNameRecovery := TPath.Combine(Folder, 'mismatch-name.zip');
   MismatchCrcRecovery := TPath.Combine(Folder, 'mismatch-crc.zip');
   MismatchSizeRecovery := TPath.Combine(Folder, 'mismatch-size.zip');
+  StagedPath := TPath.Combine(Folder, 'stage.tmp');
+  StagedFinal := TPath.Combine(Folder, 'committed.webstudio.json');
+  CollisionStage := TPath.Combine(Folder, 'collision.tmp');
   try
     SetLength(Data, 1048587);
     for Index := 0 to High(Data) do Data[Index] := Byte(Index mod 251);
+    SaveNewProjectFile(StagedPath, Data);
+    LockedFile := TFileStream.Create(StagedPath, fmOpenRead or fmShareExclusive);
+    try
+      Rejected := False;
+      try CommitStagedProjectFile(StagedPath, StagedFinal);
+      except on E: EOSError do Rejected := True end;
+      if not Rejected or not TFile.Exists(StagedPath) or TFile.Exists(StagedFinal) then raise Exception.Create('Locked stage was moved.');
+    finally LockedFile.Free end;
+    Rejected := False;
+    try CommitStagedProjectFile(StagedPath, TPath.Combine(Folder, 'missing\other.json'));
+    except on E: EArgumentException do Rejected := True end;
+    if not Rejected or not TFile.Exists(StagedPath) then raise Exception.Create('Different destination folder was accepted.');
+    CommitStagedProjectFile(StagedPath, StagedFinal);
+    Actual := TFile.ReadAllBytes(StagedFinal);
+    if TFile.Exists(StagedPath) or (Length(Actual) <> Length(Data)) or not CompareMem(@Actual[0], @Data[0], Length(Data)) then raise Exception.Create('Staged project was not committed intact.');
+    SaveNewProjectFile(CollisionStage, TEncoding.UTF8.GetBytes('staged data'));
+    Rejected := False;
+    try CommitStagedProjectFile(CollisionStage, StagedFinal);
+    except on E: EOSError do Rejected := True end;
+    if not Rejected or not TFile.Exists(CollisionStage) then raise Exception.Create('Staged project replaced an existing file.');
+    Actual := TFile.ReadAllBytes(StagedFinal);
+    if (Length(Actual) <> Length(Data)) or not CompareMem(@Actual[0], @Data[0], Length(Data)) then raise Exception.Create('Existing project changed during staged collision.');
     SaveNewProjectFile(Target, Data);
     Actual := ReadProjectFile(Target, Length(Data));
     if Length(Actual) <> Length(Data) then raise Exception.Create('Saved byte count differs.');
@@ -247,7 +273,7 @@ begin
     try SaveNewProjectFile(TPath.Combine(Folder, 'missing\project.json'), nil);
     except on E: EOSError do Rejected := True end;
     if not Rejected then raise Exception.Create('Missing folder was accepted.');
-    if Length(TDirectory.GetFiles(Folder)) <> 18 then raise Exception.Create('Temporary files were left behind.');
+    if Length(TDirectory.GetFiles(Folder)) <> 20 then raise Exception.Create('Temporary files were left behind.');
     Writeln('Native create-only save, bounded open, ZIP snapshot and restore passed.');
   finally
     if TFile.Exists(Target) then TFile.Delete(Target);
@@ -268,6 +294,9 @@ begin
     if TFile.Exists(MismatchNameRecovery) then TFile.Delete(MismatchNameRecovery);
     if TFile.Exists(MismatchCrcRecovery) then TFile.Delete(MismatchCrcRecovery);
     if TFile.Exists(MismatchSizeRecovery) then TFile.Delete(MismatchSizeRecovery);
+    if TFile.Exists(StagedPath) then TFile.Delete(StagedPath);
+    if TFile.Exists(StagedFinal) then TFile.Delete(StagedFinal);
+    if TFile.Exists(CollisionStage) then TFile.Delete(CollisionStage);
     TDirectory.Delete(Folder, False);
   end;
 end.
