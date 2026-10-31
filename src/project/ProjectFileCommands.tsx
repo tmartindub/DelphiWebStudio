@@ -46,7 +46,9 @@ export function ProjectFileCommands() {
       if (!Array.isArray(assetMetadata)) throw new Error('The project media list is invalid.')
       if (assetMetadata.length && !zip) throw new Error('This project references media files; open its ZIP package instead.')
       validateProjectMedia(project.config, assetMetadata)
-      const id = useProjectsStore.getState().addProject(project.config.name, project)
+      const projectName = typeof project.webstudioProjectName === 'string' && project.webstudioProjectName.trim()
+        ? project.webstudioProjectName : project.config.name
+      const id = useProjectsStore.getState().addProject(projectName, project)
       createdProjectId = id
       if (zip) {
         const allowedPaths = new Set(['project.webstudio.json'])
@@ -101,6 +103,7 @@ export function ProjectFileCommands() {
       const projectDocument = {
         ...project.projectFile,
         ...createProjectFile(config, project.projectFile?.projectId ?? project.id),
+        webstudioProjectName: project.name,
         settings: portableSettings,
         assets: assets.map(({ id, name, path, mime, size, sha256, importedAt, folder, width, height }) => ({
           ...previousAssets.find(item => item && typeof item === 'object' && item.id === id),
@@ -137,7 +140,7 @@ export function ProjectFileCommands() {
       URL.revokeObjectURL(url)
       useProjectsStore.getState().saveProjectFile(project.id, projectDocument)
       const currentProject = useProjectsStore.getState().projects.find(item => item.id === project.id)
-      if (useEditorStore.getState().activeProjectId !== project.id || useConfigStore.getState().config !== config || JSON.stringify(currentProject?.settings ?? {}) !== JSON.stringify(project.settings ?? {})) {
+      if (useEditorStore.getState().activeProjectId !== project.id || useConfigStore.getState().config !== config || currentProject?.name !== project.name || JSON.stringify(currentProject?.settings ?? {}) !== JSON.stringify(project.settings ?? {})) {
         toast.warning('An earlier snapshot was downloaded. Newer changes remain in the draft; save again to include them.')
       } else toast('Project file download requested. Choose a destination if prompted.')
     } catch (error) {
