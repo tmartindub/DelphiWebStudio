@@ -104,6 +104,8 @@ export function ProjectFileCommands() {
         assets: assets.map(({ id, name, path, mime, size, sha256, importedAt, folder, width, height }) => ({ id, name, path, mime, size, sha256, importedAt, folder, width, height })),
       }
       const contents = serializeProjectFile(projectDocument)
+      const manifestBlob = new Blob([contents], { type: 'application/json' })
+      if (manifestBlob.size > 100 * 1024 * 1024) throw new Error('The project manifest exceeds the 100 MiB opening limit. Reduce project text or split the project before saving.')
       const basename = project.name.replace(/[<>:"/\\|?*\p{Cc}]/gu, '-').trim().slice(0, 100) || 'site'
       let download: Blob
       let filename: string
@@ -120,7 +122,7 @@ export function ProjectFileCommands() {
         download = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
         filename = `${basename}.webstudio.zip`
       } else {
-        download = new Blob([contents], { type: 'application/json' })
+        download = manifestBlob
         filename = `${basename}.webstudio.json`
       }
       const url = URL.createObjectURL(download)
