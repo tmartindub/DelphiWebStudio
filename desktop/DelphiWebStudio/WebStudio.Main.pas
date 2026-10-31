@@ -250,7 +250,7 @@ var
   StateHandler: ICoreWebView2StateChangedEventHandler;
   StateToken: EventRegistrationToken;
   Address, Suggested: PWideChar;
-  SuggestedName, SelectedPath, StagedPath: string;
+  SuggestedName, SelectedPath, StagedPath, ProjectSuffix: string;
   StageId: TGUID;
   OwnerWindow: HWND;
   Allowed: Boolean;
@@ -274,6 +274,12 @@ begin
     Args.ArgsInterface.Set_Cancel(1);
     Exit;
   end;
+  ProjectSuffix := '';
+  if LowerCase(SuggestedName).EndsWith('.webstudio.json') then ProjectSuffix := '.webstudio.json'
+  else if LowerCase(SuggestedName).EndsWith('.webstudio.zip') then ProjectSuffix := '.webstudio.zip';
+  if ProjectSuffix <> '' then
+    SuggestedName := Copy(SuggestedName, 1, Length(SuggestedName) - Length(ProjectSuffix)) +
+      '-' + FormatDateTime('yyyymmdd-hhnnss', Now) + ProjectSuffix;
   FDownloadPending := True;
   FCloseWarningShown := False;
   OwnerWindow := Handle;
