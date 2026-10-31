@@ -28,6 +28,7 @@ export function ProjectFileCommands() {
     if (useEditorStore.getState().mediaImporting) return
     setOpening(true)
     useEditorStore.getState().setMediaImporting(true)
+    let stagedProjectId: string | undefined
     let createdProjectId: string | undefined
     const restoredIds: string[] = []
     let library: ProjectMediaLibrary | undefined
@@ -48,8 +49,9 @@ export function ProjectFileCommands() {
       validateProjectMedia(project.config, assetMetadata)
       const projectName = typeof project.webstudioProjectName === 'string' && project.webstudioProjectName.trim()
         ? project.webstudioProjectName : project.config.name
-      const id = useProjectsStore.getState().addProject(projectName, project)
-      createdProjectId = id
+      const id = `proj-${crypto.randomUUID()}`
+      if (useProjectsStore.getState().projects.some(item => item.id === id)) throw new Error('Project identity is already in use. Try opening the project again.')
+      stagedProjectId = id
       if (zip) {
         const allowedPaths = new Set(['project.webstudio.json'])
         for (const metadata of assetMetadata) {
@@ -72,17 +74,17 @@ export function ProjectFileCommands() {
           if (restored.asset.mime !== metadata.mime || restored.asset.size !== metadata.size) throw new Error(`Invalid media type or size: ${metadata.name}.`)
         }
         if (Object.values(zip.files).some(entry => !entry.dir && !allowedPaths.has(entry.name))) throw new Error('The project ZIP contains unexpected files.')
-        if (assetMetadata.length) useProjectsStore.getState().mediaChanged(id)
       }
+      useProjectsStore.getState().addProject(projectName, project, id)
+      createdProjectId = id
+      if (assetMetadata.length) useProjectsStore.getState().mediaChanged(id)
       useEditorStore.getState().setActiveProject(id)
       useConfigStore.getState().setConfig(project.config)
       navigate('/editor')
       toast.success(migrated ? 'Legacy project opened. Save a new WebStudio file to keep the upgrade.' : 'Project opened as a separate local copy.')
     } catch (error) {
-      if (createdProjectId) {
-        for (const id of restoredIds) await library?.remove(createdProjectId, id).catch(() => undefined)
-        useProjectsStore.getState().deleteProject(createdProjectId)
-      }
+      if (stagedProjectId) for (const id of restoredIds) await library?.remove(stagedProjectId, id).catch(() => undefined)
+      if (createdProjectId) useProjectsStore.getState().deleteProject(createdProjectId)
       toast.error(error instanceof Error ? error.message : 'Project could not be opened.')
     } finally {
       input.value = ''
