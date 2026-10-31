@@ -29,7 +29,7 @@ var MainForm: TMainForm;
 
 implementation
 
-uses Winapi.ActiveX, System.IOUtils;
+uses Winapi.ActiveX, System.IOUtils, WebStudio.ProjectSave;
 
 {$R *.dfm}
 
@@ -39,17 +39,21 @@ type
     FOwnerWindow: HWND;
     FOwner: TMainForm;
     FFileName: string;
+    FStagedPath: string;
+    FTargetPath: string;
   public
-    constructor Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName: string);
+    constructor Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName, AStagedPath, ATargetPath: string);
     function Invoke(const sender: ICoreWebView2DownloadOperation; const args: IUnknown): HResult; stdcall;
   end;
 
-constructor TDownloadStateHandler.Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName: string);
+constructor TDownloadStateHandler.Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName, AStagedPath, ATargetPath: string);
 begin
   inherited Create;
   FOwner := AOwner;
   FOwnerWindow := AOwnerWindow;
   FFileName := AFileName;
+  FStagedPath := AStagedPath;
+  FTargetPath := ATargetPath;
 end;
 
 function TDownloadStateHandler.Invoke(const sender: ICoreWebView2DownloadOperation; const args: IUnknown): HResult;
@@ -59,10 +63,20 @@ begin
   if not IsWindow(FOwnerWindow) or (FindControl(FOwnerWindow) <> FOwner) or
     (csDestroying in FOwner.ComponentState) or not Assigned(FOwner.StatusLabel) or
     Winapi.Windows.Failed(sender.Get_State(State)) then Exit;
-  if State = COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED then
-    FOwner.StatusLabel.Caption := 'Download completed: ' + FFileName
-  else if State = COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED then
-    FOwner.StatusLabel.Caption := 'Download interrupted: ' + FFileName + '. Try saving again.';
+  if State = COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED then begin
+    if FStagedPath <> '' then begin
+      try
+        CommitStagedProjectFile(FStagedPath, FTargetPath);
+      except
+        FOwner.StatusLabel.Caption := 'Project not saved. Check staged file: ' + FStagedPath;
+        Exit;
+      end;
+    end;
+    FOwner.StatusLabel.Caption := 'Download completed: ' + FFileName;
+  end else if State = COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED then begin
+    if FStagedPath <> '' then FOwner.StatusLabel.Caption := 'Project download interrupted. Check staged file: ' + FStagedPath
+    else FOwner.StatusLabel.Caption := 'Download interrupted: ' + FFileName + '. Try saving again.';
+  end;
 end;
 
 procedure TMainForm.FormCreate(Sender: TObject);
@@ -156,7 +170,8 @@ var
   StateHandler: ICoreWebView2StateChangedEventHandler;
   StateToken: EventRegistrationToken;
   Address, Suggested: PWideChar;
-  SuggestedName: string;
+  SuggestedName, SelectedPath, StagedPath: string;
+  StageId: TGUID;
   OwnerWindow: HWND;
   Allowed: Boolean;
 begin
@@ -192,14 +207,32 @@ begin
             try
               SaveDownloadDialog.FileName := SuggestedName;
               if SaveDownloadDialog.Execute then begin
-                if Winapi.Windows.Failed(DownloadArgs.Set_ResultFilePath(PWideChar(SaveDownloadDialog.FileName))) or
+                SelectedPath := SaveDownloadDialog.FileName;
+                StagedPath := '';
+                if LowerCase(SuggestedName).EndsWith('.webstudio.json') or LowerCase(SuggestedName).EndsWith('.webstudio.zip') then begin
+                  if TFile.Exists(SelectedPath) or TDirectory.Exists(SelectedPath) then begin
+                    DownloadArgs.Set_Cancel(1);
+                    StatusLabel.Caption := 'Existing project was not replaced. Save using a new filename.';
+                    FDownloadPending := False;
+                    Exit;
+                  end;
+                  if CreateGUID(StageId) <> 0 then raise EInvalidOpException.Create('Could not create a staged filename.');
+                  StagedPath := TPath.Combine(TPath.GetDirectoryName(SelectedPath), '.webstudio-download-' + GUIDToString(StageId) + '.tmp');
+                  if TFile.Exists(StagedPath) or TDirectory.Exists(StagedPath) then raise EInvalidOpException.Create('Staged filename is already in use.');
+                end;
+                if StagedPath <> '' then SelectedPath := StagedPath;
+                if Winapi.Windows.Failed(DownloadArgs.Set_ResultFilePath(PWideChar(SelectedPath))) or
                   Winapi.Windows.Failed(DownloadArgs.Set_Handled(1)) then begin
                   DownloadArgs.Set_Cancel(1);
                   StatusLabel.Caption := 'The download could not start.';
                 end else begin
-                  StateHandler := TDownloadStateHandler.Create(Self, OwnerWindow, ExtractFileName(SaveDownloadDialog.FileName));
-                  if Winapi.Windows.Failed(Operation.add_StateChanged(StateHandler, StateToken)) then
-                    StatusLabel.Caption := 'Download started; completion status is unavailable.';
+                  StateHandler := TDownloadStateHandler.Create(Self, OwnerWindow, ExtractFileName(SaveDownloadDialog.FileName), StagedPath, SaveDownloadDialog.FileName);
+                  if Winapi.Windows.Failed(Operation.add_StateChanged(StateHandler, StateToken)) then begin
+                    if StagedPath <> '' then begin
+                      DownloadArgs.Set_Cancel(1);
+                      StatusLabel.Caption := 'Project save could not start. Try again.';
+                    end else StatusLabel.Caption := 'Download started; completion status is unavailable.';
+                  end;
                 end;
               end else begin
                 DownloadArgs.Set_Cancel(1);
@@ -207,6 +240,9 @@ begin
               end;
             except
               DownloadArgs.Set_Cancel(1);
+              if IsWindow(OwnerWindow) and (FindControl(OwnerWindow) = Self) and
+                not (csDestroying in ComponentState) then
+                StatusLabel.Caption := 'Download could not start. Try again.';
             end;
             if IsWindow(OwnerWindow) and (FindControl(OwnerWindow) = Self) and
               not (csDestroying in ComponentState) then FDownloadPending := False;
