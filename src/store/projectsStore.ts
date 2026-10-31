@@ -192,6 +192,8 @@ export const useProjectsStore = create<ProjectsState>()(
                         typeof block.id !== 'string' || typeof block.type !== 'string' || typeof block.variant !== 'string' ||
                         !block.props || typeof block.props !== 'object' || Array.isArray(block.props))) throw new Error('Invalid project block.')
                     }
+                    if (Array.isArray(draft.blocks) && Array.isArray(draft.pages) && draft.pages.length > 0 &&
+                      !draft.pages.some(page => JSON.stringify(page.blocks) === JSON.stringify(draft.blocks))) throw new Error('Conflicting project blocks.')
                   }
                 }
               }

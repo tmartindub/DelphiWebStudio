@@ -80,6 +80,7 @@ describe('portable project storage', () => {
     '{"state":{"projects":[{"id":"same","name":"One"},{"id":"same","name":"Two"}]},"version":0}',
     '{"state":{"projects":[{"id":"one","name":"One","config":"damaged"}]},"version":0}',
     '{"state":{"projects":[{"id":"one","name":"One","config":{"name":"One","blocks":[null]}}]},"version":0}',
+    '{"state":{"projects":[{"id":"one","name":"One","config":{"name":"One","blocks":[{"id":"orphan","type":"future","variant":"x","props":{}}],"pages":[{"id":"home","name":"Home","path":"/","blocks":[]}]}}]},"version":0}',
     '{"state":{"projects":[{"id":"one","name":"One","config":{"name":"One","blocks":[{"id":"one","type":"hero","variant":"centered","props":null}]}}]},"version":0}',
     '{"state":{"projects":[{"id":"one","name":"One","projectFile":{"config":{"name":"One","pages":[{"id":"home","name":"Home","path":"/","blocks":[null]}]}}}]},"version":0}',
     '{"state":{"projects":[{"id":"one","name":"One","config":{"name":"One","blocks":[] ,"pages":[null]}}]},"version":0}',
@@ -122,6 +123,23 @@ describe('portable project storage', () => {
       expect(useProjectsStore.getState().projects[0].projectFile?.config.pages?.[0].name).toBe('Home')
       useProjectsStore.getState().addProject('Another')
       expect(JSON.parse(storedValues.get('openpage-projects')!).state.projects.find((item: { id: string }) => item.id === 'one').projectFile.config.pages[0].name).toBe('Home')
+    } finally {
+      storedValues.delete('openpage-projects')
+      await useProjectsStore.persist.rehydrate()
+    }
+  })
+  it('accepts legacy blocks matching a non-Home page', async () => {
+    const block = { id: 'news-block', type: 'futureBlock', variant: 'custom', props: { value: 'keep' } }
+    const stored = JSON.stringify({ state: { projects: [{ id: 'one', name: 'One', config: { name: 'One', blocks: [block], pages: [
+      { id: 'home', name: 'Home', path: '/', blocks: [] },
+      { id: 'news', name: 'News', path: '/news', blocks: [block] },
+    ] } }] }, version: 0 })
+    storedValues.set('openpage-projects', stored)
+    try {
+      await useProjectsStore.persist.rehydrate()
+      expect(useProjectsStore.getState().projects[0].config?.pages?.[1].blocks[0]).toMatchObject(block)
+      useProjectsStore.getState().addProject('Another')
+      expect(JSON.parse(storedValues.get('openpage-projects')!).state.projects.some((item: { id: string }) => item.id === 'one')).toBe(true)
     } finally {
       storedValues.delete('openpage-projects')
       await useProjectsStore.persist.rehydrate()
