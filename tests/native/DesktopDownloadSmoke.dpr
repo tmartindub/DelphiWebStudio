@@ -177,6 +177,7 @@ begin
       if Winapi.Windows.Failed(Observer.Operation.Get_State(DownloadState)) then raise Exception.Create('Could not inspect cancelled download.');
     until (DownloadState <> COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS) or (GetTickCount64 >= Deadline);
     if (DownloadState <> COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED) or TFile.Exists(ExtractFilePath(ParamStr(0)) + 'cancelled-project.zip') then raise Exception.Create('Cancelled download was not safely interrupted.');
+    if MainForm.StatusLabel.Caption <> 'Download canceled.' then raise Exception.Create('Cancellation was not reported in the shell.');
     Observer.Operation := nil;
     MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Save project").click()');
     Deadline := GetTickCount64 + 30000;
