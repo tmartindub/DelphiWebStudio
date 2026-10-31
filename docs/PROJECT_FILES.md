@@ -156,6 +156,8 @@ The current shell source warns on the first attempt to close while a project dow
 
 An isolated test also forcibly terminated its own test process during an active staged project download. A separate last-good test project remained unchanged, but no staged file was observed afterward. This was one forced-process termination, not a power-loss test; it did not establish whether recent editor changes survived in local draft storage.
 
+In a follow-up isolated forced-termination test, the editor first wrote a changed headline to its local draft, then its test process was terminated during a staged download. A new test shell using the same isolated profile reopened the draft and displayed that headline. This covers one edit after it reached local storage; it does not establish survival of unsaved edits, media writes, cleared storage, all shutdown timings or power loss.
+
 An isolated test recovered both JSON and ZIP copies of the five-page sample, reopened each in the editor, and verified that the website export contained all five pages. This test did not simulate a power failure or recover a damaged media archive.
 
 A separate isolated test recovered a five-page project ZIP containing the sample PDF, reopened it, and exported all five pages with an edited page link and the original PDF bytes intact. The native recovery test used legacy dialogs and a completed staged file; it did not simulate a power failure or establish that an interrupted download is complete.
