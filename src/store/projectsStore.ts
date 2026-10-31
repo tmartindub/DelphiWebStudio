@@ -172,6 +172,20 @@ export const useProjectsStore = create<ProjectsState>()(
                   const entry = project as Record<string, unknown>
                   if (typeof entry.id !== 'string' || !entry.id || typeof entry.name !== 'string' || ids.has(entry.id)) throw new Error('Invalid project identity.')
                   ids.add(entry.id)
+                  if (entry.settings !== undefined && (!entry.settings || typeof entry.settings !== 'object' || Array.isArray(entry.settings))) throw new Error('Invalid project settings.')
+                  if (entry.projectFile !== undefined && (!entry.projectFile || typeof entry.projectFile !== 'object' || Array.isArray(entry.projectFile))) throw new Error('Invalid stored project file.')
+                  const file = entry.projectFile as Record<string, unknown> | undefined
+                  if (file?.settings !== undefined && (!file.settings || typeof file.settings !== 'object' || Array.isArray(file.settings))) throw new Error('Invalid stored project settings.')
+                  for (const config of [entry.config, file?.config]) {
+                    if (config === undefined) continue
+                    if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('Invalid project configuration.')
+                    const draft = config as Record<string, unknown>
+                    if (typeof draft.name !== 'string' || !Array.isArray(draft.blocks)) throw new Error('Invalid project configuration.')
+                    if (draft.pages !== undefined && (!Array.isArray(draft.pages) || draft.pages.some(page =>
+                      !page || typeof page !== 'object' || Array.isArray(page) || typeof page.id !== 'string' ||
+                      typeof page.name !== 'string' || typeof page.path !== 'string' || !Array.isArray(page.blocks)
+                    ))) throw new Error('Invalid project pages.')
+                  }
                 }
               }
               projectDraftReadFailed = false

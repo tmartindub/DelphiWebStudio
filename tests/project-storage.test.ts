@@ -78,12 +78,31 @@ describe('portable project storage', () => {
     '{"state":{"projects":[null]},"version":0}',
     '{"state":{"projects":[{"id":"one"}]},"version":0}',
     '{"state":{"projects":[{"id":"same","name":"One"},{"id":"same","name":"Two"}]},"version":0}',
+    '{"state":{"projects":[{"id":"one","name":"One","config":"damaged"}]},"version":0}',
+    '{"state":{"projects":[{"id":"one","name":"One","config":{"name":"One","blocks":[] ,"pages":[null]}}]},"version":0}',
+    '{"state":{"projects":[{"id":"one","name":"One","settings":[]}]},"version":0}',
+    '{"state":{"projects":[{"id":"one","name":"One","projectFile":[]}]},"version":0}',
+    '{"state":{"projects":[{"id":"one","name":"One","projectFile":{"config":{"name":"One","blocks":"damaged"}}}]},"version":0}',
+    '{"state":{"projects":[{"id":"one","name":"One","projectFile":{"settings":"damaged"}}]},"version":0}',
   ])('protects incompatible project storage %s', async (stored) => {
     storedValues.set('openpage-projects', stored)
     try {
       await useProjectsStore.persist.rehydrate()
       useProjectsStore.getState().addProject('New in memory', document)
       expect(storedValues.get('openpage-projects')).toBe(stored)
+    } finally {
+      storedValues.delete('openpage-projects')
+      await useProjectsStore.persist.rehydrate()
+    }
+  })
+  it('loads an older valid project and keeps unknown configuration fields', async () => {
+    const stored = '{"state":{"projects":[{"id":"one","name":"One","config":{"name":"One","blocks":[],"pluginData":{"value":"keep"}}}]},"version":0}'
+    storedValues.set('openpage-projects', stored)
+    try {
+      await useProjectsStore.persist.rehydrate()
+      expect(useProjectsStore.getState().projects[0].config).toMatchObject({ pluginData: { value: 'keep' } })
+      useProjectsStore.getState().addProject('Another')
+      expect(JSON.parse(storedValues.get('openpage-projects')!).state.projects.find((item: { id: string }) => item.id === 'one').config.pluginData.value).toBe('keep')
     } finally {
       storedValues.delete('openpage-projects')
       await useProjectsStore.persist.rehydrate()
