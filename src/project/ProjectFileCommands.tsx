@@ -32,6 +32,7 @@ export function ProjectFileCommands() {
     const restoredIds: string[] = []
     let library: ProjectMediaLibrary | undefined
     try {
+      if (!file.name.toLowerCase().endsWith('.zip') && file.size > 100 * 1024 * 1024) throw new Error('The project file is too large to open safely (maximum 100 MiB).')
       const zip = file.name.toLowerCase().endsWith('.zip') ? await JSZip.loadAsync(await file.arrayBuffer()) : undefined
       if (zip && Object.values(zip.files).some(entry => !entry.dir && entry.unsafeOriginalName !== entry.name)) {
         throw new Error('The project ZIP contains unsafe file paths.')
@@ -39,7 +40,7 @@ export function ProjectFileCommands() {
       const manifest = zip?.file('project.webstudio.json')
       if (zip && !manifest) throw new Error('The project ZIP has no project.webstudio.json file.')
       const manifestSize = (manifest as (JSZip.JSZipObject & { _data?: { uncompressedSize?: number } }) | null | undefined)?._data?.uncompressedSize
-      if (manifest && (!Number.isSafeInteger(manifestSize) || (manifestSize! > 100 * 1024 * 1024 && manifestSize! > file.size * 1000))) throw new Error('The project ZIP manifest is too large to open safely.')
+      if (manifest && (!Number.isSafeInteger(manifestSize) || manifestSize! < 0 || manifestSize! > 100 * 1024 * 1024)) throw new Error('The project ZIP manifest is too large to open safely (maximum 100 MiB).')
       const { project, migrated } = parseProjectFile(manifest ? await manifest.async('string') : await file.text())
       const assetMetadata = project.assets === undefined ? [] : project.assets
       if (!Array.isArray(assetMetadata)) throw new Error('The project media list is invalid.')

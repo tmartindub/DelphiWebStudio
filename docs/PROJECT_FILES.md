@@ -107,3 +107,7 @@ Article pages use optional `webstudioArticle` metadata on ordinary pages. Drafts
 For Hero, CTA, Banner and Navbar buttons rendered by the HTML exporter, unsupported link schemes, protocol-relative URLs, backslashes and control characters are exported as text rather than active links. **Check site** reports destinations it can inspect; project validation may reject some invalid URLs earlier. This check does not cover every URL field or plugin and is not a complete security audit.
 
 In the experimental Delphi desktop shell, Save project and Export prompt for a destination using a Windows Save dialog. Cancelling the dialog cancels the download; choosing an existing file invokes the dialog's overwrite confirmation. The dialog test used an isolated profile and legacy-dialog automation; normal interactive and clean-machine testing remain open. This is still a browser-download snapshot, not a completed native atomic project save.
+
+Opening a project rejects a JSON file or ZIP manifest larger than 100 MiB before reading its contents. The ZIP may be larger when it contains media. This limit helps prevent excessive manifest allocation; it is not a complete defense against every oversized or malformed archive.
+
+An isolated browser check rejected an oversized JSON file and a ZIP whose manifest metadata claimed more than 100 MiB, then opened the five-page sample in the same session. This does not test every archive or complete native save and recovery.
