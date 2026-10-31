@@ -40,6 +40,10 @@ With the feature enabled, Export produces a ZIP containing a separate HTML file 
 
 Native safe save/recovery and portable assets remain outstanding. Existing footer/navbar links are not yet bound to page IDs. The feature gate remains experimental until the complete acceptance tests pass.
 
+## Five-page project and media round trip
+
+An isolated browser test opened the five-page sample, imported the sample bulletin PDF, edited News to link to About and the PDF, saved a project ZIP and reopened it as a separate copy. It then exported a website ZIP and verified all five HTML files, the edited text, the rewritten About link, the PDF link, and the original PDF bytes in both ZIPs. This is one browser workflow, not proof of native atomic saving, recovery or all page and asset combinations. The test did not publish a website.
+
 ## Native create-only save increment
 
 `desktop/project/WebStudio.ProjectSave.pas` can write a caller-supplied byte snapshot to a uniquely named temporary file beside a new target, flush it, and move it into place without a replace flag. It rejects relative paths and does not overwrite an existing target. The caller must choose the destination and validate the snapshot; this unit is not connected to the editor or a file dialog. It does not implement Save over an existing project, crash recovery, conflict detection, a transactional multi-file project, or protection against a hostile process changing the destination directory.
