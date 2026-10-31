@@ -3,12 +3,14 @@ program ProjectSaveSmoke;
 uses System.SysUtils, System.IOUtils, System.Classes, System.Zip, WebStudio.ProjectSave in '..\..\desktop\project\WebStudio.ProjectSave.pas', WebStudio.ProjectOpen in '..\..\desktop\project\WebStudio.ProjectOpen.pas';
 var
   Id: TGUID;
-  Folder, Target, EmptyTarget, RecoveryTarget, NestedRecovery, EmptyRecovery, UnicodeTarget, UnicodeRecovery: string;
-  Data, Actual, RecoveryBytes: TBytes;
-  Index: Integer;
+  Folder, Target, EmptyTarget, RecoveryTarget, NestedRecovery, EmptyRecovery, UnicodeTarget, UnicodeRecovery,
+  RestoredTarget, RestoredEmpty, RestoredZip, RestoredUnicode, InvalidTarget, CorruptRecovery, MultiRecovery, TraversalRecovery, CrcRecovery: string;
+  Data, Actual, RecoveryBytes, OriginalName, InvalidName: TBytes;
+  Index, MatchCount, DataOffset: Integer;
   Rejected: Boolean;
   LockedFile: TFileStream;
   Archive: TZipFile;
+  Buffer: TMemoryStream;
 begin
   if CreateGUID(Id) <> 0 then raise Exception.Create('Could not make test ID.');
   Folder := TPath.Combine(TPath.Combine(GetCurrentDir, 'test-results'), 'native-save-' + GUIDToString(Id));
@@ -21,6 +23,15 @@ begin
   EmptyRecovery := TPath.Combine(Folder, 'empty-recovery.zip');
   UnicodeTarget := TPath.Combine(Folder, 'caf' + #$00E9 + '-' + #$4F1A + '.webstudio.json');
   UnicodeRecovery := TPath.Combine(Folder, 'unicode-recovery.zip');
+  RestoredTarget := TPath.Combine(Folder, 'restored.webstudio.json');
+  RestoredEmpty := TPath.Combine(Folder, 'restored-empty.webstudio.json');
+  RestoredZip := TPath.Combine(Folder, 'restored.webstudio.zip');
+  RestoredUnicode := TPath.Combine(Folder, 'restored-unicode.webstudio.json');
+  InvalidTarget := TPath.Combine(Folder, 'invalid-output.webstudio.json');
+  CorruptRecovery := TPath.Combine(Folder, 'corrupt-recovery.zip');
+  MultiRecovery := TPath.Combine(Folder, 'multi-recovery.zip');
+  TraversalRecovery := TPath.Combine(Folder, 'traversal-recovery.zip');
+  CrcRecovery := TPath.Combine(Folder, 'crc-recovery.zip');
   try
     SetLength(Data, 1048587);
     for Index := 0 to High(Data) do Data[Index] := Byte(Index mod 251);
@@ -54,6 +65,22 @@ begin
     finally Archive.Free end;
     if Length(RecoveryBytes) <> Length(Data) then raise Exception.Create('Recovery byte count differs.');
     for Index := 0 to High(Data) do if Data[Index] <> RecoveryBytes[Index] then raise Exception.Create('Recovery bytes differ.');
+    RestoreProjectRecoveryZip(RecoveryTarget, RestoredTarget, TFile.GetSize(RecoveryTarget), Length(Data));
+    Actual := TFile.ReadAllBytes(RestoredTarget);
+    if Length(Actual) <> Length(Data) then raise Exception.Create('Restored project length differs.');
+    for Index := 0 to High(Data) do if Actual[Index] <> Data[Index] then raise Exception.Create('Restored project bytes differ.');
+    Rejected := False;
+    try RestoreProjectRecoveryZip(RecoveryTarget, Target, TFile.GetSize(RecoveryTarget), Length(Data));
+    except on E: EOSError do Rejected := True end;
+    if not Rejected then raise Exception.Create('Restore overwrote an existing project.');
+    Rejected := False;
+    try RestoreProjectRecoveryZip(RecoveryTarget, InvalidTarget, TFile.GetSize(RecoveryTarget) - 1, Length(Data));
+    except on E: EArgumentException do Rejected := True end;
+    if not Rejected or TFile.Exists(InvalidTarget) then raise Exception.Create('Recovery ZIP size limit was ignored.');
+    Rejected := False;
+    try RestoreProjectRecoveryZip(RecoveryTarget, InvalidTarget, TFile.GetSize(RecoveryTarget), Length(Data) - 1);
+    except on E: EArgumentException do Rejected := True end;
+    if not Rejected or TFile.Exists(InvalidTarget) then raise Exception.Create('Restored project size limit was ignored.');
     Actual := TFile.ReadAllBytes(RecoveryTarget);
     SaveProjectRecoveryZip(RecoveryTarget, NestedRecovery, Length(Actual));
     Archive := TZipFile.Create;
@@ -63,6 +90,10 @@ begin
     finally Archive.Free end;
     if Length(Actual) <> Length(RecoveryBytes) then raise Exception.Create('ZIP project recovery length differs.');
     for Index := 0 to High(Actual) do if Actual[Index] <> RecoveryBytes[Index] then raise Exception.Create('ZIP project recovery bytes differ.');
+    RestoreProjectRecoveryZip(NestedRecovery, RestoredZip, TFile.GetSize(NestedRecovery), Length(Actual));
+    RecoveryBytes := TFile.ReadAllBytes(RestoredZip);
+    if Length(Actual) <> Length(RecoveryBytes) then raise Exception.Create('Restored ZIP length differs.');
+    for Index := 0 to High(Actual) do if Actual[Index] <> RecoveryBytes[Index] then raise Exception.Create('Restored ZIP bytes differ.');
     Rejected := False;
     try SaveProjectRecoveryZip(Target, RecoveryTarget, Length(Data));
     except on E: EOSError do Rejected := True end;
@@ -103,6 +134,59 @@ begin
       Archive.Read('empty.webstudio.json', RecoveryBytes);
     finally Archive.Free end;
     if Length(RecoveryBytes) <> 0 then raise Exception.Create('Empty recovery differs.');
+    RestoreProjectRecoveryZip(EmptyRecovery, RestoredEmpty, TFile.GetSize(EmptyRecovery), 0);
+    if TFile.GetSize(RestoredEmpty) <> 0 then raise Exception.Create('Restored empty file differs.');
+    SaveNewProjectFile(CorruptRecovery, TEncoding.UTF8.GetBytes('not a ZIP'));
+    Rejected := False;
+    try RestoreProjectRecoveryZip(CorruptRecovery, InvalidTarget, TFile.GetSize(CorruptRecovery), Length(Data));
+    except on E: EZipException do Rejected := True end;
+    if not Rejected or TFile.Exists(InvalidTarget) then raise Exception.Create('Corrupt recovery ZIP was accepted.');
+    Archive := TZipFile.Create;
+    try
+      Archive.Open(MultiRecovery, zmWrite);
+      Archive.Add(Data, 'one.json');
+      Archive.Add(Data, 'two.json');
+      Archive.Close;
+    finally Archive.Free end;
+    Rejected := False;
+    try RestoreProjectRecoveryZip(MultiRecovery, InvalidTarget, TFile.GetSize(MultiRecovery), Length(Data));
+    except on E: EArgumentException do Rejected := True end;
+    if not Rejected or TFile.Exists(InvalidTarget) then raise Exception.Create('Multi-entry recovery ZIP was accepted.');
+    Actual := TFile.ReadAllBytes(RecoveryTarget);
+    OriginalName := TEncoding.UTF8.GetBytes('project.webstudio.json');
+    InvalidName := Copy(OriginalName);
+    InvalidName[0] := Ord('.'); InvalidName[1] := Ord('.'); InvalidName[2] := Ord('/');
+    MatchCount := 0;
+    for Index := 0 to Length(Actual) - Length(OriginalName) do
+      if CompareMem(@Actual[Index], @OriginalName[0], Length(OriginalName)) then begin
+        Move(InvalidName[0], Actual[Index], Length(InvalidName));
+        Inc(MatchCount);
+      end;
+    if MatchCount <> 2 then raise Exception.Create('Could not prepare the traversal archive.');
+    SaveNewProjectFile(TraversalRecovery, Actual);
+    Rejected := False;
+    try RestoreProjectRecoveryZip(TraversalRecovery, InvalidTarget, TFile.GetSize(TraversalRecovery), Length(Data));
+    except on E: EArgumentException do Rejected := True end;
+    if not Rejected or TFile.Exists(InvalidTarget) then raise Exception.Create('Traversal recovery ZIP was accepted.');
+    Buffer := TMemoryStream.Create;
+    try
+      Archive := TZipFile.Create;
+      try
+        Archive.Open(Buffer, zmWrite);
+        Archive.Add(Data, 'stored.json', zcStored);
+        Archive.Close;
+      finally Archive.Free end;
+      SetLength(Actual, Buffer.Size);
+      Move(Buffer.Memory^, Actual[0], Length(Actual));
+    finally Buffer.Free end;
+    DataOffset := 30 + Actual[26] + 256 * Actual[27] + Actual[28] + 256 * Actual[29];
+    if DataOffset >= Length(Actual) then raise Exception.Create('Could not prepare the CRC archive.');
+    Actual[DataOffset] := Actual[DataOffset] xor $FF;
+    SaveNewProjectFile(CrcRecovery, Actual);
+    Rejected := False;
+    try RestoreProjectRecoveryZip(CrcRecovery, InvalidTarget, TFile.GetSize(CrcRecovery), Length(Data));
+    except on E: EZipCRCException do Rejected := True end;
+    if not Rejected or TFile.Exists(InvalidTarget) then raise Exception.Create('Bad recovery CRC was accepted.');
     SaveNewProjectFile(UnicodeTarget, Data);
     SaveProjectRecoveryZip(UnicodeTarget, UnicodeRecovery, Length(Data));
     Archive := TZipFile.Create;
@@ -113,6 +197,10 @@ begin
     finally Archive.Free end;
     if Length(RecoveryBytes) <> Length(Data) then raise Exception.Create('Unicode recovery length differs.');
     for Index := 0 to High(Data) do if Data[Index] <> RecoveryBytes[Index] then raise Exception.Create('Unicode recovery bytes differ.');
+    RestoreProjectRecoveryZip(UnicodeRecovery, RestoredUnicode, TFile.GetSize(UnicodeRecovery), Length(Data));
+    Actual := TFile.ReadAllBytes(RestoredUnicode);
+    if Length(Actual) <> Length(Data) then raise Exception.Create('Restored Unicode project length differs.');
+    for Index := 0 to High(Data) do if Actual[Index] <> Data[Index] then raise Exception.Create('Restored Unicode project bytes differ.');
     Rejected := False;
     try ReadProjectFile('relative.webstudio.json', 100);
     except on E: EArgumentException do Rejected := True end;
@@ -125,8 +213,8 @@ begin
     try SaveNewProjectFile(TPath.Combine(Folder, 'missing\project.json'), nil);
     except on E: EOSError do Rejected := True end;
     if not Rejected then raise Exception.Create('Missing folder was accepted.');
-    if Length(TDirectory.GetFiles(Folder)) <> 7 then raise Exception.Create('Temporary files were left behind.');
-    Writeln('Native create-only save, bounded open and ZIP recovery snapshot passed.');
+    if Length(TDirectory.GetFiles(Folder)) <> 15 then raise Exception.Create('Temporary files were left behind.');
+    Writeln('Native create-only save, bounded open, ZIP snapshot and restore passed.');
   finally
     if TFile.Exists(Target) then TFile.Delete(Target);
     if TFile.Exists(EmptyTarget) then TFile.Delete(EmptyTarget);
@@ -135,6 +223,14 @@ begin
     if TFile.Exists(EmptyRecovery) then TFile.Delete(EmptyRecovery);
     if TFile.Exists(UnicodeTarget) then TFile.Delete(UnicodeTarget);
     if TFile.Exists(UnicodeRecovery) then TFile.Delete(UnicodeRecovery);
+    if TFile.Exists(RestoredTarget) then TFile.Delete(RestoredTarget);
+    if TFile.Exists(RestoredEmpty) then TFile.Delete(RestoredEmpty);
+    if TFile.Exists(RestoredZip) then TFile.Delete(RestoredZip);
+    if TFile.Exists(RestoredUnicode) then TFile.Delete(RestoredUnicode);
+    if TFile.Exists(CorruptRecovery) then TFile.Delete(CorruptRecovery);
+    if TFile.Exists(MultiRecovery) then TFile.Delete(MultiRecovery);
+    if TFile.Exists(TraversalRecovery) then TFile.Delete(TraversalRecovery);
+    if TFile.Exists(CrcRecovery) then TFile.Delete(CrcRecovery);
     TDirectory.Delete(Folder, False);
   end;
 end.
