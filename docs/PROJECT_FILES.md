@@ -18,6 +18,8 @@ Save validates a snapshot and starts a JSON download. Browser download settings 
 
 While the editor is open, changes are written to the browser draft as the editor state changes, without waiting for a later screen refresh. Browser storage can still be cleared or fail, so use **Save project** to keep a separate portable copy.
 
+An isolated browser test opened a five-page project with a PDF, edited News, closed the test browser normally, restarted it with the same isolated profile, and reopened the draft. The edit and original PDF bytes remained available in a subsequent project ZIP. This checks a clean browser restart, not a crash, power loss, disk failure, cleared storage or the desktop native-save workflow.
+
 If writing local draft storage fails, the editor keeps the current in-memory edits and displays a persistent warning to save a separate project file before closing. A browser test simulated storage quota failures and confirmed that a subsequent separate project download contained the current edit. A restart before saving can still lose changes; this is not crash recovery.
 
 If a local draft cannot be read, contains malformed JSON, has an incompatible basic structure, or uses a newer storage version, the editor warns on startup and prevents writes to the affected stored draft for that session. Save any new work separately before restarting to retry. Isolated browser tests simulated inaccessible and incompatible storage, confirmed the original stored values were unchanged, and requested a separate project download. This does not repair corrupted data or detect every possible invalid storage structure.
