@@ -56,6 +56,13 @@ begin
       Value := MainForm.EditorBrowser.ExecuteScript('!!Array.from(document.querySelectorAll("button")).find(b => b.textContent.includes("Connect a community or club"))', '');
     until (Value = 'true') or (GetTickCount64 >= Deadline);
     if Value <> 'true' then raise Exception.Create('Community starter not found: ' + MainForm.EditorBrowser.ExecuteScript('document.body.innerText.slice(0,1000)', ''));
+    MainForm.EditorBrowser.ExecuteScript('window.testInline=0;window.testData=0;window.testBlob=0;window.policyBlocks=0;document.addEventListener("securitypolicyviolation",()=>window.policyBlocks++);const a=document.createElement("script");a.textContent="window.testInline=1";document.head.appendChild(a);const b=document.createElement("script");b.src="data:text/javascript,window.testData%3D1";document.head.appendChild(b);const c=document.createElement("script");c.src=URL.createObjectURL(new Blob(["window.testBlob=1"],{type:"text/javascript"}));document.head.appendChild(c);const d=document.createElement("script");d.src="https://example.invalid/test.js";document.head.appendChild(d)');
+    Deadline := GetTickCount64 + 5000;
+    repeat
+      CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+      Value := MainForm.EditorBrowser.ExecuteScript('window.policyBlocks>=4 && window.testInline===0 && window.testData===0 && window.testBlob===0', '');
+    until (Value = 'true') or (GetTickCount64 >= Deadline);
+    if Value <> 'true' then raise Exception.Create('Desktop script policy did not block the test scripts.');
     MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(b => b.textContent.includes("Connect a community or club")).click()');
     Deadline := GetTickCount64 + 10000;
     repeat
