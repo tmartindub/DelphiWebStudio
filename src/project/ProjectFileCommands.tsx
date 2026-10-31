@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { useProjectsStore } from '@/store/projectsStore'
-import { createProjectFile, parseProjectFile, portableProjectsEnabled, readProjectZipManifest, serializeProjectFile, validateProjectMedia } from './project-file'
+import { createProjectFile, decodeProjectFile, parseProjectFile, portableProjectsEnabled, readProjectZipManifest, serializeProjectFile, validateProjectMedia } from './project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
 import JSZip from 'jszip'
 import { ProjectRevisions, type ProjectRevision } from './project-revisions'
@@ -65,7 +65,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       }
       const manifest = zip?.file('project.webstudio.json')
       if (zip && !manifest) throw new Error('The project ZIP has no project.webstudio.json file.')
-      const contents = manifest ? await readProjectZipManifest(manifest) : await file.text()
+      const contents = manifest ? await readProjectZipManifest(manifest) : decodeProjectFile(new Uint8Array(await file.arrayBuffer()))
       const { project, migrated } = parseProjectFile(contents)
       const assetMetadata = project.assets === undefined ? [] : project.assets
       if (!Array.isArray(assetMetadata)) throw new Error('The project media list is invalid.')

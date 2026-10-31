@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import JSZip from 'jszip'
-import { createProjectFile, parseProjectFile, readProjectZipManifest, serializeProjectFile, validateProjectConfig, validateProjectMedia } from '../src/project/project-file'
+import { createProjectFile, decodeProjectFile, parseProjectFile, readProjectZipManifest, serializeProjectFile, validateProjectConfig, validateProjectMedia } from '../src/project/project-file'
 import type { SiteConfig } from '../src/blocks/types'
 
 const legacy = { name: 'My site', blocks: [{ id: 'hero', type: 'hero', variant: 'centered', props: { headline: 'Hello' } }] }
@@ -13,6 +13,12 @@ const fivePages = {
 }
 
 describe('portable project files', () => {
+  it('decodes UTF-8 project text without silently replacing damaged bytes', () => {
+    const text = '{"name":"Café 社区"}'
+    expect(decodeProjectFile(new TextEncoder().encode(text))).toBe(text)
+    expect(decodeProjectFile(new Uint8Array([0xef, 0xbb, 0xbf, ...new TextEncoder().encode(text)]))).toBe(text)
+    expect(() => decodeProjectFile(new Uint8Array([0xc3, 0x28]))).toThrow('not valid UTF-8')
+  })
   it('checks ZIP manifest integrity before reading project content', async () => {
     const text = '{"name":"Hello world"}'
     const zip = new JSZip()

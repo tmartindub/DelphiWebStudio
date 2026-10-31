@@ -13,6 +13,12 @@ export interface SiteProjectFile {
   [key: string]: unknown
 }
 
+/** Reject damaged UTF-8 instead of silently replacing project text. */
+export function decodeProjectFile(bytes: Uint8Array): string {
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes) }
+  catch { throw new Error('The project file is not valid UTF-8.') }
+}
+
 /** Read a bounded ZIP manifest only after verifying its recorded checksum. */
 export async function readProjectZipManifest(manifest: JSZip.JSZipObject): Promise<string> {
   const metadata = (manifest as JSZip.JSZipObject & { _data?: { uncompressedSize?: number; crc32?: number } })._data
@@ -22,8 +28,7 @@ export async function readProjectZipManifest(manifest: JSZip.JSZipObject): Promi
   if (!Number.isInteger(metadata?.crc32)) throw new Error('The project ZIP manifest checksum is missing.')
   const bytes = await manifest.async('uint8array')
   if ((crc32(bytes) >>> 0) !== (metadata!.crc32! >>> 0)) throw new Error('The project ZIP manifest is damaged; its checksum does not match.')
-  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes) }
-  catch { throw new Error('The project ZIP manifest is not valid UTF-8.') }
+  return decodeProjectFile(bytes)
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {

@@ -196,4 +196,6 @@ Opening a project rejects a JSON file or ZIP manifest larger than 100 MiB before
 
 Opening a project ZIP verifies the manifest's recorded CRC and requires valid UTF-8 before parsing it. An isolated browser test rejected a ZIP with altered manifest bytes while preserving the current project, then opened a valid project ZIP containing a PDF. CRC detects accidental corruption; it does not authenticate the archive or establish protection against a deliberately crafted ZIP. This check uses metadata and the CRC implementation from the pinned JSZip version.
 
+Opening a standalone JSON project also requires valid UTF-8, so invalid bytes are reported instead of silently replaced in project text. An isolated browser test rejected a damaged JSON file, preserved the current project and then opened valid JSON. UTF-8 files with a byte-order mark remain supported.
+
 An isolated browser check rejected an oversized JSON file and a ZIP whose manifest metadata claimed more than 100 MiB, then opened the five-page sample in the same session. Another browser check simulated an oversized serialized manifest, verified that no download was started, then restored the normal size and saved the sample. This does not test every archive or complete native save and recovery.
