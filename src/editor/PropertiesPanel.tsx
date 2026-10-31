@@ -635,6 +635,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function PropertiesPanel({ block }: { block: BlockConfig }) {
   const [showJson, setShowJson] = useState(false)
+  const updateBlock = useConfigStore((state) => state.updateBlock)
   const schema = Object.hasOwn(blockFields, block.type) ? blockFields[block.type] : undefined
 
   return (
@@ -661,6 +662,16 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
           No editable properties defined for this block type.
         </div>
       )}
+
+      <Section title="Screen visibility">
+        <p className="mb-2 text-[11px] text-text-3">Choose the screen sizes where this section appears.</p>
+        {(['mobile', 'tablet', 'desktop'] as const).map(device => <label key={device} className="flex items-center gap-2 py-1 text-xs text-text-1">
+          <input type="checkbox" checked={!block.webstudioHiddenOn?.[device]} onChange={event => updateBlock(block.id, {
+            webstudioHiddenOn: { ...block.webstudioHiddenOn, [device]: !event.target.checked },
+          })} /> Show on {device}
+        </label>)}
+        <p className="mt-2 text-[10px] text-text-3">Hidden sections stay available while editing.</p>
+      </Section>
 
       {/* View JSON toggle */}
       <div className="border-t border-border-subtle">

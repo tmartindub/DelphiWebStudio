@@ -31,6 +31,7 @@ export interface BlockConfig {
   variant: BlockVariant
   props: Record<string, unknown>
   webstudioSharedSectionId?: string
+  webstudioHiddenOn?: { mobile?: boolean; tablet?: boolean; desktop?: boolean }
 }
 
 export interface ThemeConfig {

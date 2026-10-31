@@ -9,11 +9,12 @@ import type { BlockConfig } from './types'
 interface Props {
   block: BlockConfig
   isSelected: boolean
+  hiddenOnCurrentWidth?: boolean
   onSelect: () => void
   children: ReactNode
 }
 
-export function BlockWrapper({ block, isSelected, onSelect, children }: Props) {
+export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect, children }: Props) {
   const blocks = useConfigStore((s) => {
     const pages = s.config.pages
     if (!pages || pages.length === 0) return s.config.blocks
@@ -79,6 +80,7 @@ export function BlockWrapper({ block, isSelected, onSelect, children }: Props) {
       style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
     >
       {/* Block type tag */}
+      {hiddenOnCurrentWidth && <span className="absolute top-8 left-1.5 text-[10px] bg-bg-2 border border-border-default rounded px-1.5 py-0.5 z-10">Hidden at this width in preview and export</span>}
       <span
         className={`absolute top-1.5 left-1.5 text-[9px] font-semibold uppercase tracking-wider text-green bg-green-glow px-1.5 py-0.5 rounded transition-opacity z-10 ${
           isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'

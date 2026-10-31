@@ -19,6 +19,13 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('exports responsive visibility without removing the section content', () => {
+    const html = exportSiteToHTML({ ...baseConfig, blocks: [{ ...baseConfig.blocks[0], webstudioHiddenOn: { mobile: true, desktop: true } }] })
+    expect(html).toContain('class="ws-hidden-mobile ws-hidden-desktop"')
+    expect(html).toContain('@media (max-width: 479px) { .ws-hidden-mobile { display: none !important; } }')
+    expect(html).toContain('@media (min-width: 900px) { .ws-hidden-desktop { display: none !important; } }')
+    expect(html).toContain('Hello')
+  })
   it('renders unsafe button destinations as text while retaining supported links', () => {
     const hero = baseConfig.blocks[0]
     for (const url of ['javascript:alert(1)', 'JaVaScRiPt:alert(1)', 'data:text/html,test', '//evil.example', '/\\evil.example', 'java\nscript:alert(1)']) {

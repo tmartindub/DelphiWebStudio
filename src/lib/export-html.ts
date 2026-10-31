@@ -1239,7 +1239,11 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
   const hasFaq = config.blocks.some((b) => b.type === 'faq')
   const hasContact = config.blocks.some((b) => b.type === 'contact')
 
-  const blocksHtml = `<main id="main-content" tabindex="-1" class="@container">${config.blocks.map((b) => renderBlock(b)).join('\n\n')}</main>`
+  const blocksHtml = `<main id="main-content" tabindex="-1" class="@container">${config.blocks.map((block) => {
+    const classes = (['mobile', 'tablet', 'desktop'] as const).filter(device => block.webstudioHiddenOn?.[device] === true).map(device => `ws-hidden-${device}`)
+    const html = renderBlock(block)
+    return classes.length ? `<div class="${classes.join(' ')}">${html}</div>` : html
+  }).join('\n\n')}</main>`
 
   const pageTitle = (settings?.seoTitle || settings?.siteName || config.name || 'Website').trim()
   const pageDescription = (settings?.seoDescription || settings?.siteDescription || '').trim()
@@ -1372,6 +1376,9 @@ ${ogDescriptionMeta}${ogImageMeta}${faviconLink}
 
     html { font-size: 14px; }
     *, *::before, *::after { box-sizing: border-box; }
+    @media (max-width: 479px) { .ws-hidden-mobile { display: none !important; } }
+    @media (min-width: 480px) and (max-width: 899px) { .ws-hidden-tablet { display: none !important; } }
+    @media (min-width: 900px) { .ws-hidden-desktop { display: none !important; } }
     .skip-to-content { position: fixed; top: -100px; left: 8px; z-index: 9999; padding: 10px 14px; background: #fff; color: #000; border: 2px solid #000; }
     .skip-to-content:focus { top: 8px; }
     :focus-visible { outline: 3px solid #f28a25; outline-offset: 3px; }

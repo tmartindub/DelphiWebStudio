@@ -88,6 +88,9 @@ export function Canvas() {
         {!!activeArticle.tags?.length && <p className="text-sm">Tags: {activeArticle.tags.join(', ')}</p>}
       </header>}
       {blocks.length === 0 ? <div className="bg-[#dce8f3] min-h-[400px] flex"><CanvasEmpty /></div> : blocks.map((block) => {
+        const device = previewWidth < 480 ? 'mobile' : previewWidth < 900 ? 'tablet' : 'desktop'
+        const hiddenOnCurrentWidth = block.webstudioHiddenOn?.[device] === true
+        if (previewMode && hiddenOnCurrentWidth) return null
         const props = Object.fromEntries(Object.entries(block.props).map(([key, value]) => {
           if (typeof value === 'string' && /^(src|image|logoImage|heroImage|avatar|url)$/i.test(key)) return [key, assetUrls[value] ?? value]
           if (Array.isArray(value)) return [key, value.map(item => item && typeof item === 'object' && !Array.isArray(item)
@@ -101,6 +104,7 @@ export function Canvas() {
           key={block.id}
           block={block}
           isSelected={selectedBlockId === block.id}
+          hiddenOnCurrentWidth={hiddenOnCurrentWidth}
           onSelect={() => selectBlock(block.id)}
         >
           <RenderBlock block={{ ...block, props }} />

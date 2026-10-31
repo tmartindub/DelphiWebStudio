@@ -13,6 +13,13 @@ const fivePages = {
 }
 
 describe('portable project files', () => {
+  it('preserves responsive visibility and rejects invalid values', () => {
+    const config = { name: 'Site', blocks: [{ id: 'one', type: 'content', variant: 'prose', props: { body: 'Text' }, webstudioHiddenOn: { mobile: true, tablet: false } }] }
+    const project = createProjectFile(validateProjectConfig(config), 'project')
+    const reopened = parseProjectFile(serializeProjectFile(project)).project.config
+    expect(reopened.blocks[0].webstudioHiddenOn).toEqual({ mobile: true, tablet: false })
+    expect(() => validateProjectConfig({ ...config, blocks: [{ ...config.blocks[0], webstudioHiddenOn: { mobile: 'yes' } }] })).toThrow('true or false')
+  })
   it('retains shared header identifiers across a project save and reopen', () => {
     const config = validateProjectConfig({ name: 'Site', pages: [
       { id: 'home', name: 'Home', path: '/', blocks: [{ id: 'one', type: 'navbar', variant: 'default', props: { logoText: 'Site' }, webstudioSharedSectionId: 'shared' }] },

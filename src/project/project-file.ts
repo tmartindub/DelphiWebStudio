@@ -96,6 +96,12 @@ export function validateProjectConfig(value: unknown): SiteConfig {
       text(block.type, 'Block type')
       text(block.variant, 'Block variant')
       record(block.props, 'Block properties')
+      if (block.webstudioHiddenOn !== undefined) {
+        const hidden = record(block.webstudioHiddenOn, 'Responsive visibility')
+        for (const device of ['mobile', 'tablet', 'desktop']) {
+          if (hidden[device] !== undefined && typeof hidden[device] !== 'boolean') throw new Error('Responsive visibility must be true or false.')
+        }
+      }
       return structuredClone(block) as unknown as BlockConfig
     })
   }
