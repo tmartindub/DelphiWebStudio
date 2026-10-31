@@ -6,6 +6,8 @@ Last changed: 2026-10-31. Tracking: issue #2. M1 is not complete and this is not
 
 The dashboard offers Personal, Portfolio, Community, Church, School club, Business, Documentation and Blog starters. Each begins with editable prompts suited to its purpose; replace the prompts with your own information. **Start blank** creates an empty site instead.
 
+For a Content section, select text in the Body field and use **Bold**, **Italic**, **Heading**, or **List**. Formatting markers appear in the field; the page preview and exported website show the formatted result. Heading and List apply to the selected lines. The field also supports links as described beside it.
+
 The editor's **Mode** menu chooses an initial workspace: Beginner opens Components, Designer opens Layers and the Design panel when no block is selected, and Professional opens Layers and the editable project JSON. All modes work on the same project and you can switch panels yourself. Professional HTML/CSS/JS source editing is not yet implemented.
 
 Use the duplicate icon beside the active page to create a copy with a new address. Its blocks receive new IDs and can be edited independently, except for explicitly shared headers or footers, which remain shared. Links in the copy keep their original destinations. Copied article pages start as drafts. Undo removes the duplicate.

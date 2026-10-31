@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, ChevronRight, Code } from 'lucide-react'
 import type { BlockConfig, BlockType } from '@/blocks/types'
 import { useConfigStore } from '@/store/configStore'
@@ -351,6 +351,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
 }
 
 function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }) {
+  const textArea = useRef<HTMLTextAreaElement>(null)
   const updateBlockProps = useConfigStore((s) => s.updateBlockProps)
   const updateBlock = useConfigStore((s) => s.updateBlock)
   const pages = useConfigStore((s) => s.config.pages)
@@ -444,7 +445,37 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
       return (
         <div className="mb-2.5">
           <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{field.label}</label>
+          {contentMedia && <div role="toolbar" aria-label="Text formatting" className="mb-1 flex flex-wrap gap-1">
+            {(['Bold', 'Italic', 'Heading', 'List'] as const).map(format => <button key={format} type="button" onMouseDown={event => event.preventDefault()} onClick={() => {
+              const input = textArea.current
+              if (!input) return
+              const text = String(value || '')
+              let start = input.selectionStart
+              let end = input.selectionEnd
+              let replacement: string
+              let selectStart: number
+              let selectEnd: number
+              if (format === 'Bold' || format === 'Italic') {
+                const marker = format === 'Bold' ? '**' : '*'
+                replacement = marker + text.slice(start, end) + marker
+                selectStart = start + marker.length
+                selectEnd = selectStart + end - start
+              } else {
+                start = start === 0 ? 0 : text.lastIndexOf('\n', start - 1) + 1
+                const lineEnd = text.indexOf('\n', end)
+                end = lineEnd < 0 ? text.length : lineEnd
+                const prefix = format === 'Heading' ? '## ' : '- '
+                replacement = text.slice(start, end).split('\n').map(line => prefix + line).join('\n')
+                selectStart = start + prefix.length
+                selectEnd = start + replacement.length
+              }
+              onChange(text.slice(0, start) + replacement + text.slice(end))
+              requestAnimationFrame(() => { input.focus(); input.setSelectionRange(selectStart, selectEnd) })
+            }} className="rounded border border-border-default bg-bg-3 px-2 py-1 text-[11px] hover:bg-bg-4">{format}</button>)}
+          </div>}
           <textarea
+            ref={textArea}
+            aria-label={field.label}
             value={String(value || '')}
             onChange={(e) => onChange(e.target.value)}
             rows={3}
