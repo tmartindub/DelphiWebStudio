@@ -18,9 +18,17 @@ const blockIcons: Record<BlockType, typeof Layout> = {
   document: FileText, audio: Play, mediaVideo: Play,
 }
 
+const noReusableSections: NonNullable<import('@/blocks/types').SiteConfig['webstudioReusableSections']> = []
+
 function ComponentsPanel() {
   const [search, setSearch] = useState('')
+  const [sectionName, setSectionName] = useState('')
   const addBlock = useConfigStore((s) => s.addBlock)
+  const sections = useConfigStore((s) => s.config.webstudioReusableSections ?? noReusableSections)
+  const saveReusableSection = useConfigStore((s) => s.saveReusableSection)
+  const insertReusableSection = useConfigStore((s) => s.insertReusableSection)
+  const removeReusableSection = useConfigStore((s) => s.removeReusableSection)
+  const selectedBlockId = useEditorStore((s) => s.selectedBlockId)
   const selectBlock = useEditorStore((s) => s.selectBlock)
 
   const filtered = blockMetadata.filter((b) =>
@@ -65,6 +73,23 @@ function ComponentsPanel() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">
+        <div className="px-1.5 pt-2.5 pb-2 border-b border-border-default">
+          <div className="text-[10px] font-semibold uppercase text-text-2">Reusable sections</div>
+          <p className="text-[11px] text-text-3 mt-1">Select a section on the page to save a copy for this project.</p>
+          <label className="sr-only" htmlFor="reusable-section-name">Section name</label>
+          <input id="reusable-section-name" value={sectionName} onChange={event => setSectionName(event.target.value)} placeholder="Section name" className="mt-2 w-full rounded border border-border-default bg-bg-2 px-2 py-1.5 text-xs" />
+          <button type="button" disabled={!selectedBlockId || !sectionName.trim()} onClick={() => {
+            if (!selectedBlockId) return
+            if (!useConfigStore.getState().getActivePageBlocks().some(block => block.id === selectedBlockId)) { toast.error('Select a section on the current page first'); return }
+            saveReusableSection(selectedBlockId, sectionName)
+            setSectionName('')
+            toast('Section saved in this project')
+          }} className="mt-1 w-full rounded border border-border-default px-2 py-1.5 text-xs disabled:opacity-40">Save selected section</button>
+          {sections.map(section => <div key={section.id} className="mt-2 flex items-center gap-1">
+            <button type="button" onClick={() => { insertReusableSection(section.id); toast('Section added to this page') }} className="flex-1 rounded bg-bg-3 px-2 py-1.5 text-left text-xs" title="Add a copy to the current page">{section.name}</button>
+            <button type="button" onClick={() => { removeReusableSection(section.id); toast('Saved section removed; use Undo to restore it') }} aria-label={`Remove saved section ${section.name}`} className="rounded px-2 py-1.5 text-xs hover:bg-bg-3">Remove</button>
+          </div>)}
+        </div>
         {Object.entries(grouped).map(([category, items]) => (
           <div key={category}>
             <div className="text-[9px] font-semibold uppercase tracking-wider text-text-3 px-1.5 pt-2.5 pb-1">

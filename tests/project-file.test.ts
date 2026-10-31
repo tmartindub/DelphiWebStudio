@@ -13,6 +13,13 @@ const fivePages = {
 }
 
 describe('portable project files', () => {
+  it('preserves reusable sections and checks their media references', () => {
+    const config: SiteConfig = { ...legacy, webstudioReusableSections: [{ id: 'saved', name: 'Picture', block: { id: 'old', type: 'image', variant: 'hero-image', props: { assetId: 'photo', src: 'assets/photo.png' } } }] }
+    const reopened = parseProjectFile(serializeProjectFile(createProjectFile(config, 'project'))).project.config
+    expect(reopened.webstudioReusableSections).toEqual(config.webstudioReusableSections)
+    expect(() => validateProjectMedia(reopened, [])).toThrow('Missing project media')
+    expect(() => validateProjectMedia(reopened, [{ id: 'photo', path: 'assets/photo.png' }])).not.toThrow()
+  })
   it('decodes UTF-8 project text without silently replacing damaged bytes', () => {
     const text = '{"name":"Café 社区"}'
     expect(decodeProjectFile(new TextEncoder().encode(text))).toBe(text)

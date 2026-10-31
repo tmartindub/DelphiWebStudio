@@ -39,6 +39,9 @@ interface ConfigState {
   addBlock: (block: BlockConfig, index?: number) => void
   removeBlock: (id: string) => void
   duplicateBlock: (id: string) => void
+  saveReusableSection: (blockId: string, name: string) => void
+  removeReusableSection: (id: string) => void
+  insertReusableSection: (id: string) => void
   moveBlock: (fromIndex: number, toIndex: number) => void
   addPage: (name: string, path: string) => string
   removePage: (id: string) => void
@@ -185,6 +188,26 @@ export const useConfigStore = create<ConfigState>()(
             }),
           }
         }),
+
+      saveReusableSection: (blockId, name) => set(state => {
+        const block = getPageBlocks(state.config, state.activePageId).find(item => item.id === blockId)
+        if (!block || !name.trim()) return state
+        const section = { id: `section-${crypto.randomUUID()}`, name: name.trim(), block: structuredClone(block) }
+        return { ...pushUndo(state, 'Save reusable section'), config: { ...state.config, webstudioReusableSections: [...(state.config.webstudioReusableSections ?? []), section] } }
+      }),
+
+      removeReusableSection: (id) => set(state => {
+        const sections = state.config.webstudioReusableSections ?? []
+        if (!sections.some(section => section.id === id)) return state
+        return { ...pushUndo(state, 'Remove reusable section'), config: { ...state.config, webstudioReusableSections: sections.filter(section => section.id !== id) } }
+      }),
+
+      insertReusableSection: (id) => set(state => {
+        const section = state.config.webstudioReusableSections?.find(item => item.id === id)
+        if (!section) return state
+        const block = { ...structuredClone(section.block), id: `block-${crypto.randomUUID()}` }
+        return { ...pushUndo(state, 'Insert reusable section'), config: mutateActivePageBlocks(withPages(state.config), state.activePageId, blocks => [...blocks, block]) }
+      }),
 
       moveBlock: (fromIndex, toIndex) =>
         set((state) => {
@@ -346,6 +369,12 @@ export const useConfigStore = create<ConfigState>()(
                 const draft = config as Record<string, unknown>
                 if (typeof draft.name !== 'string' || (draft.blocks !== undefined && !Array.isArray(draft.blocks)) ||
                   (draft.blocks === undefined && (!Array.isArray(draft.pages) || draft.pages.length === 0))) throw new Error('Invalid editor draft.')
+                if (draft.webstudioReusableSections !== undefined && (!Array.isArray(draft.webstudioReusableSections) || draft.webstudioReusableSections.some(section =>
+                  !section || typeof section !== 'object' || Array.isArray(section) || typeof section.id !== 'string' ||
+                  typeof section.name !== 'string' || !section.block || typeof section.block !== 'object' || Array.isArray(section.block) ||
+                  typeof section.block.id !== 'string' || typeof section.block.type !== 'string' || typeof section.block.variant !== 'string' ||
+                  !section.block.props || typeof section.block.props !== 'object' || Array.isArray(section.block.props)
+                ))) throw new Error('Invalid reusable sections in editor draft.')
                 if (draft.pages !== undefined && (!Array.isArray(draft.pages) || draft.pages.some(page =>
                   !page || typeof page !== 'object' || Array.isArray(page) || typeof page.id !== 'string' ||
                   typeof page.name !== 'string' || typeof page.path !== 'string' || !Array.isArray(page.blocks)

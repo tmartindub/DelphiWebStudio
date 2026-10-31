@@ -137,6 +137,23 @@ export function validateProjectConfig(value: unknown): SiteConfig {
   }
   if (!pages.some(page => page.path === '/')) throw new Error('A Home page with path / is required.')
 
+  if (source.webstudioReusableSections !== undefined) {
+    if (!Array.isArray(source.webstudioReusableSections)) throw new Error('Reusable sections must be an array.')
+    const sectionIds = new Set<string>()
+    for (const value of source.webstudioReusableSections) {
+      const section = record(value, 'Reusable section')
+      const id = text(section.id, 'Reusable section ID')
+      if (sectionIds.has(id)) throw new Error('Duplicate reusable section ID.')
+      sectionIds.add(id)
+      text(section.name, 'Reusable section name')
+      const block = record(section.block, 'Reusable section block')
+      text(block.id, 'Reusable section block ID')
+      text(block.type, 'Reusable section block type')
+      text(block.variant, 'Reusable section block variant')
+      record(block.props, 'Reusable section block properties')
+    }
+  }
+
   if (source.theme !== undefined) {
     const theme = record(source.theme, 'Theme')
     for (const [key, value] of Object.entries(theme)) {
@@ -176,7 +193,7 @@ export function validateProjectMedia(config: SiteConfig, assets: unknown[]): voi
     pathsById.set(id, path)
   }
   const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery', 'pdfViewer', 'document', 'audio', 'mediaVideo'])
-  const blocks = config.pages ? config.pages.flatMap(page => page.blocks) : config.blocks
+  const blocks = [...(config.pages ? config.pages.flatMap(page => page.blocks) : config.blocks), ...(config.webstudioReusableSections ?? []).map(section => section.block)]
   for (const block of blocks) {
     if (!knownTypes.has(block.type)) continue
     if (block.type === 'content' && typeof block.props.body === 'string') {

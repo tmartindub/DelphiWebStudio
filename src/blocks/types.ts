@@ -82,4 +82,5 @@ export interface SiteConfig {
   pages?: PageConfig[]
   blocks: BlockConfig[]
   theme?: Partial<ThemeConfig>
+  webstudioReusableSections?: { id: string; name: string; block: BlockConfig }[]
 }

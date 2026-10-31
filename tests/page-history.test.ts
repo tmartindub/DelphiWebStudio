@@ -13,6 +13,21 @@ beforeEach(() => {
 })
 
 describe('page history', () => {
+  it('saves a section for another page, inserts an independent copy and supports undo', () => {
+    useConfigStore.getState().addBlock({ id: 'original', type: 'content', variant: 'prose', props: { body: 'Welcome' } })
+    useConfigStore.getState().saveReusableSection('original', 'Welcome section')
+    const section = useConfigStore.getState().config.webstudioReusableSections![0]
+    useConfigStore.getState().addPage('About', '/about')
+    useConfigStore.getState().insertReusableSection(section.id)
+    const copy = useConfigStore.getState().getActivePageBlocks()[0]
+    expect(copy.id).not.toBe('original')
+    expect(copy.props.body).toBe('Welcome')
+    useConfigStore.getState().updateBlockProps(copy.id, { body: 'Changed copy' })
+    expect(useConfigStore.getState().config.webstudioReusableSections![0].block.props.body).toBe('Welcome')
+    useConfigStore.getState().undo()
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().getActivePageBlocks()).toHaveLength(0)
+  })
   it('ignores invalid block moves without changing content or undo history', () => {
     useConfigStore.getState().addBlock({ id: 'first', type: 'hero', variant: 'centered', props: { headline: 'First' } })
     useConfigStore.getState().addBlock({ id: 'second', type: 'hero', variant: 'centered', props: { headline: 'Second' } })
@@ -36,6 +51,7 @@ describe('page history', () => {
     '{"state":{"config":{"name":"Broken","blocks":[null]}},"version":2}',
     '{"state":{"config":{"name":"Broken","blocks":[{"id":"orphan","type":"future","variant":"x","props":{}}],"pages":[{"id":"home","name":"Home","path":"/","blocks":[]}]}},"version":2}',
     '{"state":{"config":{"name":"Broken","blocks":[{"id":"one","type":"hero","variant":"centered","props":null}]}},"version":0}',
+    '{"state":{"config":{"name":"Broken","blocks":[],"webstudioReusableSections":[null]}},"version":2}',
     '{"state":{"config":{"name":"Broken","pages":[{"id":"home","name":"Home","path":"/","blocks":[{"id":"one","type":"hero","variant":"centered","props":[]}]}]}},"version":2}',
   ])('protects incompatible editor storage %s', async (stored) => {
     storage.set('openpage-config', stored)
