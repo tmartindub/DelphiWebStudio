@@ -33,6 +33,9 @@ describe('page history', () => {
     '{"state":{"config":{"name":"Broken","blocks":null}},"version":2}',
     '{"state":{"config":{"name":"Broken","blocks":[],"pages":[null]}},"version":2}',
     '{"state":{"config":{"name":"Broken","blocks":[],"pages":[{"id":"home","name":"Home","path":"/","blocks":"bad"}]}},"version":2}',
+    '{"state":{"config":{"name":"Broken","blocks":[null]}},"version":2}',
+    '{"state":{"config":{"name":"Broken","blocks":[{"id":"one","type":"hero","variant":"centered","props":null}]}},"version":0}',
+    '{"state":{"config":{"name":"Broken","pages":[{"id":"home","name":"Home","path":"/","blocks":[{"id":"one","type":"hero","variant":"centered","props":[]}]}]}},"version":2}',
   ])('protects incompatible editor storage %s', async (stored) => {
     storage.set('openpage-config', stored)
     try {
@@ -49,6 +52,17 @@ describe('page history', () => {
     await useConfigStore.persist.rehydrate()
     expect(useConfigStore.getState().config.pages).toMatchObject([{ id: 'page-home', path: '/', blocks: [] }])
     expect(useConfigStore.getState().config.name).toBe('Legacy')
+  })
+  it('retains a valid pages-only draft and unknown block data', async () => {
+    const stored = '{"state":{"config":{"name":"Older","pages":[{"id":"home","name":"Home","path":"/","blocks":[{"id":"one","type":"futureBlock","variant":"custom","props":{"unknown":"keep"}}]}]}},"version":2}'
+    storage.set('openpage-config', stored)
+    try {
+      await useConfigStore.persist.rehydrate()
+      expect(useConfigStore.getState().config.pages?.[0].blocks[0]).toMatchObject({ type: 'futureBlock', props: { unknown: 'keep' } })
+    } finally {
+      storage.delete('openpage-config')
+      await useConfigStore.persist.rehydrate()
+    }
   })
   it('keeps edits in memory when local draft storage fails', () => {
     const write = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => { throw new Error('storage full') })

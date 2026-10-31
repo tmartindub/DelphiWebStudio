@@ -186,6 +186,12 @@ export const useProjectsStore = create<ProjectsState>()(
                       !page || typeof page !== 'object' || Array.isArray(page) || typeof page.id !== 'string' ||
                       typeof page.name !== 'string' || typeof page.path !== 'string' || !Array.isArray(page.blocks)
                     ))) throw new Error('Invalid project pages.')
+                    for (const blocks of [draft.blocks, ...(Array.isArray(draft.pages) ? draft.pages.map(page => page.blocks) : [])]) {
+                      if (blocks === undefined) continue
+                      if (!Array.isArray(blocks) || blocks.some(block => !block || typeof block !== 'object' || Array.isArray(block) ||
+                        typeof block.id !== 'string' || typeof block.type !== 'string' || typeof block.variant !== 'string' ||
+                        !block.props || typeof block.props !== 'object' || Array.isArray(block.props))) throw new Error('Invalid project block.')
+                    }
                   }
                 }
               }

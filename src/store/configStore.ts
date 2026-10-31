@@ -343,13 +343,18 @@ export const useConfigStore = create<ConfigState>()(
                 const config = (envelope.state as Record<string, unknown>).config
                 if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('Invalid draft config.')
                 if (envelope.version !== undefined && (!Number.isInteger(envelope.version) || (envelope.version as number) < 0 || (envelope.version as number) > 2)) throw new Error('Unsupported draft version.')
-                if (envelope.version === 2) {
-                  const draft = config as Record<string, unknown>
-                  if (typeof draft.name !== 'string' || !Array.isArray(draft.blocks)) throw new Error('Invalid editor draft.')
-                  if (draft.pages !== undefined && (!Array.isArray(draft.pages) || draft.pages.some(page =>
-                    !page || typeof page !== 'object' || Array.isArray(page) || typeof page.id !== 'string' ||
-                    typeof page.name !== 'string' || typeof page.path !== 'string' || !Array.isArray(page.blocks)
-                  ))) throw new Error('Invalid editor draft pages.')
+                const draft = config as Record<string, unknown>
+                if (typeof draft.name !== 'string' || (draft.blocks !== undefined && !Array.isArray(draft.blocks)) ||
+                  (draft.blocks === undefined && (!Array.isArray(draft.pages) || draft.pages.length === 0))) throw new Error('Invalid editor draft.')
+                if (draft.pages !== undefined && (!Array.isArray(draft.pages) || draft.pages.some(page =>
+                  !page || typeof page !== 'object' || Array.isArray(page) || typeof page.id !== 'string' ||
+                  typeof page.name !== 'string' || typeof page.path !== 'string' || !Array.isArray(page.blocks)
+                ))) throw new Error('Invalid editor draft pages.')
+                for (const blocks of [draft.blocks, ...(Array.isArray(draft.pages) ? draft.pages.map(page => page.blocks) : [])]) {
+                  if (blocks === undefined) continue
+                  if (!Array.isArray(blocks) || blocks.some(block => !block || typeof block !== 'object' || Array.isArray(block) ||
+                    typeof block.id !== 'string' || typeof block.type !== 'string' || typeof block.variant !== 'string' ||
+                    !block.props || typeof block.props !== 'object' || Array.isArray(block.props))) throw new Error('Invalid editor draft block.')
                 }
               }
               configDraftReadFailed = false
