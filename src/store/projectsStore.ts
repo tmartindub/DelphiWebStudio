@@ -40,7 +40,7 @@ export interface ProjectSettings {
 
 interface ProjectsState {
   projects: Project[]
-  addProject: (name: string, projectFile?: SiteProjectFile) => string
+  addProject: (name: string, projectFile?: SiteProjectFile, stagedId?: string) => string
   saveProjectFile: (id: string, projectFile: SiteProjectFile) => void
   mediaChanged: (id: string) => void
   duplicateProject: (id: string) => Promise<string | null>
@@ -56,8 +56,9 @@ export const useProjectsStore = create<ProjectsState>()(
   persist(
     (set) => ({
       projects: [],
-      addProject: (name, projectFile) => {
-        const id = `proj-${crypto.randomUUID()}`
+      addProject: (name, projectFile, stagedId) => {
+        const id = stagedId ?? `proj-${crypto.randomUUID()}`
+        if (!id || useProjectsStore.getState().projects.some(project => project.id === id)) throw new Error('Project identity is already in use.')
         set((state) => ({
           projects: [
             {
