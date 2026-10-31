@@ -187,14 +187,19 @@ export const useConfigStore = create<ConfigState>()(
         }),
 
       moveBlock: (fromIndex, toIndex) =>
-        set((state) => ({
-          ...pushUndo(state, 'Move block'),
-          config: mutateActivePageBlocks(withPages(state.config), state.activePageId, (blocks) => {
-            const [moved] = blocks.splice(fromIndex, 1)
-            blocks.splice(toIndex, 0, moved)
-            return blocks
-          }),
-        })),
+        set((state) => {
+          const blocks = getPageBlocks(state.config, state.activePageId)
+          if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex) || fromIndex < 0 || toIndex < 0 ||
+            fromIndex >= blocks.length || toIndex >= blocks.length || fromIndex === toIndex) return state
+          return {
+            ...pushUndo(state, 'Move block'),
+            config: mutateActivePageBlocks(withPages(state.config), state.activePageId, (pageBlocks) => {
+              const [moved] = pageBlocks.splice(fromIndex, 1)
+              pageBlocks.splice(toIndex, 0, moved)
+              return pageBlocks
+            }),
+          }
+        }),
 
       addPage: (name, path) => {
         const id = `page-${crypto.randomUUID()}`
