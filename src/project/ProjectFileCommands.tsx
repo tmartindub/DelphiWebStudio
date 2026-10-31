@@ -11,7 +11,7 @@ import JSZip from 'jszip'
 import { ProjectRevisions, type ProjectRevision } from './project-revisions'
 
 /** Explicit portable-file commands; browser draft recovery remains separate. */
-export function ProjectFileCommands() {
+export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [opening, setOpening] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -30,12 +30,12 @@ export function ProjectFileCommands() {
     setRevisions([])
     setRevisionsError(false)
     setConfirmRevision(null)
-    if (portableProjectsEnabled && activeProjectId) {
-      void Promise.resolve().then(() => new ProjectRevisions().list(activeProjectId)).then(items => { if (active) setRevisions(items) })
+    if (portableProjectsEnabled && (allRevisions || activeProjectId)) {
+      void Promise.resolve().then(() => new ProjectRevisions().list(allRevisions ? undefined : activeProjectId!)).then(items => { if (active) setRevisions(items) })
         .catch(() => { if (active) setRevisionsError(true) })
     }
     return () => { active = false }
-  }, [activeProjectId])
+  }, [activeProjectId, allRevisions])
 
   if (!portableProjectsEnabled) return null
 
@@ -208,23 +208,23 @@ export function ProjectFileCommands() {
         className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
         <Save size={14} />{saving ? 'Preparing project…' : 'Save project'}
       </button>}
-      {project && <details className="relative text-xs">
-        <summary className="cursor-pointer rounded px-2 py-1 text-text-1 hover:bg-bg-3">Local revisions</summary>
+      {(project || allRevisions) && <details className="relative text-xs">
+        <summary className="cursor-pointer rounded px-2 py-1 text-text-1 hover:bg-bg-3">{allRevisions ? 'All local revisions' : 'Local revisions'}</summary>
         <div className="absolute right-0 top-full z-50 mt-1 w-80 max-h-80 overflow-y-auto rounded border border-border-default bg-bg-1 p-3 shadow-lg">
           <p className="mb-2 text-text-2">Revisions are stored on this computer. Save a separate project file for backup. Opening a revision creates a separate local project.</p>
-          <button type="button" disabled={mediaImporting} onClick={() => void saveProject(true)} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50">{saving ? 'Preparing project…' : 'Create local revision'}</button>
+          {!allRevisions && <button type="button" disabled={mediaImporting} onClick={() => void saveProject(true)} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50">{saving ? 'Preparing project…' : 'Create local revision'}</button>}
           {revisionsError && <p role="alert" className="mt-2 text-text-1">Local revisions could not be read. Existing revisions were not changed.</p>}
           {!revisionsError && revisions.length === 0 && <p className="mt-2 text-text-2">No local revisions yet.</p>}
           {revisions.map(revision => <div key={revision.id} className="mt-2 border-t border-border-default pt-2">
+            {allRevisions && <span className="block break-all text-text-1">{revision.filename}</span>}
             <span className="block text-text-2">{new Date(revision.createdAt).toLocaleString()}</span>
             <button type="button" disabled={mediaImporting} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => void openProjectFile(new File([revision.contents], revision.filename, { type: revision.contents.type }))}>Open as a separate project</button>
             {confirmRevision === revision.id ? <div className="mt-1">
               <p className="text-text-2">Remove this local revision? This cannot be undone.</p>
               <button type="button" disabled={removingRevision} className="rounded px-2 py-1 text-text-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => {
-                if (!project) return
                 setRemovingRevision(true)
-                void new ProjectRevisions().remove(project.id, revision.id).then(() => {
-                  if (useEditorStore.getState().activeProjectId === project.id) setRevisions(current => current.filter(item => item.id !== revision.id))
+                void new ProjectRevisions().remove(revision.projectId, revision.id).then(() => {
+                  if (allRevisions || useEditorStore.getState().activeProjectId === revision.projectId) setRevisions(current => current.filter(item => item.id !== revision.id))
                   setConfirmRevision(null)
                   toast('Local revision removed.')
                 }).catch(() => toast.error('The local revision could not be removed.')).finally(() => setRemovingRevision(false))

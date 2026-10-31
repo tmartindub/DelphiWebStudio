@@ -377,7 +377,7 @@ export function Dashboard() {
 
   return (
     <div className="h-full overflow-y-auto">
-      {portableProjectsEnabled && <div className="px-4 md:px-12 pt-4"><ProjectFileCommands /></div>}
+      {portableProjectsEnabled && <div className="px-4 md:px-12 pt-4"><ProjectFileCommands allRevisions /></div>}
       <PromptSection />
 
       {/* Projects section */}

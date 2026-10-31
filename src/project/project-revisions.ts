@@ -36,10 +36,11 @@ export class ProjectRevisions {
     return revision
   }
 
-  async list(projectId: string): Promise<ProjectRevision[]> {
+  async list(projectId?: string): Promise<ProjectRevision[]> {
     const database = await this.database
     return new Promise((resolve, reject) => {
-      const request = database.transaction('revisions', 'readonly').objectStore('revisions').index('projectId').getAll(projectId)
+      const store = database.transaction('revisions', 'readonly').objectStore('revisions')
+      const request = projectId ? store.index('projectId').getAll(projectId) : store.getAll()
       request.onsuccess = () => resolve((request.result as ProjectRevision[]).sort((a, b) => b.createdAt - a.createdAt))
       request.onerror = () => reject(request.error ?? new Error('Local revisions could not be read.'))
     })

@@ -16,6 +16,7 @@ describe('local project revisions', () => {
     expect(await restored.find(item => item.id === second.id)!.contents.text()).toBe('second')
     expect(restored.find(item => item.id === second.id)!.filename).toBe('site.webstudio.zip')
     expect(await new ProjectRevisions().list(otherId)).toHaveLength(1)
+    expect((await new ProjectRevisions().list()).filter(item => item.projectId === projectId || item.projectId === otherId)).toHaveLength(3)
   })
 
   it('rejects empty snapshots without changing existing revisions', async () => {
