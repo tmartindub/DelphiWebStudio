@@ -27,7 +27,13 @@ describe('page history', () => {
     useConfigStore.getState().undo()
     expect(useConfigStore.getState().getActivePageBlocks().map(block => block.id)).toEqual(['first', 'second'])
   })
-  it.each(['{"state":{"config":null},"version":2}', '{"state":{"config":{"name":"Future","blocks":[]}},"version":99}'])('protects incompatible editor storage %s', async (stored) => {
+  it.each([
+    '{"state":{"config":null},"version":2}',
+    '{"state":{"config":{"name":"Future","blocks":[]}},"version":99}',
+    '{"state":{"config":{"name":"Broken","blocks":null}},"version":2}',
+    '{"state":{"config":{"name":"Broken","blocks":[],"pages":[null]}},"version":2}',
+    '{"state":{"config":{"name":"Broken","blocks":[],"pages":[{"id":"home","name":"Home","path":"/","blocks":"bad"}]}},"version":2}',
+  ])('protects incompatible editor storage %s', async (stored) => {
     storage.set('openpage-config', stored)
     try {
       await useConfigStore.persist.rehydrate()
@@ -37,6 +43,12 @@ describe('page history', () => {
       storage.delete('openpage-config')
       await useConfigStore.persist.rehydrate()
     }
+  })
+  it('continues to migrate a legacy single-page draft', async () => {
+    storage.set('openpage-config', '{"state":{"config":{"name":"Legacy","blocks":[]}},"version":0}')
+    await useConfigStore.persist.rehydrate()
+    expect(useConfigStore.getState().config.pages).toMatchObject([{ id: 'page-home', path: '/', blocks: [] }])
+    expect(useConfigStore.getState().config.name).toBe('Legacy')
   })
   it('keeps edits in memory when local draft storage fails', () => {
     const write = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => { throw new Error('storage full') })
