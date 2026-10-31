@@ -10,7 +10,7 @@ import { ProjectMediaLibrary, type MediaAsset } from '@/media/media-library'
 interface FieldDef {
   key: string
   label: string
-  type: 'text' | 'image' | 'link' | 'textarea' | 'select' | 'array-strings' | 'array-items'
+  type: 'text' | 'image' | 'link' | 'textarea' | 'select' | 'checkbox' | 'array-strings' | 'array-items'
   options?: string[]
 }
 
@@ -20,7 +20,13 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
   mediaVideo: { sections: [{ title: 'Video', fields: [{ key: 'title', label: 'Title', type: 'text' }] }] },
   pdfViewer: { sections: [{ title: 'PDF', fields: [
     { key: 'title', label: 'Title', type: 'text' },
+    { key: 'caption', label: 'Caption', type: 'text' },
     { key: 'height', label: 'Height (px)', type: 'text' },
+    { key: 'initialPage', label: 'Starting page', type: 'text' },
+    { key: 'showSearch', label: 'Show search', type: 'checkbox' },
+    { key: 'showPrint', label: 'Show print link', type: 'checkbox' },
+    { key: 'showDownload', label: 'Show download link', type: 'checkbox' },
+    { key: 'showFullscreen', label: 'Show fullscreen', type: 'checkbox' },
   ] }] },
   navbar: {
     sections: [
@@ -386,6 +392,8 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
   }
 
   switch (field.type) {
+    case 'checkbox':
+      return <label className="mb-2 flex items-center gap-2 text-xs text-text-1"><input type="checkbox" checked={value !== false} onChange={event => onChange(event.target.checked)} /> {field.label}</label>
     case 'image': {
       const images = media?.projectId === projectId && media.revision === mediaRevision ? media.images : []
       const current = String(value || '')

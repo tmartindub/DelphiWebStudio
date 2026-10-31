@@ -2,6 +2,8 @@
 
 Last changed: 2026-10-29. Experimental M3 increment; enable `VITE_WEBSTUDIO_PROJECTS=true`.
 
+Select a PDF Viewer section to set its title, caption, starting page, height, and whether the search, print, download, and fullscreen controls appear. Starting pages beyond the document are clamped to its last page. Hiding a download or print link does not protect a PDF on a public website: visitors can still retrieve the file. The print link opens the PDF in the browser for printing.
+
 Import individual files or folders in the Media tab. Files are copied into the browser's project-specific IndexedDB database; originals are not modified. Imports validate supported file types, reject unsafe SVG content, deduplicate by SHA-256 within the project, and report individual failures. ZIP import requires explicit opt-in. Imports can be cancelled. Search, filter and sort the library, rename displayed items with undo, or replace an item with one-level undo. Add media to a page or drag it onto the canvas.
 
 After importing an image, select a Hero, Image, Navbar or Footer block and use its image chooser in Properties to select an image from this project's Media library. For a Gallery or Image grid, add image items and choose a Media image for each item. Feature cards and Team members also offer image choosers for each item. Feature images appear in the alternating layout. URL fields remain available for external image addresses. Hero images are shown in the split Hero layout; other nested image fields do not yet have this chooser.

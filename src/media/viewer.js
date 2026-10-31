@@ -1,7 +1,8 @@
 import { getDocument, GlobalWorkerOptions } from './pdf.min.js'
 
 GlobalWorkerOptions.workerSrc = './pdf.worker.min.js'
-const file = new URLSearchParams(location.search).get('file') || ''
+const params = new URLSearchParams(location.search)
+const file = params.get('file') || ''
 const status = document.getElementById('status')
 const canvas = document.getElementById('page-canvas')
 const main = document.querySelector('main')
@@ -11,6 +12,10 @@ let pdf
 let zoom = 1
 let rendering
 let renderSequence = 0
+
+for (const [parameter, ids] of [['search', ['search-label', 'search']], ['download', ['download']], ['print', ['print']], ['fullscreen', ['fullscreen']]]) {
+  if (params.get(parameter) === '0') for (const id of ids) document.getElementById(id).hidden = true
+}
 
 if (!/^\.\.\/[a-zA-Z0-9._-]+\.pdf$/i.test(file)) {
   status.textContent = 'Invalid PDF path.'
@@ -26,6 +31,8 @@ if (!/^\.\.\/[a-zA-Z0-9._-]+\.pdf$/i.test(file)) {
   task.promise.then(pdfDocument => {
     pdf = pdfDocument
     pageInput.max = String(pdf.numPages)
+    const requestedPage = Number(params.get('page'))
+    if (Number.isInteger(requestedPage) && requestedPage > 0) pageInput.value = String(Math.min(requestedPage, pdf.numPages))
     document.getElementById('total').textContent = `of ${pdf.numPages}`
     status.textContent = ''
     return render()

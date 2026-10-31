@@ -1220,8 +1220,15 @@ function renderBlock(block: BlockConfig): string {
       if (!/^assets\/[a-zA-Z0-9._-]+\.pdf$/i.test(src)) throw new Error('PDF viewer requires a PDF from the media library.')
       const title = escapeHtml(String(block.props.title || 'PDF document'))
       const height = Math.max(200, Math.min(2000, Number(block.props.height) || 600))
-      const viewer = `assets/pdfjs/viewer.html?file=${encodeURIComponent(`../${src.slice(7)}`)}`
-      return `<section class="p-6"><h2 class="text-xl font-semibold mb-3">${title}</h2><iframe src="${escapeHtml(viewer)}" title="${title}" style="width:100%;height:${height}px;border:0" allowfullscreen></iframe><a href="${escapeHtml(src)}" class="text-green" download>Open or download PDF</a></section>`
+      let viewer = `assets/pdfjs/viewer.html?file=${encodeURIComponent(`../${src.slice(7)}`)}`
+      const initialPage = Number(block.props.initialPage)
+      if (Number.isInteger(initialPage) && initialPage > 1) viewer += `&page=${initialPage}`
+      for (const [property, parameter] of [['showSearch', 'search'], ['showPrint', 'print'], ['showDownload', 'download'], ['showFullscreen', 'fullscreen']]) {
+        if (block.props[property] === false) viewer += `&${parameter}=0`
+      }
+      const caption = typeof block.props.caption === 'string' && block.props.caption ? `<p class="text-sm mb-3">${escapeHtml(block.props.caption)}</p>` : ''
+      const download = block.props.showDownload !== false ? `<a href="${escapeHtml(src)}" class="text-green" download>Open or download PDF</a>` : ''
+      return `<section class="p-6"><h2 class="text-xl font-semibold mb-3">${title}</h2>${caption}<iframe src="${escapeHtml(viewer)}" title="${title}" style="width:100%;height:${height}px;border:0" allowfullscreen></iframe>${download}</section>`
     }
     default:
       return `  <!-- Unknown block type: ${escapeHtml(block.type)} -->`

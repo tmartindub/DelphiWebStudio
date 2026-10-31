@@ -7,6 +7,7 @@ GlobalWorkerOptions.workerSrc = workerUrl
 
 export function PdfBlock({ block }: { block: BlockConfig }) {
   const title = typeof block.props.title === 'string' ? block.props.title : 'PDF document'
+  const caption = typeof block.props.caption === 'string' ? block.props.caption : ''
   const src = typeof block.props.src === 'string' ? block.props.src : ''
   const requestedHeight = Number(block.props.height)
   const height = Number.isFinite(requestedHeight) && requestedHeight >= 200 && requestedHeight <= 2000 ? requestedHeight : 600
@@ -23,7 +24,9 @@ export function PdfBlock({ block }: { block: BlockConfig }) {
   const [rendered, setRendered] = useState<{ src: string; number: number; width: number; zoom: number } | null>(null)
   const pdf = documentState?.src === src ? documentState.pdf : undefined
   const error = documentState?.src === src ? documentState.error : undefined
-  const pageNumber = pageState?.src === src ? pageState.number : 1
+  const requestedPage = Number(block.props.initialPage)
+  const initialPage = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1
+  const pageNumber = pageState?.src === src ? pageState.number : Math.min(initialPage, pdf?.numPages ?? initialPage)
   const zoom = zoomState?.src === src ? zoomState.value : 1
   const query = queryState?.src === src ? queryState.value : ''
   const pageRendered = rendered?.src === src && rendered.number === pageNumber && rendered.width === width && rendered.zoom === zoom
@@ -111,6 +114,7 @@ export function PdfBlock({ block }: { block: BlockConfig }) {
   return (
     <section className="p-6">
       <h2 className="text-xl font-semibold mb-3">{title}</h2>
+      {caption && <p className="text-sm mb-3">{caption}</p>}
       {src ? <>
         <div className="flex flex-wrap items-center gap-3 mb-2 text-sm">
           <button type="button" disabled={!pdf || pageNumber <= 1} onClick={() => { searchRef.current++; setSearchState(null); setRendered(null); setPageState({ src, number: pageNumber - 1 }) }}>Previous</button>
@@ -119,9 +123,11 @@ export function PdfBlock({ block }: { block: BlockConfig }) {
           <button type="button" aria-label="Zoom out" disabled={!pdf || zoom <= 0.5} onClick={() => { setRendered(null); setZoomState({ src, value: Math.max(0.5, zoom - 0.25) }) }}>−</button>
           <span>Fit {Math.round(zoom * 100)}%</span>
           <button type="button" aria-label="Zoom in" disabled={!pdf || zoom >= 3} onClick={() => { setRendered(null); setZoomState({ src, value: Math.min(3, zoom + 0.25) }) }}>+</button>
-          <input aria-label="Search PDF text" value={query} onChange={event => { searchRef.current++; setSearchState(null); setQueryState({ src, value: event.target.value }) }} onKeyDown={event => { if (event.key === 'Enter') void search() }} className="w-32 max-w-full bg-bg-2 border border-border-default rounded px-2 py-1" />
-          <button type="button" onClick={() => void search()} disabled={!pdf || !query.trim()}>Search</button>
-          <a href={src} download className="text-green">Open or download PDF</a>
+          {block.props.showSearch !== false && <><input aria-label="Search PDF text" value={query} onChange={event => { searchRef.current++; setSearchState(null); setQueryState({ src, value: event.target.value }) }} onKeyDown={event => { if (event.key === 'Enter') void search() }} className="w-32 max-w-full bg-bg-2 border border-border-default rounded px-2 py-1" />
+          <button type="button" onClick={() => void search()} disabled={!pdf || !query.trim()}>Search</button></>}
+          {block.props.showDownload !== false && <a href={src} download className="text-green">Open or download PDF</a>}
+          {block.props.showPrint !== false && <a href={src} target="_blank" rel="noopener noreferrer" className="text-green">Open PDF to print</a>}
+          {block.props.showFullscreen !== false && <button type="button" onClick={() => { void areaRef.current?.requestFullscreen().catch(() => undefined) }}>Fullscreen</button>}
         </div>
         {error && <p role="status" className="text-sm">{error}</p>}
         {!pdf && !error && <p role="status" className="text-sm">Loading PDF…</p>}
