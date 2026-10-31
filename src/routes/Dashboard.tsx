@@ -226,7 +226,9 @@ function ProjectCard({ project }: { project: Project }) {
 
   function openProject() {
     setActiveProject(project.id)
-    setConfig(project.config || defaultConfig)
+    const config = project.config ?? project.projectFile?.config ?? defaultConfig
+    const home = config.pages?.find(page => page.path === '/') ?? config.pages?.[0]
+    setConfig(Array.isArray(config.blocks) ? config : { ...config, blocks: home?.blocks ?? [] })
     navigate('/editor')
   }
 

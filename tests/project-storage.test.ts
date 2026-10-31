@@ -108,6 +108,22 @@ describe('portable project storage', () => {
       await useProjectsStore.persist.rehydrate()
     }
   })
+  it('keeps a valid pages-only stored project file available', async () => {
+    const stored = JSON.stringify({ state: { projects: [{ id: 'one', name: 'One', projectFile: {
+      format: 'webstudio', schemaVersion: 2, projectId: 'file-one',
+      config: { name: 'One', pages: [{ id: 'home', name: 'Home', path: '/', blocks: [] }] },
+    } }] }, version: 0 })
+    storedValues.set('openpage-projects', stored)
+    try {
+      await useProjectsStore.persist.rehydrate()
+      expect(useProjectsStore.getState().projects[0].projectFile?.config.pages?.[0].name).toBe('Home')
+      useProjectsStore.getState().addProject('Another')
+      expect(JSON.parse(storedValues.get('openpage-projects')!).state.projects.find((item: { id: string }) => item.id === 'one').projectFile.config.pages[0].name).toBe('Home')
+    } finally {
+      storedValues.delete('openpage-projects')
+      await useProjectsStore.persist.rehydrate()
+    }
+  })
   it('retains the in-memory project when local draft storage fails', () => {
     const write = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => { throw new Error('storage full') })
     try {

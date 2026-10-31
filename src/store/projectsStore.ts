@@ -180,7 +180,8 @@ export const useProjectsStore = create<ProjectsState>()(
                     if (config === undefined) continue
                     if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('Invalid project configuration.')
                     const draft = config as Record<string, unknown>
-                    if (typeof draft.name !== 'string' || !Array.isArray(draft.blocks)) throw new Error('Invalid project configuration.')
+                    if (typeof draft.name !== 'string' || (draft.blocks !== undefined && !Array.isArray(draft.blocks)) ||
+                      (draft.blocks === undefined && (!Array.isArray(draft.pages) || draft.pages.length === 0))) throw new Error('Invalid project configuration.')
                     if (draft.pages !== undefined && (!Array.isArray(draft.pages) || draft.pages.some(page =>
                       !page || typeof page !== 'object' || Array.isArray(page) || typeof page.id !== 'string' ||
                       typeof page.name !== 'string' || typeof page.path !== 'string' || !Array.isArray(page.blocks)
