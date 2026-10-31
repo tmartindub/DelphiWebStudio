@@ -51,6 +51,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
     if (useEditorStore.getState().mediaImporting) return
     const originalProjectId = useEditorStore.getState().activeProjectId
     const originalConfig = useConfigStore.getState().config
+    const originalProject = useProjectsStore.getState().projects.find(item => item.id === originalProjectId)
     setOpening(true)
     useEditorStore.getState().setMediaImporting(true)
     let stagedProjectId: string | undefined
@@ -99,7 +100,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
         }
         if (Object.values(zip.files).some(entry => !entry.dir && !allowedPaths.has(entry.name))) throw new Error('The project ZIP contains unexpected files.')
       }
-      if (useEditorStore.getState().activeProjectId !== originalProjectId || useConfigStore.getState().config !== originalConfig) {
+      if (useEditorStore.getState().activeProjectId !== originalProjectId || useConfigStore.getState().config !== originalConfig || useProjectsStore.getState().projects.find(item => item.id === originalProjectId) !== originalProject) {
         throw new Error('The current project changed while opening. Your edits remain in the editor; save them and open the other project again.')
       }
       useProjectsStore.getState().addProject(projectName, project, id)
@@ -123,10 +124,11 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
     if (checkingRevision || useEditorStore.getState().mediaImporting) return
     const originalProjectId = useEditorStore.getState().activeProjectId
     const originalConfig = useConfigStore.getState().config
+    const originalProject = useProjectsStore.getState().projects.find(item => item.id === originalProjectId)
     setCheckingRevision(revision.id)
     try {
       await ProjectRevisions.verify(revision)
-      if (useEditorStore.getState().activeProjectId !== originalProjectId || useConfigStore.getState().config !== originalConfig) {
+      if (useEditorStore.getState().activeProjectId !== originalProjectId || useConfigStore.getState().config !== originalConfig || useProjectsStore.getState().projects.find(item => item.id === originalProjectId) !== originalProject) {
         throw new Error('The current project changed while checking the revision. Your edits remain; try again.')
       }
       if (useEditorStore.getState().mediaImporting) throw new Error('Wait for the current media or save operation to finish, then open the revision again.')
