@@ -19,6 +19,7 @@ import { portableProjectsEnabled } from '@/project/project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
 import { publishSite } from '@/lib/publish-site'
 import JSZip from 'jszip'
+import { createWebsiteManifest, validateWebsiteManifest, compareWebsiteManifests, type WebsiteManifest } from '@/lib/website-manifest'
 
 const readyOptions = [
   { icon: Download, label: 'Static HTML', description: 'Download a standalone HTML file', action: 'html' },
@@ -42,6 +43,8 @@ export function Deploy() {
   const [publishing, setPublishing] = useState(false)
   const [copied, setCopied] = useState(false)
   const [review, setReview] = useState<{ signature: string; files: string[]; zip: Blob; filename: string } | null>(null)
+  const [manifest, setManifest] = useState<{ signature: string; data: WebsiteManifest } | null>(null)
+  const [comparison, setComparison] = useState<{ signature: string; result: ReturnType<typeof compareWebsiteManifests> } | null>(null)
   const signature = JSON.stringify({ projectId: activeProjectId, config, settings: project?.settings, mediaRevision: project?.mediaRevision })
 
   async function reviewWebsiteFiles() {
@@ -62,6 +65,30 @@ export function Deploy() {
       setReview(null)
       toast.error(error instanceof Error ? error.message : 'Website files could not be reviewed')
     } finally { setExporting(false) }
+  }
+
+  async function prepareManifest() {
+    if (!review || review.signature !== signature) return
+    setExporting(true)
+    try {
+      const data = await createWebsiteManifest(review.zip)
+      setManifest({ signature: review.signature, data })
+      setComparison(null)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Website manifest could not be prepared')
+    } finally { setExporting(false) }
+  }
+
+  async function comparePreviousManifest(file: File) {
+    if (!manifest || manifest.signature !== signature) return
+    if (file.size > 2 * 1024 * 1024) { toast.error('The website manifest is too large.'); return }
+    try {
+      const previous = validateWebsiteManifest(JSON.parse(await file.text()))
+      setComparison({ signature: manifest.signature, result: compareWebsiteManifests(previous, manifest.data) })
+    } catch (error) {
+      setComparison(null)
+      toast.error(error instanceof Error ? error.message : 'The previous website manifest is invalid')
+    }
   }
 
   async function handleExport(action: (typeof readyOptions)[number]['action']) {
@@ -183,6 +210,15 @@ export function Deploy() {
             <p className="text-xs text-text-1">{review.files.length} files in the prepared website ZIP.</p>
             <ul aria-label="Website files" className="mt-2 max-h-48 overflow-auto rounded border border-border-subtle p-2 font-mono text-xs">{review.files.map(file => <li key={file} className="break-all">{file}</li>)}</ul>
             <button type="button" onClick={() => downloadHTML(review.zip, review.filename)} className="mt-3 rounded border border-border-default px-3 py-2 text-xs">Download reviewed ZIP</button>
+            <div className="mt-4 border-t border-border-subtle pt-3">
+              <p className="text-xs text-text-2">Compare this website with a previously saved WebStudio file manifest. This is a local comparison and does not check the hosting destination.</p>
+              <button type="button" onClick={prepareManifest} disabled={exporting} className="mt-2 rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">{exporting ? 'Preparing…' : 'Prepare file manifest'}</button>
+              {manifest?.signature === signature && <div className="mt-2 flex flex-wrap items-center gap-3">
+                <button type="button" onClick={() => downloadHTML(new Blob([JSON.stringify(manifest.data, null, 2) + '\n'], { type: 'application/json' }), review.filename.replace(/\.zip$/i, '-manifest.json'))} className="rounded border border-border-default px-3 py-2 text-xs">Download file manifest</button>
+                <label className="text-xs">Compare previous manifest <input aria-label="Compare previous website manifest" type="file" accept="application/json,.json" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void comparePreviousManifest(file) }} /></label>
+              </div>}
+              {comparison?.signature === signature && <div className="mt-3 text-xs">{(['added', 'changed', 'removed'] as const).map(kind => <div key={kind} className="mt-2"><p className="font-semibold capitalize">{kind}: {comparison.result[kind].length}</p><ul aria-label={`${kind} files`} className="max-h-32 overflow-auto font-mono">{comparison.result[kind].map(path => <li key={path} className="break-all">{path}</li>)}</ul></div>)}</div>}
+            </div>
           </div> : <p className="mt-3 text-xs text-text-2">The project changed. Review the files again before downloading this version.</p>)}
         </div>
       </div>}
