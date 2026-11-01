@@ -4,7 +4,7 @@ program SftpConnectionSmoke;
 
 uses
   System.SysUtils, System.IOUtils, Vcl.Forms, WebStudio.SftpConnection,
-  WebStudio.SftpForm, WebStudio.SftpInventory;
+  WebStudio.SftpForm, WebStudio.SftpInventory, WebStudio.DeploymentReview;
 
 var
   DirectoryName, KeyName, HostsName: string;
@@ -13,8 +13,20 @@ var
   Entry: TSftpInventoryEntry;
   Entries: TArray<TSftpInventoryEntry>;
   Receipt: TSftpTransferReceipt;
+  Review: TDeploymentReview;
+  Path: string;
 begin
   try
+    if ParamCount = 12 then begin
+      Review := ReviewDeployment(ParamStr(1), ParamStr(2), ParamStr(3));
+      for Path in Review.Added do Writeln('A:', Path);
+      for Path in Review.Changed do Writeln('C:', Path);
+      for Path in Review.OnlyAtDestination do Writeln('R:', Path);
+      Writeln('W:', Review.WebsiteSha256);
+      Writeln('S:', Review.ScanSha256);
+      Writeln('B:', Review.BackupSha256);
+      Exit;
+    end;
     if ParamCount = 11 then begin
       Receipt := RestoreSftpOriginal('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(5), ParamStr(6), StrToUInt64(ParamStr(7)), ParamStr(8), StrToUInt64(ParamStr(9)), ParamStr(10));
       Writeln(Receipt.Path, '|', Receipt.Size, '|', Receipt.Sha256, '|', Receipt.PreviousPath);
