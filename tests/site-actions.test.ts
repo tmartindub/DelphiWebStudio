@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { SiteConfig } from '../src/blocks/types'
-import { acceptSiteActions, previewFivePagePlan, previewSiteActions } from '../src/ai/site-actions'
+import { acceptSiteActions, previewFivePagePlan, previewSinglePagePlan, previewSiteActions } from '../src/ai/site-actions'
 import { createProjectFile, parseProjectFile, serializeProjectFile } from '../src/project/project-file'
 import { exportSiteZip } from '../src/lib/export-html'
 import JSZip from 'jszip'
@@ -18,6 +18,19 @@ const config: SiteConfig = { name: 'Example', pages: [{ id: 'home', name: 'Home'
 const proposal = (operations: unknown[]) => ({ schemaVersion: 1, requestId: 'request-1', mode: 'preview', operations })
 
 describe('site action previews', () => {
+  it('reviews and adds one page without changing existing content and supports undo', () => {
+    const before = structuredClone(config)
+    const preview = previewSinglePagePlan(config, { name: 'Contact', headline: 'Get in touch' }, 'page-1')
+    expect(config).toEqual(before)
+    expect(preview.proposedConfig.pages?.at(-1)).toMatchObject({ name: 'Contact', path: '/contact', blocks: [{ type: 'hero', props: { headline: 'Get in touch' } }] })
+    useConfigStore.getState().setConfig(config)
+    useConfigStore.getState().replaceConfig(acceptSiteActions(useConfigStore.getState().config, preview), 'Add reviewed page')
+    expect(useConfigStore.getState().config.pages).toHaveLength(2)
+    expect(() => previewSinglePagePlan(useConfigStore.getState().config, { name: 'Contact', headline: 'Again' }, 'page-2')).toThrow('already in use')
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().config.pages).toHaveLength(1)
+    expect(useConfigStore.getState().config.pages?.[0].blocks[0].props.body).toBe('Original')
+  })
   it('accepts a previously generated local-model plan, saves it and exports five editable pages', async () => {
     const blank: SiteConfig = { name: 'Community', pages: [{ id: 'home', name: 'Home', path: '/', blocks: [] }], blocks: [] }
     const reviewed = acceptSiteActions(blank, previewFivePagePlan(blank, localPlan, 'local-plan'))

@@ -12,7 +12,7 @@ object LocalAIForm: TLocalAIForm
     Width = 548
     Height = 34
     AutoSize = False
-    Caption = 'Open a project first. Page planning needs a blank project; colors work on any project. Download files if needed (models: 1.8 or 2.5 GB).'
+    Caption = 'Open a project first. Five-page planning needs a blank project; colors and single pages work on any project. Models: 1.8 or 2.5 GB.'
     WordWrap = True
   end
   object RuntimeLabel: TLabel
@@ -87,7 +87,7 @@ object LocalAIForm: TLocalAIForm
   object BriefLabel: TLabel
     Left = 16
     Top = 219
-    Caption = 'Describe your website or requested colors'
+    Caption = 'Describe the website, colors, or page you want'
   end
   object ProposalLabel: TLabel
     Left = 16
@@ -105,7 +105,8 @@ object LocalAIForm: TLocalAIForm
     Text = 'Plan five pages'
     Items.Strings = (
       'Plan five pages'
-      'Suggest website colors')
+      'Suggest website colors'
+      'Add one page')
   end
   object BriefMemo: TMemo
     Left = 16

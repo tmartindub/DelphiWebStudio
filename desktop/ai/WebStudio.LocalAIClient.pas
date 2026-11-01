@@ -19,6 +19,7 @@ function GenerateLocalSitePlan(Port: Word; const AccessKey, Brief, ProposalKind:
 const
   SchemaJSON = '{"type":"object","properties":{"pages":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"headline":{"type":"string"}},"required":["name","headline"],"additionalProperties":false},"minItems":5,"maxItems":5}},"required":["pages"],"additionalProperties":false}';
   ThemeSchemaJSON = '{"type":"object","properties":{"bg0":{"type":"string"},"text0":{"type":"string"},"accent":{"type":"string"}},"required":["bg0","text0","accent"],"additionalProperties":false}';
+  PageSchemaJSON = '{"type":"object","properties":{"name":{"type":"string"},"headline":{"type":"string"}},"required":["name","headline"],"additionalProperties":false}';
   ThemeKeys: array[0..2] of string = ('bg0', 'text0', 'accent');
 var
   Client: THTTPClient;
@@ -37,7 +38,7 @@ begin
     if not CharInSet(AccessKey[Index], ['0'..'9', 'A'..'F', 'a'..'f']) then raise EArgumentException.Create('Invalid local AI connection.');
   Text := Trim(Brief);
   if (Text = '') or (Length(Text) > 4000) then raise EArgumentException.Create('Enter a site description of up to 4,000 characters.');
-  if (ProposalKind <> 'pages') and (ProposalKind <> 'theme') then raise EArgumentException.Create('Invalid local AI proposal type.');
+  if (ProposalKind <> 'pages') and (ProposalKind <> 'theme') and (ProposalKind <> 'page') then raise EArgumentException.Create('Invalid local AI proposal type.');
 
   Request := TJSONObject.Create;
   try
@@ -48,6 +49,8 @@ begin
     MessageObject.AddPair('role', 'user');
     if ProposalKind = 'theme' then
       MessageObject.AddPair('content', 'Choose accessible website colors based on this request. Return bg0 for the page background, text0 for readable foreground text, and accent for highlights. Each value must be a six-digit hexadecimal color beginning with #. Request: ' + Text)
+    else if ProposalKind = 'page' then
+      MessageObject.AddPair('content', 'Suggest one website page based on the request. Return a short page name and a neutral headline. Do not invent contact details, activities, paid features, advertisements, donations, or signups. Request: ' + Text)
     else
       MessageObject.AddPair('content', 'Plan an informational website based on this description. Return exactly five distinct pages, beginning with Home, each with a short name and a headline. Use neutral headings; do not invent activities, schedules, services, business practices, contact details, paid features, advertisements, donations, or signups. Description: ' + Text);
     Messages.AddElement(MessageObject);
@@ -59,6 +62,9 @@ begin
     if ProposalKind = 'theme' then begin
       SchemaObject.AddPair('name', 'site_colors');
       Value := TJSONObject.ParseJSONValue(ThemeSchemaJSON);
+    end else if ProposalKind = 'page' then begin
+      SchemaObject.AddPair('name', 'site_page');
+      Value := TJSONObject.ParseJSONValue(PageSchemaJSON);
     end else begin
       SchemaObject.AddPair('name', 'site_plan');
       Value := TJSONObject.ParseJSONValue(SchemaJSON);
@@ -107,6 +113,17 @@ begin
                 if not CharInSet(Value.Value[CharacterIndex], ['0'..'9', 'A'..'F', 'a'..'f']) then
                   raise EInOutError.Create('Local AI returned invalid colors.');
             end;
+            Result := Plan.ToJSON;
+            Exit;
+          end;
+          if ProposalKind = 'page' then begin
+            if TJSONObject(Plan).Count <> 2 then raise EInOutError.Create('Local AI returned an invalid page.');
+            Value := TJSONObject(Plan).GetValue('name');
+            if not (Value is TJSONString) or (Trim(Value.Value) = '') or (Length(Value.Value) > 120) then
+              raise EInOutError.Create('Local AI returned an invalid page name.');
+            Value := TJSONObject(Plan).GetValue('headline');
+            if not (Value is TJSONString) or (Trim(Value.Value) = '') or (Length(Value.Value) > 4000) then
+              raise EInOutError.Create('Local AI returned an invalid headline.');
             Result := Plan.ToJSON;
             Exit;
           end;

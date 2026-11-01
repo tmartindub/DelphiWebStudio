@@ -252,8 +252,10 @@ begin
     RuntimeArchive := Dialog.RuntimeEdit.Text;
     ModelFile := Dialog.ModelEdit.Text;
     Brief := Dialog.BriefMemo.Text;
-    if Dialog.ProposalKind.ItemIndex = 1 then ProposalKind := 'theme'
-    else ProposalKind := 'pages';
+    case Dialog.ProposalKind.ItemIndex of
+      1: ProposalKind := 'theme';
+      2: ProposalKind := 'page';
+    else ProposalKind := 'pages' end;
   finally
     Dialog.Free;
   end;

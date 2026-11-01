@@ -55,6 +55,25 @@ export function previewFivePagePlan(config: SiteConfig, input: unknown, requestI
   return previewSiteActions(current, { schemaVersion: 1, requestId, mode: 'preview', operations })
 }
 
+/** Review one proposed page without changing any existing page. */
+export function previewSinglePagePlan(config: SiteConfig, input: unknown, requestId: string): SiteActionPreview {
+  const current = validateProjectConfig(config)
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Invalid page proposal.')
+  const page = input as Record<string, unknown>
+  if (Object.keys(page).some(key => !['name', 'headline'].includes(key)) || typeof page.name !== 'string' || typeof page.headline !== 'string') throw new Error('Invalid page proposal.')
+  const name = page.name.trim()
+  const headline = page.headline.trim()
+  if (!name || name.length > 120 || !headline || headline.length > 4000 || /\p{Cc}/u.test(name + headline)) throw new Error('Invalid page name or headline.')
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 100).replace(/-$/, '')
+  const path = `/${slug}`
+  if (!slug || current.pages!.some(existing => existing.path === path)) throw new Error('That page address is already in use or invalid.')
+  const pageId = crypto.randomUUID()
+  return previewSiteActions(current, { schemaVersion: 1, requestId, mode: 'preview', operations: [
+    { op: 'createPage', pageId, name, path },
+    { op: 'addBlock', pageId, block: { id: crypto.randomUUID(), type: 'hero', variant: 'centered', props: { headline } } },
+  ] })
+}
+
 /** A proposal is evaluated on a copy and never edits the active project. */
 export function previewSiteActions(config: SiteConfig, input: unknown): SiteActionPreview {
   const request = input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : null
