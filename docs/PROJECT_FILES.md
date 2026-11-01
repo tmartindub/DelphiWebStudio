@@ -20,7 +20,7 @@ The Desktop, Tablet and Mobile buttons preview widths of 1,200, 768 and 375 pixe
 
 In a selected section's **Screen visibility** properties, choose whether to show it on mobile (under 480 pixels), tablet (480–899 pixels), and desktop (900 pixels and wider). A hidden section remains available in editing mode, and is hidden in Preview and the exported page at the selected widths. Hiding is a layout setting: the content is still present in the exported HTML and must not be treated as private.
 
-Set `VITE_WEBSTUDIO_PROJECTS=true` before starting Vite or building. The flag defaults off in `.env.example`. With it enabled, **Open project** appears on Dashboard and the editor; **Save project** appears while a project is open. These commands are separate from the existing HTML Export command and from Publish.
+**Open project** appears on Dashboard and the editor; **Save project** appears while a project is open. These commands are enabled by default and are separate from the existing HTML Export command and from Publish. For baseline comparisons, developers can explicitly set `VITE_WEBSTUDIO_PROJECTS=false` before starting Vite or building.
 
 Open accepts unversioned OpenPage SiteConfig JSON or WebStudio schema 2. Each open creates an independent local draft and never edits the selected file. A legacy file is upgraded in memory and saved as a new `.webstudio.json` download. The original is the recovery source; no automatic in-place migration occurs. Repeated opens retain the document projectId but have distinct local draft IDs. Duplicate assigns a new document identity.
 
@@ -98,7 +98,7 @@ With the feature enabled, Export produces a ZIP containing a separate HTML file 
 - Screenshot: `docs/m1-project-roundtrip.png`.
 - M1 pre-change tracked-source ZIP: `H:\Delphi Web Studio Backups\WebStudio_M1_PreChange_89f6a6d.zip`, 397,371 bytes.
 
-Native safe save/recovery and portable assets remain outstanding. Existing footer/navbar links are not yet bound to page IDs. The feature gate remains experimental until the complete acceptance tests pass.
+At the time of this first increment, native safe save/recovery and portable assets were outstanding. Later sections document subsequent implementations and their test limits. Existing footer/navbar links are not yet bound to page IDs.
 
 ## Five-page project and media round trip
 
