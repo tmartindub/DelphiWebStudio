@@ -1213,6 +1213,8 @@ function renderBlock(block: BlockConfig): string {
     case 'divider':
     case 'banner':
     case 'content':
+      if (block.variant === 'imported-source') return '<!-- Imported source is retained in the project and excluded from this website. -->'
+      return renderToStaticMarkup(createElement(RenderBlock, { block }))
     case 'image':
     case 'video':
     case 'gallery':

@@ -63,6 +63,11 @@ export function importStaticHtml(files: { path: string; text: string }[], skippe
         .replace(/<\/?(?:p|div|br|blockquote)\b[^>]*>/gi, '\n').replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#0*39;|&apos;/gi, "'").trim()
       if (body) blocks.push({ id: `block-${crypto.randomUUID()}`, type: 'content', variant: 'prose', props: { body } })
     }
+    const supportedTags = new Set(['a', 'p', 'div', 'br', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'strong', 'b', 'em', 'i', 'img'])
+    const markup = bodySource.replace(/<!--[\s\S]*?-->/g, '')
+    if ([...markup.matchAll(/<\s*\/?\s*([a-z][a-z\d-]*)\b[^>]*>/gi)].some(match => !supportedTags.has(match[1].toLowerCase()))) {
+      blocks.push({ id: `block-${crypto.randomUUID()}`, type: 'content', variant: 'imported-source', props: { rawHtml: bodySource, sourcePath: file.path } })
+    }
     return { id: `page-${crypto.randomUUID()}`, name, path: index === 0 ? '/' : `/imported-page-${index + 1}`, blocks }
   })
   const config: SiteConfig = { name: pages[0].name, pages, blocks: pages[0].blocks }

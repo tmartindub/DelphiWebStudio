@@ -3,6 +3,14 @@ import type { BlockConfig } from '../types'
 
 export function ContentBlock({ block }: { block: BlockConfig }) {
   const { variant, props } = block
+  if (variant === 'imported-source') {
+    return (
+      <section className="mx-4 my-2 rounded border border-border-default p-4 text-sm">
+        <p>Unconverted HTML from {String(props.sourcePath || 'the imported page')} is preserved as read-only text. Rebuild this content before export; the original markup is not included in the website.</p>
+        <details><summary>Inspect original HTML</summary><pre className="overflow-auto whitespace-pre-wrap">{String(props.rawHtml || '')}</pre></details>
+      </section>
+    )
+  }
   const body = (props.body as string) || ''
   const rendered = renderMarkdown(body)
 

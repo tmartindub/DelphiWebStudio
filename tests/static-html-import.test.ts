@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { importStaticHtml } from '../src/project/static-html-import'
 import { parseProjectFile, serializeProjectFile } from '../src/project/project-file'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { ContentBlock } from '../src/blocks/content/ContentBlock'
+import { exportSiteToHTML } from '../src/lib/export-html'
 
 describe('static HTML import', () => {
   it('chooses the top-level index, keeps source inert, and preserves it on project round trip', () => {
@@ -51,5 +55,17 @@ describe('static HTML import', () => {
     expect(result.project.config.pages![0].blocks[0].props.body).toContain('## Welcome')
     expect(result.project.config.pages![0].blocks[0].props.body).toContain('- **One**')
     expect(result.project.config.pages![0].blocks[0].props.body).toContain('- *Two*')
+  })
+
+  it('preserves unconverted HTML on the page as inert, non-exported source', () => {
+    const original = '<p>Welcome</p><table><tr><td onclick="dangerous()">Value</td></tr></table><script>dangerous()</script>'
+    const result = importStaticHtml([{ path: 'site/index.html', text: `<body>${original}</body>` }], 0)
+    const raw = result.project.config.pages![0].blocks.find(block => block.variant === 'imported-source')!
+    expect(raw.props.rawHtml).toBe(original)
+    expect(parseProjectFile(serializeProjectFile(result.project)).project.config.pages![0].blocks.find(block => block.variant === 'imported-source')?.props.rawHtml).toBe(original)
+    const preview = renderToStaticMarkup(createElement(ContentBlock, { block: raw }))
+    expect(preview).toContain('&lt;script&gt;dangerous()&lt;/script&gt;')
+    expect(preview).not.toContain('<script>dangerous()</script>')
+    expect(exportSiteToHTML(result.project.config)).not.toContain('dangerous()')
   })
 })
