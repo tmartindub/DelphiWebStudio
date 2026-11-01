@@ -4,6 +4,7 @@ import { geminiSession, generateSiteConfig } from '../src/lib/generate-site'
 afterEach(() => {
   geminiSession.key = ''
   geminiSession.changed = false
+  geminiSession.cloudEnabled = false
   vi.unstubAllGlobals()
 })
 
@@ -15,6 +16,7 @@ describe('Gemini session key', () => {
     vi.stubGlobal('fetch', fetch)
     geminiSession.key = 'new-synthetic-key'
     geminiSession.changed = true
+    geminiSession.cloudEnabled = true
     await expect(generateSiteConfig('fictional brief')).rejects.toMatchObject({ name: 'AbortError' })
     expect(getItem).not.toHaveBeenCalled()
     expect(fetch.mock.calls[0][0]).toContain('new-synthetic-key')
@@ -25,8 +27,20 @@ describe('Gemini session key', () => {
     const fetch = vi.fn().mockRejectedValue(new DOMException('Cancelled', 'AbortError'))
     vi.stubGlobal('localStorage', { getItem })
     vi.stubGlobal('fetch', fetch)
+    geminiSession.cloudEnabled = true
     await expect(generateSiteConfig('fictional brief')).rejects.toMatchObject({ name: 'AbortError' })
     expect(getItem).toHaveBeenCalledWith('openpage-gemini-key')
     expect(fetch.mock.calls[0][0]).toContain('old-synthetic-key')
+  })
+
+  it('uses a local template without accessing a key or making a request by default', async () => {
+    const getItem = vi.fn(() => 'old-synthetic-key')
+    const fetch = vi.fn()
+    vi.stubGlobal('localStorage', { getItem })
+    vi.stubGlobal('fetch', fetch)
+    const result = await generateSiteConfig('fictional community site')
+    expect(result.source).toBe('template')
+    expect(getItem).not.toHaveBeenCalled()
+    expect(fetch).not.toHaveBeenCalled()
   })
 })

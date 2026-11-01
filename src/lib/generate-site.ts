@@ -11,7 +11,7 @@ const GEMINI_MODEL = 'gemini-3-flash-preview'
 const STORAGE_KEY = 'openpage-gemini-key'
 
 // Newly entered keys remain in memory; an existing saved key is left untouched until the user removes it.
-export const geminiSession = { key: '', changed: false }
+export const geminiSession = { key: '', changed: false, cloudEnabled: false }
 
 export interface GenerationResult {
   config: SiteConfig
@@ -19,6 +19,7 @@ export interface GenerationResult {
 }
 
 export async function generateSiteConfig(prompt: string, signal?: AbortSignal): Promise<GenerationResult> {
+  if (!geminiSession.cloudEnabled) return { config: getTemplateForPrompt(prompt), source: 'template' }
   // 1. Try client-side Gemini if key exists
   const apiKey = geminiSession.changed ? geminiSession.key : localStorage.getItem(STORAGE_KEY)
   if (apiKey) {

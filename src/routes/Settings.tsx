@@ -138,6 +138,7 @@ function ApiPanel({ settings }: { settings: ReturnType<typeof useSettingsState> 
   const [legacyKeySaved, setLegacyKeySaved] = useState(() => !!localStorage.getItem('openpage-gemini-key'))
   const [showKey, setShowKey] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [cloudEnabled, setCloudEnabled] = useState(geminiSession.cloudEnabled)
   const activeProjectId = useEditorStore(state => state.activeProjectId)
   const deploymentKeys = useEditorStore(state => state.deploymentKeys)
   const setDeploymentKey = useEditorStore(state => state.setDeploymentKey)
@@ -172,6 +173,11 @@ function ApiPanel({ settings }: { settings: ReturnType<typeof useSettingsState> 
   return (
     <div>
       <h2 className="text-lg font-semibold mb-4">API Keys</h2>
+
+      <label className="mb-5 flex items-start gap-2 text-xs text-text-1">
+        <input type="checkbox" checked={cloudEnabled} onChange={event => { geminiSession.cloudEnabled = event.target.checked; setCloudEnabled(event.target.checked) }} />
+        <span>Allow cloud AI generation for this session. A generation brief may be sent to Google or the configured server. This setting resets when the app closes or reloads.</span>
+      </label>
 
       <FieldGroup label="Deploy Access Key">
         <input

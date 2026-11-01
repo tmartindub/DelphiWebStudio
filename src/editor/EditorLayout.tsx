@@ -12,7 +12,7 @@ import { GenerationOverlay } from './GenerationOverlay'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { useProjectsStore } from '@/store/projectsStore'
-import { generateSiteConfig } from '@/lib/generate-site'
+import { geminiSession, generateSiteConfig } from '@/lib/generate-site'
 import { templateMeta, buildTemplate } from '@/lib/templates'
 import { hexToRgb } from '@/lib/theme-presets'
 import { LocalPlanReview } from '@/ai/LocalPlanReview'
@@ -71,7 +71,7 @@ function useGenerationOrchestration() {
         }
         clearGeneration()
         if (source === 'template') {
-          toast('Generated from template. Add a Gemini API key in Settings for AI generation.')
+          toast(geminiSession.cloudEnabled ? 'Generated from a local template. Check the cloud AI settings if you intended to use them.' : 'Generated from a local template. Cloud AI is off by default in Settings.')
         }
       })
       .catch((err) => {

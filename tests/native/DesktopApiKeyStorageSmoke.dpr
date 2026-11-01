@@ -29,6 +29,15 @@ begin
       Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("input[placeholder=\"AIza...\"]")?.value === "old-synthetic-key" && document.body.innerText.includes("older key is still stored")', '');
     until (Value = 'true') or (GetTickCount64 >= Deadline);
     if Value <> 'true' then raise Exception.Create('Existing synthetic key or warning missing.');
+    Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("input[type=checkbox]")?.checked === false', '');
+    if Value <> 'true' then raise Exception.Create('Cloud generation was not off by default.');
+    MainForm.EditorBrowser.ExecuteScript('document.querySelector("input[type=checkbox]").click()');
+    Deadline := GetTickCount64 + 5000;
+    repeat
+      CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+      Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("input[type=checkbox]")?.checked === true', '');
+    until (Value = 'true') or (GetTickCount64 >= Deadline);
+    if Value <> 'true' then raise Exception.Create('Cloud generation opt-in did not apply.');
     MainForm.EditorBrowser.ExecuteScript('(()=>{const e=document.querySelector("input[placeholder=\"AIza...\"]");Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value").set.call(e,"new-synthetic-key");e.dispatchEvent(new Event("input",{bubbles:true}))})()');
     Deadline := GetTickCount64 + 5000;
     repeat
@@ -54,9 +63,9 @@ begin
     Deadline := GetTickCount64 + 5000;
     repeat
       CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
-      Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("input[placeholder=\"AIza...\"]")?.value === "" && localStorage.getItem("openpage-gemini-key") === null', '');
+      Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("input[placeholder=\"AIza...\"]")?.value === "" && localStorage.getItem("openpage-gemini-key") === null && document.querySelector("input[type=checkbox]")?.checked === false', '');
     until (Value = 'true') or (GetTickCount64 >= Deadline);
-    if Value <> 'true' then raise Exception.Create('Session key survived reload.');
-    Writeln('New synthetic key stayed in memory; older saved key remained until explicit removal.');
+    if Value <> 'true' then raise Exception.Create('Session key or cloud opt-in survived reload.');
+    Writeln('Cloud opt-in defaults off and resets; synthetic key storage behaved as expected.');
   finally MainForm.Free end;
 end.
