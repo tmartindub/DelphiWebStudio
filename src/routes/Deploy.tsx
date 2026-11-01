@@ -20,6 +20,7 @@ import { ProjectMediaLibrary } from '@/media/media-library'
 import { publishSite } from '@/lib/publish-site'
 import JSZip from 'jszip'
 import { createWebsiteManifest, validateWebsiteManifest, compareWebsiteManifests, type WebsiteManifest } from '@/lib/website-manifest'
+import { checkSite, type SiteIssue } from '@/project/site-checks'
 
 const readyOptions = [
   { icon: Download, label: 'Static HTML', description: 'Download a standalone HTML file', action: 'html' },
@@ -42,7 +43,7 @@ export function Deploy() {
   const [exporting, setExporting] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [review, setReview] = useState<{ signature: string; files: string[]; zip: Blob; filename: string } | null>(null)
+  const [review, setReview] = useState<{ signature: string; files: string[]; warnings: SiteIssue[]; zip: Blob; filename: string } | null>(null)
   const [manifest, setManifest] = useState<{ signature: string; data: WebsiteManifest } | null>(null)
   const [comparison, setComparison] = useState<{ signature: string; result: ReturnType<typeof compareWebsiteManifests> } | null>(null)
   const signature = JSON.stringify({ projectId: activeProjectId, config, settings: project?.settings, mediaRevision: project?.mediaRevision })
@@ -59,8 +60,9 @@ export function Deploy() {
       const current = JSON.stringify({ projectId: currentProjectId, config: useConfigStore.getState().config, settings: currentProject?.settings, mediaRevision: currentProject?.mediaRevision })
       if (current !== signature) throw new Error('The project changed during the review. Review the files again.')
       const files = Object.values(archive.files).filter(item => !item.dir).map(item => item.name).sort()
+      const warnings = checkSite(config).filter(issue => !config.pages?.some(page => page.id === issue.pageId && page.webstudioArticle?.status === 'draft'))
       const filename = `${(project?.name || config.name || 'site').toLowerCase().replace(/[^a-z0-9-]+/g, '-')}.zip`
-      setReview({ signature, files, zip, filename })
+      setReview({ signature, files, warnings, zip, filename })
     } catch (error) {
       setReview(null)
       toast.error(error instanceof Error ? error.message : 'Website files could not be reviewed')
@@ -207,6 +209,11 @@ export function Deploy() {
           <p className="mt-1 text-xs text-text-2">Build a local website ZIP and inspect its file list. This does not compare a destination or publish anything.</p>
           <button type="button" onClick={reviewWebsiteFiles} disabled={exporting || !activeProjectId} className="mt-3 rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">{exporting ? 'Preparing…' : 'Review files'}</button>
           {review && (review.signature === signature ? <div className="mt-3">
+            <div className="mb-3 rounded border border-border-default p-2 text-xs" aria-label="Website validation results">
+              <p className="font-semibold">Local checks: {review.warnings.length} {review.warnings.length === 1 ? 'finding' : 'findings'}</p>
+              {review.warnings.length > 0 && <ul className="mt-1 max-h-36 overflow-auto">{review.warnings.map((warning, index) => <li key={`${warning.pageId}-${warning.blockId}-${index}`}><strong>{warning.pageName}:</strong> {warning.message}</li>)}</ul>}
+              <p className="mt-1 text-text-2">These limited checks do not cover all links or accessibility issues.</p>
+            </div>
             <p className="text-xs text-text-1">{review.files.length} files in the prepared website ZIP.</p>
             <ul aria-label="Website files" className="mt-2 max-h-48 overflow-auto rounded border border-border-subtle p-2 font-mono text-xs">{review.files.map(file => <li key={file} className="break-all">{file}</li>)}</ul>
             <button type="button" onClick={() => downloadHTML(review.zip, review.filename)} className="mt-3 rounded border border-border-default px-3 py-2 text-xs">Download reviewed ZIP</button>
