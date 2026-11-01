@@ -1,6 +1,6 @@
 # Local AI action foundation (experimental)
 
-Last changed: 2026-10-30. This is a development-only foundation for M4, not a functioning AI wizard or model connection.
+Last changed: 2026-10-31. The experimental local AI planner is connected to the Windows application; M4 is not yet complete.
 
 `src/ai/site-actions.ts` defines a versioned, preview-only request and a limited set of typed page, theme and block operations. Evaluation works on a copy of the validated project and returns a readable list of changes. It does not contact a model, execute commands, read files, publish a site or modify the editor. The result can be accepted only against the same source snapshot; a changed project or altered preview is rejected.
 
@@ -8,7 +8,7 @@ The editor's **Plan pages** command uses this contract for a manual workflow: ch
 
 The initial allowlist can create and rename pages, change six-digit theme colors, and add or edit limited hero and text blocks. It can move blocks and remove only supported hero or text blocks. It does not add media, run code, change URLs, publish or support arbitrary components. Rejected actions leave the input project unchanged. Unknown existing block fields are preserved.
 
-There is no integrated local model, inference process management, model installer, model JSON-schema integration, conversational planner, or quality benchmark yet. The review dialog described below is not connected to a model host. The action contract and manual page planner do not complete M4 or provide a general security guarantee. Do not send private project data to an external provider without the user's separate opt-in.
+The local AI planner has no model installer, conversational follow-ups, or quality benchmark yet. The action contract and manual page planner do not by themselves complete M4 or provide a general security guarantee. Do not send private project data to an external provider without the user's separate opt-in.
 
 ## Isolated local inference feasibility test
 
@@ -28,10 +28,16 @@ On 2026-10-30, the Win64 Delphi compiler built `tests/native/LocalAIProcessSmoke
 
 `previewFivePagePlan` accepts an untrusted five-page name/headline plan and converts it into the existing action preview transaction. It requires a project with one empty Home page, creates distinct local page addresses, and rejects malformed or colliding plans. The first plan entry names Home; each page receives an editable Hero headline. A caller must show the generated changes and explicitly accept the unchanged preview; acceptance can be one undoable editor operation. Automated tests exercise acceptance and undo. The converter is available to the review dialog but is not yet connected to the local model and does not complete the AI wizard.
 
-The editor now has a review dialog for a five-page plan delivered by a future native host. It displays each proposed page and headline before applying anything, rejects a response if the project changed during generation, and applies the approved plan as one undoable operation. An isolated browser check exercised a recorded model response, cancellation, approval, undo and a changed-project rejection. The native model host is not yet connected, so this dialog is not currently a way to generate a plan in the application.
+The editor has a review dialog for a five-page plan delivered by the native host. It displays each proposed page and headline before applying anything, rejects a response if the project changed during generation, and applies the approved plan as one undoable operation. An isolated browser check exercised a recorded model response, cancellation, approval, undo and a changed-project rejection.
 
-A subsequent isolated inference run used the same locally evaluated runtime and model with a fictional community-site prompt. The resulting five-name/headline response is recorded as `tests/fixtures/local-ai-community-plan.json`. An automated test passed that response through the plan preview and acceptance, serialized and reopened the project, and verified the five exported HTML pages contain their headlines. The test used a temporary loopback server and key, then stopped the server and removed the key. This is one simple model response, not an end-to-end app feature or a model quality benchmark; native host integration, review UI and runtime/model packaging remain open.
+A subsequent isolated inference run used the same locally evaluated runtime and model with a fictional community-site prompt. The resulting five-name/headline response is recorded as `tests/fixtures/local-ai-community-plan.json`. An automated test passed that response through the plan preview and acceptance, serialized and reopened the project, and verified the five exported HTML pages contain their headlines. The test used a temporary loopback server and key, then stopped the server and removed the key. This was one simple model response, not a model quality benchmark; runtime/model packaging remains open.
 
 ## Native local request client
 
-`desktop/ai/WebStudio.LocalAIClient.pas` sends a brief to a caller-specified loopback port using a caller-supplied key, disallows redirects and validates a five-page response. A mock test checked valid and invalid responses; a separate test received a valid plan from the checksum-verified local CPU model described above, using a fictional brief. The test server was stopped afterward. The client is not connected to the application: its caller still needs to establish server identity, protect credentials, manage the process and cancellation, and pass the result to the review dialog. Runtime and model installation also remain open.
+`desktop/ai/WebStudio.LocalAIClient.pas` sends a brief to a caller-specified loopback port using a caller-supplied key, disallows redirects and validates a five-page response. A mock test checked valid and invalid responses; a separate test received a valid plan from the checksum-verified local CPU model described above, using a fictional brief. The test server was stopped afterward.
+
+## Experimental Windows planner
+
+Open a new blank project in the editor and choose **Local AI** from the native menu. Select the llama.cpp b12012 Windows CPU ZIP and Qwen3-1.7B Q8 GGUF model described above, enter a brief, and choose **Generate**. The planner verifies the pinned archive and model checksums, starts the runtime as a supervised offline loopback process with a temporary key, and checks the process owns the listening port before sending the brief. Review the proposed page names and headlines, then apply or cancel. Applied pages can be edited and the operation can be undone.
+
+An isolated Windows app test used a fictional community-site brief: the local model produced five pages, the app displayed the review, and applying it created five pages with editable hero sections. The owned server was stopped after the request. The runtime and model currently must be obtained separately; there is no download or installation workflow, progress cancellation, conversational editing, or multi-machine model quality benchmark yet. The current 1.7B feasibility model is not the 4B or Phi model evaluation requested in the handoff. Do not treat M4 as complete.

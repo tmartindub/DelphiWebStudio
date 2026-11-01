@@ -19,6 +19,7 @@ type
       ModelSHA256: string; Port: Word);
     procedure Stop;
     function IsRunning: Boolean;
+    function ProcessId: Cardinal;
   end;
 
 implementation
@@ -38,6 +39,13 @@ var
 begin
   Result := (FProcess <> 0) and GetExitCodeProcess(FProcess, ExitCode) and
     (ExitCode = STILL_ACTIVE);
+end;
+
+function TLocalAIProcess.ProcessId: Cardinal;
+begin
+  if FProcess = 0 then
+    Exit(0);
+  Result := GetProcessId(FProcess);
 end;
 
 procedure TLocalAIProcess.Start(const ServerPath, ModelPath, KeyFile, ServerSHA256,

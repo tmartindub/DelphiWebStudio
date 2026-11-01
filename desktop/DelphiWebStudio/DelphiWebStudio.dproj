@@ -15,13 +15,14 @@
     <DCC_Namespace>Winapi;System.Win;System;Xml;Data;Datasnap;Web;Soap;Vcl;$(DCC_Namespace)</DCC_Namespace>
     <DCC_ExeOutput>..\..\bin</DCC_ExeOutput>
     <DCC_DcuOutput>..\..\dcu</DCC_DcuOutput>
-    <DCC_UnitSearchPath>..\project;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+    <DCC_UnitSearchPath>..\project;..\ai;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
     <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
     <AppEnableRuntimeThemes>true</AppEnableRuntimeThemes>
   </PropertyGroup>
   <ItemGroup>
     <DelphiCompile Include="$(MainSource)"><MainSource>MainSource</MainSource></DelphiCompile>
     <DCCReference Include="WebStudio.Main.pas"><Form>MainForm</Form></DCCReference>
+    <DCCReference Include="WebStudio.LocalAIForm.pas"><Form>LocalAIForm</Form></DCCReference>
   </ItemGroup>
   <ProjectExtensions><BorlandProject><Delphi.Personality><Source><Source Name="MainSource">DelphiWebStudio.dpr</Source></Source></Delphi.Personality><Platforms><Platform value="Win64">True</Platform></Platforms></BorlandProject><ProjectFileVersion>12</ProjectFileVersion></ProjectExtensions>
   <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')" />

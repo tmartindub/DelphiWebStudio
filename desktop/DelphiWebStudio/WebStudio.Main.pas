@@ -26,6 +26,7 @@ type
     BackupOpenDialog: TOpenDialog;
     BackupRestoreDialog: TSaveDialog;
     ReplaceConfirmDialog: TTaskDialog;
+    LocalAIItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure EditorBrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HResult);
@@ -38,17 +39,20 @@ type
     procedure RecoverStageButtonClick(Sender: TObject);
     procedure BackupProjectItemClick(Sender: TObject);
     procedure RestoreBackupItemClick(Sender: TObject);
+    procedure LocalAIItemClick(Sender: TObject);
   private
     FDownloadPending: Boolean;
     FActiveProjectSaves: Integer;
     FCloseWarningShown: Boolean;
+    FLocalAIWorking: Boolean;
   end;
 
 var MainForm: TMainForm;
 
 implementation
 
-uses Winapi.ActiveX, System.IOUtils, System.Zip, System.JSON, System.UITypes, WebStudio.ProjectSave;
+uses Winapi.ActiveX, System.IOUtils, System.Zip, System.JSON, System.UITypes,
+  WebStudio.ProjectSave, WebStudio.LocalAIForm, WebStudio.LocalAIHost;
 
 {$R *.dfm}
 
@@ -210,6 +214,11 @@ end;
 
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
+  if FLocalAIWorking then begin
+    CanClose := False;
+    StatusLabel.Caption := 'Local AI is running. Please wait for it to finish.';
+    Exit;
+  end;
   if (FDownloadPending or (FActiveProjectSaves > 0)) and
     (not FCloseWarningShown or (StatusLabel.Caption <> 'A save is in progress. Wait for it to finish, or close again to interrupt it.')) then begin
     FCloseWarningShown := True;
@@ -219,6 +228,70 @@ begin
     CanClose := True;
     if not FDownloadPending and (FActiveProjectSaves = 0) then FCloseWarningShown := False;
   end;
+end;
+
+procedure TMainForm.LocalAIItemClick(Sender: TObject);
+var
+  Dialog: TLocalAIForm;
+  RuntimeArchive, ModelFile, Brief, RequestId: string;
+  Guid: TGUID;
+  JsonId: TJSONString;
+begin
+  if FLocalAIWorking then Exit;
+  if EditorBrowser.DefaultInterface = nil then begin
+    MessageDlg('Wait for the local editor to finish loading.', mtInformation, [mbOK], 0);
+    Exit;
+  end;
+  Dialog := TLocalAIForm.Create(Self);
+  try
+    if Dialog.ShowModal <> mrOk then Exit;
+    RuntimeArchive := Dialog.RuntimeEdit.Text;
+    ModelFile := Dialog.ModelEdit.Text;
+    Brief := Dialog.BriefMemo.Text;
+  finally
+    Dialog.Free;
+  end;
+  CreateGUID(Guid);
+  RequestId := GUIDToString(Guid).Replace('{', '').Replace('}', '');
+  JsonId := TJSONString.Create(RequestId);
+  try
+    EditorBrowser.ExecuteScript('window.dispatchEvent(new CustomEvent("webstudio-local-plan-started",{detail:' + JsonId.ToJSON + '}));');
+  finally
+    JsonId.Free;
+  end;
+  FLocalAIWorking := True;
+  LocalAIItem.Enabled := False;
+  StatusLabel.Caption := 'Local AI is preparing the model and planning pages...';
+  TThread.CreateAnonymousThread(
+    procedure
+    var Plan, Failure: string;
+    begin
+      try
+        Plan := RunLocalSitePlan(RuntimeArchive, ModelFile, Brief);
+      except
+        on E: Exception do Failure := E.Message;
+      end;
+      TThread.Queue(nil,
+        procedure
+        var Id: TJSONString;
+        begin
+          FLocalAIWorking := False;
+          LocalAIItem.Enabled := True;
+          Id := TJSONString.Create(RequestId);
+          try
+            if Failure = '' then begin
+              EditorBrowser.ExecuteScript('window.dispatchEvent(new CustomEvent("webstudio-local-plan-completed",{detail:{requestId:' + Id.ToJSON + ',plan:' + Plan + '}}));');
+              StatusLabel.Caption := 'Local AI finished. Review the proposed pages.';
+            end else begin
+              EditorBrowser.ExecuteScript('window.dispatchEvent(new CustomEvent("webstudio-local-plan-cancelled",{detail:' + Id.ToJSON + '}));');
+              StatusLabel.Caption := 'Local AI could not create a plan.';
+              MessageDlg(Failure, mtError, [mbOK], 0);
+            end;
+          finally
+            Id.Free;
+          end;
+        end);
+    end).Start;
 end;
 
 procedure TMainForm.EditorBrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HResult);

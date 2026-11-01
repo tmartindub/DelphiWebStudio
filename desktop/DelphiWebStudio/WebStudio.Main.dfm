@@ -94,6 +94,10 @@ object MainForm: TMainForm
         OnClick = RestoreBackupItemClick
       end
     end
+    object LocalAIItem: TMenuItem
+      Caption = 'Local AI...'
+      OnClick = LocalAIItemClick
+    end
   end
   object BackupSourceDialog: TOpenDialog
     Filter = 'Project files|*.json;*.zip'
