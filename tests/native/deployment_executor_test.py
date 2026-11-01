@@ -22,7 +22,7 @@ hosts = work / 'known_hosts'
 hosts.write_text(f'[127.0.0.1]:{port} {host_key.get_name()} {host_key.get_base64()}\n', encoding='ascii')
 
 baseline = {'index.html': b'Hello world!', 'assets/image.png': b'picture', 'empty.txt': b''}
-roots = ['/success', '/gui', '/stale', '/race', '/journal', '/deny', '/midfail', '/postchange', '/private-missing', '/private-link']
+roots = ['/success', '/rollback', '/gui', '/stale', '/race', '/journal', '/deny', '/midfail', '/postchange', '/private-missing', '/private-link']
 files = {prefix + '/' + name: content for prefix in roots for name, content in baseline.items()}
 directories = {'/', '/private'} | {directory for prefix in roots for directory in [prefix, prefix + '/assets']}
 removed = []
@@ -108,7 +108,7 @@ class Files(paramiko.SFTPServerInterface):
 errors = []
 def serve():
     try:
-        for _ in range(55):
+        for _ in range(69):
             connection, _ = listener.accept()
             transport = paramiko.Transport(connection)
             try:
@@ -170,6 +170,30 @@ gui = subprocess.run([str(exe), str(port), str(key), str(hosts), '/gui', str(web
 assert gui.returncode == 0 and 'Synthetic native confirmation workflow passed.' in gui.stdout, (gui.stdout, gui.stderr)
 assert files['/gui/index.html'] == b'new synthetic data'
 assert [json.loads(line)['event'] for line in gui_receipt.read_text(encoding='utf8').splitlines()][-1] == 'complete'
+
+rollback_source = work / 'rollback-source.jsonl'
+rollback_deploy = execute('/rollback', rollback_source)
+assert rollback_deploy.returncode == 0, (rollback_deploy.stdout, rollback_deploy.stderr)
+rollback_current = {path.removeprefix('/rollback/'): content for path, content in files.items() if path.startswith('/rollback/')}
+rollback_scan = work / 'rollback-current-scan.json'
+rollback_scan.write_text(json.dumps({'format': 'webstudio-website-manifest', 'version': 1, 'files': [
+    {'path': name, 'size': len(content), 'sha256': hashlib.sha256(content).hexdigest()}
+    for name, content in rollback_current.items()]}), encoding='utf8')
+rollback_backup = work / 'rollback-current-backup.zip'
+with zipfile.ZipFile(rollback_backup, 'w') as archive:
+    for name, content in rollback_current.items():
+        archive.writestr(name, content)
+rollback_output = work / 'rollback-added.jsonl'
+rollback_args = [str(exe), str(backup), str(rollback_scan), str(rollback_backup), str(rollback_source), str(rollback_output), str(key), str(hosts), str(port), '/rollback', '/private']
+unconfirmed_rollback = subprocess.run(rollback_args + ['no'] + ['test'] * 14, capture_output=True, text=True, timeout=30)
+assert unconfirmed_rollback.returncode != 0 and not rollback_output.exists() and files['/rollback/newfolder/new.txt'] == b'synthetic addition'
+confirmed_rollback = subprocess.run(rollback_args + ['confirmed'] + ['test'] * 14, capture_output=True, text=True, timeout=60)
+assert confirmed_rollback.returncode == 0, (confirmed_rollback.stdout, confirmed_rollback.stderr)
+rollback_events = [json.loads(line) for line in rollback_output.read_text(encoding='utf8').splitlines()]
+assert [event['event'] for event in rollback_events] == ['reviewed', 'retain-started', 'retain-verified', 'retain-started', 'retain-verified', 'complete']
+assert '/rollback/newfolder/new.txt' not in files and '/rollback/secondfolder/second.txt' not in files
+assert files[rollback_events[1]['retainedPath']] == b'synthetic addition' and files[rollback_events[3]['retainedPath']] == b'second addition'
+assert files['/rollback/index.html'] == b'new synthetic data' and files['/rollback/assets/image.png'] == b'picture'
 
 # Restore the old backup using a fresh scan and backup of the current destination.
 # All paths and contents remain inside this in-memory test server.

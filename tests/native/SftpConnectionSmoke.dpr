@@ -4,7 +4,7 @@ program SftpConnectionSmoke;
 
 uses
   Winapi.Windows, Winapi.Messages, Winapi.CommDlg, Winapi.Dlgs, System.SysUtils, System.Classes, System.IOUtils, System.UITypes, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, WebStudio.SftpConnection,
-  WebStudio.SftpForm, WebStudio.SftpInventory, WebStudio.DeploymentReview, WebStudio.DeploymentPreflight, WebStudio.DeploymentReviewForm, WebStudio.DeploymentJournal, WebStudio.DeploymentExecutor, WebStudio.RollbackReview;
+  WebStudio.SftpForm, WebStudio.SftpInventory, WebStudio.DeploymentReview, WebStudio.DeploymentPreflight, WebStudio.DeploymentReviewForm, WebStudio.DeploymentJournal, WebStudio.DeploymentExecutor, WebStudio.RollbackReview, WebStudio.RollbackExecutor;
 
 type
   TDialogDriver = class
@@ -51,6 +51,14 @@ var
   ConfirmTimer: TTimer;
 begin
   try
+    if ParamCount = 25 then begin
+      Review := ReviewDeployment(ParamStr(1), ParamStr(2), ParamStr(3));
+      Entries := ReviewAddedRollback(ParamStr(4), '127.0.0.1', ParamStr(9), StrToInt(ParamStr(8)), Review);
+      ExecuteAddedRollback(ParamStr(1), ParamStr(2), ParamStr(3), ParamStr(4), ParamStr(5), Review, Entries,
+        '127.0.0.1', 'testuser', ParamStr(6), ParamStr(7), StrToInt(ParamStr(8)), ParamStr(9), ParamStr(10), ParamStr(11) = 'confirmed');
+      Writeln('Added-file rollback complete.');
+      Exit;
+    end;
     if ParamCount = 24 then begin
       Review := ReviewDeployment(ParamStr(1), ParamStr(2), ParamStr(3));
       for Entry in ReviewAddedRollback(ParamStr(4), ParamStr(5), ParamStr(6), StrToInt(ParamStr(7)), Review) do

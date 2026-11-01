@@ -58,6 +58,9 @@ function RestoreSftpOriginal(const Host, UserName, KeyFile, KnownHostsFile: stri
 function RetainAddedSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
   Port: Word; const RemoteDirectory, RecoveryDirectory, RemoteName: string;
   ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
+function RetainAddedSftpFileWithId(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RecoveryDirectory, RemoteName: string;
+  ExpectedSize: UInt64; const ExpectedSha256: string; const OperationId: TGUID): TSftpTransferReceipt;
 { Internal transfer primitive, not connected to the UI. Creates missing
   directories only; it never follows links or removes existing entries. }
 function EnsureSftpDirectories(const Host, UserName, KeyFile, KnownHostsFile: string;
@@ -98,7 +101,7 @@ type
       CurrentSize: UInt64; const CurrentSha256: string; OriginalSize: UInt64;
       const OriginalSha256: string): TSftpTransferReceipt;
     function RetainAdded(const RemoteDirectory, RecoveryDirectory, RemoteName: string;
-      ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
+      ExpectedSize: UInt64; const ExpectedSha256: string; const OperationId: TGUID): TSftpTransferReceipt;
     function EnsureDirectories(const RemoteDirectory, RelativeDirectory: string): TArray<string>;
     procedure ScanDirectory(const Root, Relative: string; Depth: Integer);
   public
@@ -685,8 +688,8 @@ begin
 end;
 
 function TSftpScanner.RetainAdded(const RemoteDirectory, RecoveryDirectory, RemoteName: string;
-  ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
-var Root, RecoveryRoot, TargetPath, RetainedPath: string; Index: Integer; Id: TGUID; Moved: Boolean;
+  ExpectedSize: UInt64; const ExpectedSha256: string; const OperationId: TGUID): TSftpTransferReceipt;
+var Root, RecoveryRoot, TargetPath, RetainedPath: string; Index: Integer; Moved: Boolean;
 begin
   RecoveryRoot := NormalizePrivateRecoveryDirectory(RemoteDirectory, RecoveryDirectory);
   if (RemoteName = '') or (RemoteName = '.') or (RemoteName = '..') or
@@ -703,8 +706,9 @@ begin
   Root := RemoteDirectory;
   if not Root.EndsWith('/') then Root := Root + '/';
   TargetPath := Root + RemoteName;
-  if CreateGUID(Id) <> 0 then raise EInvalidOpException.Create('Could not create a recovery filename.');
-  RetainedPath := RecoveryRoot + '.webstudio-added-' + GUIDToString(Id) + '.bak';
+  if GUIDToString(OperationId) = '{00000000-0000-0000-0000-000000000000}' then
+    raise EArgumentException.Create('A unique recovery identifier is required.');
+  RetainedPath := RecoveryRoot + '.webstudio-added-' + GUIDToString(OperationId) + '.bak';
   Initialize;
   RequireDirectoryChain(RemoteDirectory);
   RequireDirectoryChain(RecoveryRoot);
@@ -1053,10 +1057,20 @@ end;
 function RetainAddedSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
   Port: Word; const RemoteDirectory, RecoveryDirectory, RemoteName: string;
   ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
+var Id: TGUID;
+begin
+  if CreateGUID(Id) <> 0 then raise EInvalidOpException.Create('Could not create a recovery identifier.');
+  Result := RetainAddedSftpFileWithId(Host, UserName, KeyFile, KnownHostsFile, Port,
+    RemoteDirectory, RecoveryDirectory, RemoteName, ExpectedSize, ExpectedSha256, Id);
+end;
+
+function RetainAddedSftpFileWithId(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RecoveryDirectory, RemoteName: string;
+  ExpectedSize: UInt64; const ExpectedSha256: string; const OperationId: TGUID): TSftpTransferReceipt;
 var Scanner: TSftpScanner;
 begin
   Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
-  try Result := Scanner.RetainAdded(RemoteDirectory, RecoveryDirectory, RemoteName, ExpectedSize, ExpectedSha256);
+  try Result := Scanner.RetainAdded(RemoteDirectory, RecoveryDirectory, RemoteName, ExpectedSize, ExpectedSha256, OperationId);
   finally Scanner.Free end;
 end;
 
