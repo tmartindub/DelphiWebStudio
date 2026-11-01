@@ -16,7 +16,7 @@ type
     FRoot: string;
     FTransfers: TArray<TDeploymentTransfer>;
     FNext: Integer;
-    FPending, FFinished, FBroken: Boolean;
+    FPending, FFinished, FBroken, FFinalVerified: Boolean;
     FPendingId: TGUID;
     FUsedIds: TDictionary<string, Boolean>;
     procedure WriteRecord(RecordValue: TJSONObject);
@@ -28,6 +28,8 @@ type
     procedure BeginTransfer(Index: Integer; const OperationId: TGUID);
     procedure CompleteTransfer(const Receipt: TSftpTransferReceipt);
     procedure FailTransfer(const MessageText: string);
+    procedure Stop(const MessageText: string);
+    procedure RecordFinalVerification;
     procedure Finish;
   end;
 
@@ -234,7 +236,7 @@ end;
 procedure TDeploymentJournal.Finish;
 var RecordValue: TJSONObject;
 begin
-  if FPending or (FNext <> Length(FTransfers)) then raise EInvalidOpException.Create('The reviewed transfers are not complete.');
+  if FPending or (FNext <> Length(FTransfers)) or not FFinalVerified then raise EInvalidOpException.Create('The reviewed transfers and destination verification are not complete.');
   RecordValue := TJSONObject.Create;
   try
     RecordValue.AddPair('event', 'complete');
@@ -242,6 +244,33 @@ begin
     WriteRecord(RecordValue);
   finally RecordValue.Free end;
   FFinished := True;
+end;
+
+procedure TDeploymentJournal.RecordFinalVerification;
+var RecordValue: TJSONObject;
+begin
+  if FPending or (FNext <> Length(FTransfers)) or FFinalVerified then
+    raise EInvalidOpException.Create('The destination cannot yet be marked verified.');
+  RecordValue := TJSONObject.Create;
+  try
+    RecordValue.AddPair('event', 'destination-verified');
+    WriteRecord(RecordValue);
+  finally RecordValue.Free end;
+  FFinalVerified := True;
+end;
+
+procedure TDeploymentJournal.Stop(const MessageText: string);
+var RecordValue: TJSONObject;
+begin
+  if FPending then raise EInvalidOpException.Create('Record the pending transfer failure first.');
+  RecordValue := TJSONObject.Create;
+  try
+    RecordValue.AddPair('event', 'stopped');
+    RecordValue.AddPair('nextIndex', TJSONNumber.Create(FNext));
+    RecordValue.AddPair('message', Copy(MessageText, 1, 2048));
+    WriteRecord(RecordValue);
+  finally RecordValue.Free end;
+  FBroken := True;
 end;
 
 end.

@@ -4,7 +4,7 @@ program SftpConnectionSmoke;
 
 uses
   Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils, Vcl.Forms, WebStudio.SftpConnection,
-  WebStudio.SftpForm, WebStudio.SftpInventory, WebStudio.DeploymentReview, WebStudio.DeploymentPreflight, WebStudio.DeploymentReviewForm, WebStudio.DeploymentJournal;
+  WebStudio.SftpForm, WebStudio.SftpInventory, WebStudio.DeploymentReview, WebStudio.DeploymentPreflight, WebStudio.DeploymentReviewForm, WebStudio.DeploymentJournal, WebStudio.DeploymentExecutor;
 
 var
   DirectoryName, KeyName, HostsName: string;
@@ -19,9 +19,25 @@ var
   ReviewDialog: TDeploymentReviewForm;
   Deadline: UInt64;
   Journal: TDeploymentJournal;
+  Execution: TDeploymentExecution;
   OperationId, SecondId: TGUID;
 begin
   try
+    if ParamCount = 21 then begin
+      Review := ReviewDeployment(ParamStr(5), ParamStr(6), ParamStr(7));
+      TFile.AppendAllText(ParamStr(5), 'changed after review');
+      Execution := ExecuteReviewedDeployment(ParamStr(5), ParamStr(6), ParamStr(7), ParamStr(8), Review,
+        '127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), True);
+      Writeln('Unexpected execution:', Execution.VerifiedTransfers);
+      Exit;
+    end;
+    if ParamCount = 20 then begin
+      Review := ReviewDeployment(ParamStr(5), ParamStr(6), ParamStr(7));
+      Execution := ExecuteReviewedDeployment(ParamStr(5), ParamStr(6), ParamStr(7), ParamStr(8), Review,
+        '127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(9) = 'confirmed');
+      Writeln('Transfers:', Execution.VerifiedTransfers, '|Preserved:', Execution.PreservedFiles);
+      Exit;
+    end;
     if ParamCount = 19 then begin
       OperationId := StringToGUID(ParamStr(9));
       Receipt := ReplaceSftpFileWithId('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(5), ParamStr(6), StrToUInt64(ParamStr(7)), ParamStr(8), OperationId);
@@ -58,6 +74,10 @@ begin
         Receipt.Sha256 := Review.Transfers[1].DesiredSha256;
         Receipt.PreviousPath := '/site/.webstudio-original-' + GUIDToString(SecondId) + '.bak';
         Journal.CompleteTransfer(Receipt);
+        Rejected := False;
+        try Journal.Finish except on E: Exception do Rejected := True end;
+        if not Rejected then raise Exception.Create('Journal finished without destination verification.');
+        Journal.RecordFinalVerification;
         Journal.Finish;
       finally Journal.Free end;
       Rejected := False;

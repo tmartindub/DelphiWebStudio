@@ -3,6 +3,8 @@ unit WebStudio.SftpInventory;
 
 interface
 
+uses System.Classes;
+
 type
   TSftpInventoryEntry = record
     Path: string;
@@ -37,9 +39,15 @@ function ReplaceSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
 function ReplaceSftpFileWithId(const Host, UserName, KeyFile, KnownHostsFile: string;
   Port: Word; const RemoteDirectory, RemoteName, LocalFile: string;
   ExpectedSize: UInt64; const ExpectedSha256: string; const OperationId: TGUID): TSftpTransferReceipt;
+function TransferSftpStreamWithId(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RemoteName: string; Source: TStream;
+  Replacing: Boolean; ExpectedSize: UInt64; const ExpectedSha256: string;
+  const OperationId: TGUID): TSftpTransferReceipt;
 { Replacement is also internal. The caller must first review the full diff,
   back up the destination, and obtain explicit publication confirmation. The
-  original is retained under the receipt's PreviousPath; it is never deleted. }
+  original is retained under the receipt's PreviousPath; it is never deleted.
+  This location is inside the website and may be publicly accessible. Do not
+  expose replacement until a private recovery location is implemented. }
 { Internal rollback primitive; not connected to the UI. Both files must match
   reviewed hashes. The displaced current file is retained, never deleted. }
 function RestoreSftpOriginal(const Host, UserName, KeyFile, KnownHostsFile: string;
@@ -53,7 +61,7 @@ function EnsureSftpDirectories(const Host, UserName, KeyFile, KnownHostsFile: st
 
 implementation
 
-uses Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils, System.Hash, System.JSON, System.Zip,
+uses Winapi.Windows, System.SysUtils, System.IOUtils, System.Hash, System.JSON, System.Zip,
   System.Generics.Collections;
 
 type
@@ -492,7 +500,7 @@ var
   Kind: Byte;
   Offset: UInt64;
   Hash: THashSHA2;
-  Created, Renamed, MoveAttempted, OriginalMoved: Boolean;
+  Created, Renamed, RenameAttempted, MoveAttempted, OriginalMoved: Boolean;
 begin
   if (RemoteDirectory = '') or (Length(RemoteDirectory) > 1024) or (RemoteDirectory[1] <> '/') or (Pos('\', RemoteDirectory) > 0) then
     raise EArgumentException.Create('Enter an absolute SFTP destination folder.');
@@ -524,6 +532,7 @@ begin
   Initialize;
   Created := False;
   Renamed := False;
+  RenameAttempted := False;
   MoveAttempted := False;
   OriginalMoved := False;
   try
@@ -585,6 +594,7 @@ begin
       if HashFile(PreviousPath, ExpectedSize) <> LowerCase(ExpectedSha256) then
         raise EInvalidOpException.Create('The destination file changed after review.');
     end;
+    RenameAttempted := True;
     RenameNoReplace(TempPath, TargetPath);
     Renamed := True;
     if HashFile(TargetPath, Offset) <> LocalHash then
@@ -603,6 +613,7 @@ begin
         raise EInvalidOpException.Create(E.Message + ' Inspect ' + TargetPath + ' and the possible original at ' + PreviousPath + ' before retrying. A staging file may remain at ' + TempPath + '.');
       end;
       if Renamed then raise EInvalidOpException.Create(E.Message + ' The destination file may exist at ' + TargetPath + '; inspect it before retrying.');
+      if RenameAttempted then raise EInvalidOpException.Create(E.Message + ' The destination file may exist at ' + TargetPath + ' and a staging file may remain at ' + TempPath + '; inspect both before retrying.');
       if Created then raise EInvalidOpException.Create(E.Message + ' A staging file may remain at ' + TempPath + '.');
       raise;
     end;
@@ -897,6 +908,20 @@ begin
     Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
     try Result := Scanner.UploadFile(RemoteDirectory, RemoteName, Source, True, ExpectedSize, ExpectedSha256, OperationId) finally Scanner.Free end;
   finally Source.Free end;
+end;
+
+function TransferSftpStreamWithId(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RemoteName: string; Source: TStream;
+  Replacing: Boolean; ExpectedSize: UInt64; const ExpectedSha256: string;
+  const OperationId: TGUID): TSftpTransferReceipt;
+var Scanner: TSftpScanner;
+begin
+  if not Assigned(Source) then raise EArgumentException.Create('A transfer source is required.');
+  Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
+  try
+    Result := Scanner.UploadFile(RemoteDirectory, RemoteName, Source,
+      Replacing, ExpectedSize, ExpectedSha256, OperationId);
+  finally Scanner.Free end;
 end;
 
 function RestoreSftpOriginal(const Host, UserName, KeyFile, KnownHostsFile: string;

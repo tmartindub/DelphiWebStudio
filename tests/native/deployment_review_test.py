@@ -36,7 +36,7 @@ journal_result = subprocess.run([str(exe), str(desired), str(scan), str(backup),
 if journal_result.returncode or 'Journal checks passed.' not in journal_result.stdout:
     raise SystemExit('Native journal test failed: ' + journal_result.stdout + journal_result.stderr)
 records = [json.loads(line) for line in journal.read_text(encoding='utf8').splitlines()]
-assert [record['event'] for record in records] == ['reviewed', 'transfer-started', 'transfer-verified', 'transfer-started', 'transfer-verified', 'complete']
+assert [record['event'] for record in records] == ['reviewed', 'transfer-started', 'transfer-verified', 'transfer-started', 'transfer-verified', 'destination-verified', 'complete']
 assert records[0]['onlyAtDestination'] == ['assets/image.png']
 assert records[1]['stagedPath'] == '/site/.webstudio-upload-{11111111-1111-1111-1111-111111111111}.tmp'
 assert records[3]['originalPath'] == '/site/.webstudio-original-{22222222-2222-2222-2222-222222222222}.bak'
