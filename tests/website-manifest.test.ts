@@ -1,12 +1,33 @@
 import { describe, expect, it } from 'vitest'
 import JSZip from 'jszip'
-import { compareWebsiteManifests, createWebsiteManifest, validateWebsiteManifest } from '../src/lib/website-manifest'
+import { compareWebsiteManifests, createRestorePlan, createWebsiteManifest, validateWebsiteManifest } from '../src/lib/website-manifest'
 
 const hashA = 'a'.repeat(64)
 const hashB = 'b'.repeat(64)
 const manifest = (files: { path: string; size: number; sha256: string }[]) => ({ format: 'webstudio-website-manifest' as const, version: 1 as const, files })
 
 describe('website deployment snapshots', () => {
+  it('plans restoration from a backup against a destination scan without changing either', async () => {
+    const zip = new JSZip()
+    zip.file('index.html', 'hello')
+    zip.file('old.html', 'old')
+    const backup = await zip.generateAsync({ type: 'blob' })
+    const destination = manifest([{ path: 'index.html', size: 1, sha256: hashA }, { path: 'new.html', size: 1, sha256: hashB }])
+    const before = structuredClone(destination)
+    expect(await createRestorePlan(backup, destination)).toEqual({ added: ['old.html'], changed: ['index.html'], removed: ['new.html'] })
+    expect(destination).toEqual(before)
+  })
+
+  it('rejects a damaged backup instead of producing a restore plan', async () => {
+    const zip = new JSZip()
+    zip.file('index.html', 'unique test content', { compression: 'STORE' })
+    const bytes = await zip.generateAsync({ type: 'uint8array' })
+    const marker = new TextEncoder().encode('unique test content')
+    const start = bytes.findIndex((_, index) => marker.every((value, offset) => bytes[index + offset] === value))
+    expect(start).toBeGreaterThan(-1)
+    bytes[start] ^= 1
+    await expect(createRestorePlan(new Blob([bytes]), manifest([]))).rejects.toThrow('checksum')
+  })
   it('hashes the exact prepared ZIP files', async () => {
     const zip = new JSZip()
     zip.file('index.html', 'hello')

@@ -19,7 +19,7 @@ import { portableProjectsEnabled } from '@/project/project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
 import { publishSite } from '@/lib/publish-site'
 import JSZip from 'jszip'
-import { createWebsiteManifest, validateWebsiteManifest, compareWebsiteManifests, type WebsiteManifest } from '@/lib/website-manifest'
+import { createRestorePlan, createWebsiteManifest, validateWebsiteManifest, compareWebsiteManifests, type WebsiteManifest } from '@/lib/website-manifest'
 import { checkSite, type SiteIssue } from '@/project/site-checks'
 
 const readyOptions = [
@@ -46,6 +46,10 @@ export function Deploy() {
   const [review, setReview] = useState<{ signature: string; files: string[]; warnings: SiteIssue[]; zip: Blob; filename: string } | null>(null)
   const [manifest, setManifest] = useState<{ signature: string; data: WebsiteManifest } | null>(null)
   const [comparison, setComparison] = useState<{ signature: string; result: ReturnType<typeof compareWebsiteManifests> } | null>(null)
+  const [restoreBackup, setRestoreBackup] = useState<File | null>(null)
+  const [restoreScan, setRestoreScan] = useState<File | null>(null)
+  const [restorePlan, setRestorePlan] = useState<ReturnType<typeof compareWebsiteManifests> | null>(null)
+  const [restoreWorking, setRestoreWorking] = useState(false)
   const signature = JSON.stringify({ projectId: activeProjectId, config, settings: project?.settings, mediaRevision: project?.mediaRevision })
 
   async function reviewWebsiteFiles() {
@@ -91,6 +95,18 @@ export function Deploy() {
       setComparison(null)
       toast.error(error instanceof Error ? error.message : 'The previous website manifest is invalid')
     }
+  }
+
+  async function reviewRestorePlan() {
+    if (!restoreBackup || !restoreScan) return
+    if (restoreScan.size > 2 * 1024 * 1024) { toast.error('The destination scan is too large.'); return }
+    setRestoreWorking(true)
+    setRestorePlan(null)
+    try {
+      setRestorePlan(await createRestorePlan(restoreBackup, JSON.parse(await restoreScan.text())))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'The restore plan could not be prepared')
+    } finally { setRestoreWorking(false) }
   }
 
   async function handleExport(action: (typeof readyOptions)[number]['action']) {
@@ -231,6 +247,18 @@ export function Deploy() {
       </div>}
 
       {portableProjectsEnabled && <div className="px-4 md:px-12 pt-6 text-xs text-text-2">Publishing is not available yet. Website ZIP export and local file review are available.</div>}
+      {portableProjectsEnabled && <div className="px-4 md:px-12 pt-6">
+        <div className="rounded-xl border border-border-default bg-bg-1 p-4">
+          <h2 className="text-sm font-semibold">Review a restore plan</h2>
+          <p className="mt-1 text-xs text-text-2">Choose a destination backup ZIP and a recent SFTP destination scan. This comparison lists files only; it does not restore or delete anything. Scan again if the destination has changed.</p>
+          <div className="mt-3 flex flex-wrap gap-4 text-xs">
+            <label>Backup ZIP <input type="file" accept=".zip,application/zip" disabled={restoreWorking} onChange={event => { setRestoreBackup(event.target.files?.[0] ?? null); setRestorePlan(null) }} /></label>
+            <label>Destination scan <input type="file" accept=".json,application/json" disabled={restoreWorking} onChange={event => { setRestoreScan(event.target.files?.[0] ?? null); setRestorePlan(null) }} /></label>
+          </div>
+          <button type="button" onClick={reviewRestorePlan} disabled={!restoreBackup || !restoreScan || restoreWorking} className="mt-3 rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">{restoreWorking ? 'Checking backup…' : 'Review restore plan'}</button>
+          {restorePlan && <div className="mt-3 text-xs">{([['added', 'Missing from destination'], ['changed', 'Different contents'], ['removed', 'Only on destination']] as const).map(([kind, label]) => <div key={kind} className="mt-2"><p className="font-semibold">{label}: {restorePlan[kind].length}</p><ul aria-label={label} className="max-h-32 overflow-auto font-mono">{restorePlan[kind].map(path => <li key={path} className="break-all">{path}</li>)}</ul></div>)}</div>}
+        </div>
+      </div>}
       {hasDeployKey && !portableProjectsEnabled && (
         <div className="px-4 md:px-12 pt-8 animate-fade-in-up stagger-3">
           <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-3">Publish</h2>

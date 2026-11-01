@@ -1,4 +1,5 @@
 import JSZip from 'jszip'
+import crc32 from 'jszip/lib/crc32.js'
 
 export interface WebsiteFile {
   path: string
@@ -59,4 +60,33 @@ export function compareWebsiteManifests(previous: WebsiteManifest, current: Webs
     changed: [...newFiles].filter(([path, file]) => oldFiles.has(path) && (oldFiles.get(path)!.size !== file.size || oldFiles.get(path)!.sha256 !== file.sha256)).map(([path]) => path),
     removed: [...oldFiles.keys()].filter(path => !newFiles.has(path)),
   }
+}
+
+/** Compare a saved destination backup with a separately captured destination scan. */
+export async function createRestorePlan(backupZip: Blob, destination: unknown) {
+  const current = validateWebsiteManifest(destination)
+  if (backupZip.size > 520 * 1024 * 1024) throw new Error('The backup ZIP exceeds the 520 MiB limit.')
+  const archive = await JSZip.loadAsync(await backupZip.arrayBuffer())
+  const entries = Object.values(archive.files).filter(entry => !entry.dir)
+  if (entries.length > 10000) throw new Error('The backup contains too many files.')
+  const files: WebsiteFile[] = []
+  let total = 0
+  for (const entry of entries) {
+    if (entry.unsafeOriginalName && entry.unsafeOriginalName !== entry.name) throw new Error('The backup contains an unsafe path.')
+    const mode = typeof entry.unixPermissions === 'string' ? parseInt(entry.unixPermissions, 8) : entry.unixPermissions
+    if (typeof mode === 'number' && (mode & 0o170000) === 0o120000) throw new Error('The backup contains a symbolic link.')
+    const metadata = (entry as JSZip.JSZipObject & { _data?: { uncompressedSize?: number; crc32?: number } })._data
+    // JSZip normalizes zero-length ZIP entries to an empty Promise and discards their metadata.
+    const expectedSize = metadata instanceof Promise ? 0 : metadata?.uncompressedSize
+    const expectedCrc = metadata instanceof Promise ? 0 : metadata?.crc32
+    if (!Number.isSafeInteger(expectedSize) || expectedSize! < 0 || expectedSize! > 64 * 1024 * 1024 || !Number.isInteger(expectedCrc)) throw new Error('The backup contains a file that is too large or has invalid metadata.')
+    total += expectedSize!
+    if (total > 512 * 1024 * 1024) throw new Error('The backup exceeds the 512 MiB expanded size limit.')
+    const bytes = await entry.async('uint8array')
+    if (bytes.length !== expectedSize || (crc32(bytes) >>> 0) !== (expectedCrc! >>> 0)) throw new Error('The backup is damaged; a file checksum does not match.')
+    const digest = await crypto.subtle.digest('SHA-256', new Uint8Array(bytes))
+    files.push({ path: entry.name, size: bytes.length, sha256: Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('') })
+  }
+  const backup = validateWebsiteManifest({ format: 'webstudio-website-manifest', version: 1, files })
+  return compareWebsiteManifests(current, backup)
 }
