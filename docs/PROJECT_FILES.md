@@ -132,6 +132,8 @@ Projects with imported media now save as `.webstudio.zip` files, containing the 
 
 New exports embed generated Tailwind styles and use installed system font fallbacks, rather than loading Tailwind and Google Fonts. Theme colors are retained. Sites can still request external resources explicitly supplied by the user, including image URLs, favicon, Open Graph images and optional analytics. Those references are not copied or converted. Complete self-contained export, SEO checks, and secure publishing remain unfinished.
 
+ZIP export assigns fixed timestamps to files and folder entries. A local test confirmed identical ZIP bytes for unchanged multi-page input exported at different times in the same environment.
+
 ## Page addresses
 
 Page addresses can be changed with the link icon beside the active page. Home stays at `/`; other paths are validated and the change can be undone. The dialog offers to update Content text links and known Hero, CTA, Banner, Navbar and Footer destinations in the same undoable change. External bookmarks and links in other content are not rewritten, so check them after changing an address.

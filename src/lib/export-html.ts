@@ -1635,6 +1635,8 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     }
     zip.file(paths[index], html, { date: new Date('1980-01-01T00:00:00Z') })
   }
+  // JSZip also creates parent directory entries; give those the same fixed date.
+  for (const entry of Object.values(zip.files)) entry.date = new Date('1980-01-01T00:00:00Z')
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
 }
 

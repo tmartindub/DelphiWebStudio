@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import JSZip from 'jszip'
 import { exportSiteZip } from '../src/lib/export-html'
 import { createProjectFile, parseProjectFile, serializeProjectFile } from '../src/project/project-file'
@@ -12,6 +12,16 @@ const pages = [
 const config: SiteConfig = { name: 'Example', pages, blocks: pages[0].blocks }
 
 describe('multi-page export', () => {
+  it('exports identical ZIP bytes for unchanged pages at different times', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(new Date('2026-01-01T12:00:00Z'))
+      const first = new Uint8Array(await (await exportSiteZip(config)).arrayBuffer())
+      vi.setSystemTime(new Date('2026-02-01T12:00:00Z'))
+      const second = new Uint8Array(await (await exportSiteZip(config)).arrayBuffer())
+      expect(second).toEqual(first)
+    } finally { vi.useRealTimers() }
+  })
   it('exports configured HTTPS contact service forms and disables unsafe endpoints', async () => {
     const site = structuredClone(config)
     site.pages![1].blocks.push({ id: 'contact-service', type: 'contact', variant: 'form', props: { formEndpoint: 'https://forms.example.test/submit?site=one&mode=post', consentNotice: 'I agree to the privacy notice.' } })
