@@ -1441,6 +1441,9 @@ export async function exportToHTML(
   config: SiteConfig,
   options?: ExportSiteOptions
 ): Promise<string> {
+  if (config.pages?.some(page => page.webstudioCustomCode && Object.values(page.webstudioCustomCode).some(value => value))) {
+    throw new Error('Pages contain custom code. Export the website ZIP to preserve it.')
+  }
   return exportSiteToHTML(config, options)
 }
 
@@ -1587,7 +1590,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     const article = page.webstudioArticle
     const articleHeader = article && (article.author || article.summary || article.tags?.length) ? `<header class="px-6 py-3 text-text-1">${article.author ? `<p class="text-sm">By ${escapeHtml(article.author)}</p>` : ''}${article.summary ? `<p class="text-sm">${escapeHtml(article.summary)}</p>` : ''}${article.tags?.length ? `<p class="text-sm">Tags: ${article.tags.map(escapeHtml).join(', ')}</p>` : ''}</header>` : ''
     const pageSettings = { ...options?.settings, ...(page.webstudioSeo?.title?.trim() ? { seoTitle: page.webstudioSeo.title } : {}), ...(page.webstudioSeo?.description?.trim() ? { seoDescription: page.webstudioSeo.description } : {}) }
-    const html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, { settings: pageSettings })
+    let html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, { settings: pageSettings })
       .replace('</head>', canonicalBase ? `  <link rel="canonical" href="${escapeHtml(new URL(encodeURI(paths[index]), canonicalBase).href)}" />\n  <meta property="og:url" content="${escapeHtml(new URL(encodeURI(paths[index]), canonicalBase).href)}" />\n</head>` : '</head>')
       .replace('<!-- WEBSTUDIO_PAGE_NAV -->', `<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav}</nav>`)
       .replace('<main id="main-content" tabindex="-1" class="@container">', `<main id="main-content" tabindex="-1" class="@container">${articleHeader}`)
@@ -1602,6 +1605,27 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
         const targetIndex = pages.findIndex(target => normalized === escapeHtml(target.path) || normalized === escapeHtml(encodeURI(target.path)))
         return targetIndex < 0 ? match : `${start}${escapeHtml(prefix + encodeURI(paths[targetIndex]))}${suffix}${end}`
       })
+    const custom = page.webstudioCustomCode
+    if (custom) {
+      let customScript = ''
+      const customFiles = [
+        { extension: 'css', value: custom.css },
+        { extension: 'js', value: custom.js },
+      ]
+      for (const file of customFiles) {
+        if (!file.value) continue
+        const filePath = `webstudio-custom/page-${index}.${file.extension}`
+        if (Object.values(zip.files).some(entry => {
+          const existing = entry.name.replace(/\/$/, '').toLowerCase()
+          const desired = filePath.toLowerCase()
+          return existing === desired || existing.startsWith(`${desired}/`) || (!entry.dir && desired.startsWith(`${existing}/`))
+        })) throw new Error(`Custom code conflicts with an exported file: ${filePath}.`)
+        zip.file(filePath, file.value, { date: new Date('1980-01-01T00:00:00Z') })
+        if (file.extension === 'css') html = html.replace('</head>', `  <link rel="stylesheet" href="${prefix}${filePath}" />\n</head>`)
+        else customScript = `<script src="${prefix}${filePath}"></script>\n`
+      }
+      html = html.replace('</body>', () => `${custom.html}\n${customScript}</body>`)
+    }
     zip.file(paths[index], html, { date: new Date('1980-01-01T00:00:00Z') })
   }
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })

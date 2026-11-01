@@ -122,6 +122,10 @@ export function validateProjectConfig(value: unknown): SiteConfig {
         const seo = record(page.webstudioSeo, 'Page search metadata')
         if ((seo.title !== undefined && typeof seo.title !== 'string') || (seo.description !== undefined && typeof seo.description !== 'string')) throw new Error('Page search title and description must be text.')
       }
+      if (page.webstudioCustomCode !== undefined) {
+        const code = record(page.webstudioCustomCode, 'Custom page code')
+        if (['html', 'css', 'js'].some(field => typeof code[field] !== 'string')) throw new Error('Custom page HTML, CSS and JavaScript must be text.')
+      }
       if (paths.has(path.toLowerCase())) throw new Error(`Duplicate page path: ${path}.`)
       paths.add(path.toLowerCase())
       if (page.webstudioArticle !== undefined) {

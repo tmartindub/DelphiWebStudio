@@ -70,6 +70,7 @@ export interface PageConfig {
   path: string
   blocks: BlockConfig[]
   webstudioSeo?: { title?: string; description?: string }
+  webstudioCustomCode?: { html: string; css: string; js: string }
   webstudioArticle?: {
     status: 'draft' | 'ready'
     author: string

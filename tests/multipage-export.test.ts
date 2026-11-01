@@ -12,6 +12,22 @@ const pages = [
 const config: SiteConfig = { name: 'Example', pages, blocks: pages[0].blocks }
 
 describe('multi-page export', () => {
+  it('preserves page-specific custom code through project save and nested ZIP export', async () => {
+    const site = structuredClone(config)
+    const custom = { html: '<p id="welcome">Hello $&</p>', css: '#welcome { color: red; }', js: 'document.querySelector("#welcome").textContent = "Ready";' }
+    site.pages![1].webstudioCustomCode = custom
+    const reopened = parseProjectFile(serializeProjectFile(createProjectFile(site, 'test-project'))).project.config
+    expect(reopened.pages![1].webstudioCustomCode).toEqual(custom)
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(reopened)).arrayBuffer())
+    const news = await zip.file('community/news.html')!.async('string')
+    const home = await zip.file('index.html')!.async('string')
+    expect(news).toContain(custom.html)
+    expect(news).toContain('href="../webstudio-custom/page-1.css"')
+    expect(news).toContain('src="../webstudio-custom/page-1.js"')
+    expect(await zip.file('webstudio-custom/page-1.css')!.async('string')).toBe(custom.css)
+    expect(await zip.file('webstudio-custom/page-1.js')!.async('string')).toBe(custom.js)
+    expect(home).not.toContain('webstudio-custom/page-1')
+  })
   it.each(['simple', 'multi-column', 'minimal'])('exports %s footer destinations as working nested links', async variant => {
     const site = structuredClone(config)
     site.pages![1].blocks.push({ id: 'footer', type: 'footer', variant, props: { logo: 'Club', copyright: '', links: ['Legacy'], navItems: [{ label: 'About & us', url: '/about?from=news#team' }, { label: 'Unsafe', url: '//example.com' }] } })
