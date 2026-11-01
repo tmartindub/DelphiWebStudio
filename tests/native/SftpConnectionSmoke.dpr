@@ -41,7 +41,7 @@ var
   Receipt: TSftpTransferReceipt;
   Review: TDeploymentReview;
   Transfer: TDeploymentTransfer;
-  Path: string;
+  Path, ExpectedStatus: string;
   ReviewDialog: TDeploymentReviewForm;
   Deadline: UInt64;
   Journal: TDeploymentJournal;
@@ -100,7 +100,10 @@ begin
       Exit;
     end;
     if ParamCount = 22 then begin
-      if ParamStr(4) <> '/gui' then raise Exception.Create('The dialog test requires the synthetic local destination.');
+      if (ParamStr(4) <> '/gui') and (ParamStr(4) <> '/rollback-gui') then
+        raise Exception.Create('The dialog test requires the synthetic local destination.');
+      if ParamStr(4) = '/gui' then ExpectedStatus := 'Verified 3 transfers'
+      else ExpectedStatus := 'Verified 1 transfers';
       Application.Initialize;
       UseLatestCommonDialogs := False;
       ReviewDialog := TDeploymentReviewForm.Create(nil);
@@ -126,7 +129,7 @@ begin
         ReviewDialog.PublishButton.Click;
         Deadline := GetTickCount64 + 30000;
         while not ReviewDialog.ReviewButton.Enabled and (GetTickCount64 < Deadline) do begin Application.ProcessMessages; CheckSynchronize(0); Sleep(10) end;
-        if (Pos('Verified 3 transfers', ReviewDialog.StatusLabel.Caption) = 0) or not TFile.Exists(ParamStr(8)) then
+        if (Pos(ExpectedStatus, ReviewDialog.StatusLabel.Caption) = 0) or not TFile.Exists(ParamStr(8)) then
           raise Exception.Create('Dialog transfer failed: ' + ReviewDialog.StatusLabel.Caption);
         Writeln('Synthetic native confirmation workflow passed.');
       finally ConfirmTimer.Free; Driver.Free; ReviewDialog.Free end;

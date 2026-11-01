@@ -108,7 +108,7 @@ class Files(paramiko.SFTPServerInterface):
 errors = []
 def serve():
     try:
-        for _ in range(84):
+        for _ in range(90):
             connection, _ = listener.accept()
             transport = paramiko.Transport(connection)
             try:
@@ -203,6 +203,22 @@ rollback_gui = subprocess.run([str(exe), str(port), str(key), str(hosts), '/roll
 assert rollback_gui.returncode == 0 and 'Synthetic native rollback workflow passed.' in rollback_gui.stdout, (rollback_gui.stdout, rollback_gui.stderr)
 assert '/rollback-gui/newfolder/new.txt' not in files and '/rollback-gui/secondfolder/second.txt' not in files
 assert [json.loads(line)['event'] for line in rollback_gui_receipt.read_text(encoding='utf8').splitlines()][-1] == 'complete'
+
+# The second desktop step restores the earlier backup after a new scan and backup.
+after_added = {path.removeprefix('/rollback-gui/'): content for path, content in files.items() if path.startswith('/rollback-gui/')}
+after_added_scan = work / 'after-added-scan.json'
+after_added_scan.write_text(json.dumps({'format': 'webstudio-website-manifest', 'version': 1, 'files': [
+    {'path': name, 'size': len(content), 'sha256': hashlib.sha256(content).hexdigest()}
+    for name, content in after_added.items()]}), encoding='utf8')
+after_added_backup = work / 'after-added-backup.zip'
+with zipfile.ZipFile(after_added_backup, 'w') as archive:
+    for name, content in after_added.items():
+        archive.writestr(name, content)
+restoration_receipt = work / 'restoration-gui.jsonl'
+restoration_gui = subprocess.run([str(exe), str(port), str(key), str(hosts), '/rollback-gui', str(backup), str(after_added_scan), str(after_added_backup), str(restoration_receipt)] + ['test'] * 14, capture_output=True, text=True, timeout=50)
+assert restoration_gui.returncode == 0 and 'Synthetic native confirmation workflow passed.' in restoration_gui.stdout, (restoration_gui.stdout, restoration_gui.stderr)
+assert {path.removeprefix('/rollback-gui/'): content for path, content in files.items() if path.startswith('/rollback-gui/')} == baseline
+assert [json.loads(line)['event'] for line in restoration_receipt.read_text(encoding='utf8').splitlines()][-1] == 'complete'
 
 # Restore the old backup using a fresh scan and backup of the current destination.
 # All paths and contents remain inside this in-memory test server.
