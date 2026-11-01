@@ -218,11 +218,11 @@ export function Deploy() {
             <ul aria-label="Website files" className="mt-2 max-h-48 overflow-auto rounded border border-border-subtle p-2 font-mono text-xs">{review.files.map(file => <li key={file} className="break-all">{file}</li>)}</ul>
             <button type="button" onClick={() => downloadHTML(review.zip, review.filename)} className="mt-3 rounded border border-border-default px-3 py-2 text-xs">Download reviewed ZIP</button>
             <div className="mt-4 border-t border-border-subtle pt-3">
-              <p className="text-xs text-text-2">Compare this website with a previously saved WebStudio file manifest. This is a local comparison and does not check the hosting destination.</p>
+              <p className="text-xs text-text-2">Compare this website with a saved file manifest or a destination scan from the SFTP connection menu. The selected file reflects its capture time; scan again if the destination changes.</p>
               <button type="button" onClick={prepareManifest} disabled={exporting} className="mt-2 rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">{exporting ? 'Preparing…' : 'Prepare file manifest'}</button>
               {manifest?.signature === signature && <div className="mt-2 flex flex-wrap items-center gap-3">
                 <button type="button" onClick={() => downloadHTML(new Blob([JSON.stringify(manifest.data, null, 2) + '\n'], { type: 'application/json' }), review.filename.replace(/\.zip$/i, '-manifest.json'))} className="rounded border border-border-default px-3 py-2 text-xs">Download file manifest</button>
-                <label className="text-xs">Compare previous manifest <input aria-label="Compare previous website manifest" type="file" accept="application/json,.json" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void comparePreviousManifest(file) }} /></label>
+                <label className="text-xs">Compare manifest or destination scan <input aria-label="Compare website manifest or destination scan" type="file" accept="application/json,.json" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void comparePreviousManifest(file) }} /></label>
               </div>}
               {comparison?.signature === signature && <div className="mt-3 text-xs">{(['added', 'changed', 'removed'] as const).map(kind => <div key={kind} className="mt-2"><p className="font-semibold capitalize">{kind}: {comparison.result[kind].length}</p><ul aria-label={`${kind} files`} className="max-h-32 overflow-auto font-mono">{comparison.result[kind].map(path => <li key={path} className="break-all">{path}</li>)}</ul></div>)}</div>}
             </div>

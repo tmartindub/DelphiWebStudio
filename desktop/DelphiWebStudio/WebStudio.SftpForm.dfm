@@ -1,7 +1,7 @@
 object SftpForm: TSftpForm
   BorderStyle = bsDialog
   Caption = 'SFTP connection test'
-  ClientHeight = 390
+  ClientHeight = 442
   ClientWidth = 620
   Position = poScreenCenter
   OnCloseQuery = FormCloseQuery
@@ -37,7 +37,7 @@ object SftpForm: TSftpForm
     Height = 42
     AutoSize = False
     WordWrap = True
-    Caption = 'Use an SSH key and trusted known_hosts file. Download a previously saved website snapshot to compare in Export. This is not a live scan and does not upload files.'
+    Caption = 'Use an SSH key and trusted known_hosts file. Scan reads up to 512 MiB; links are unsupported. Compare results in Export. No files are uploaded.'
   end
   object RemoteLabel: TLabel
     Left = 16
@@ -46,11 +46,16 @@ object SftpForm: TSftpForm
   end
   object StatusLabel: TLabel
     Left = 16
-    Top = 266
+    Top = 306
     Width = 585
     Height = 42
     AutoSize = False
     WordWrap = True
+  end
+  object FolderLabel: TLabel
+    Left = 16
+    Top = 266
+    Caption = 'Destination folder'
   end
   object HostEdit: TEdit
     Left = 125
@@ -108,27 +113,42 @@ object SftpForm: TSftpForm
   end
   object DownloadButton: TButton
     Left = 240
-    Top = 346
+    Top = 398
     Width = 140
     Caption = 'Download snapshot...'
     TabOrder = 8
     OnClick = DownloadButtonClick
   end
+  object FolderEdit: TEdit
+    Left = 125
+    Top = 262
+    Width = 475
+    TabOrder = 9
+    TextHint = '/path/to/website'
+  end
+  object ScanButton: TButton
+    Left = 75
+    Top = 398
+    Width = 145
+    Caption = 'Scan destination...'
+    TabOrder = 10
+    OnClick = ScanButtonClick
+  end
   object TestButton: TButton
     Left = 396
-    Top = 346
+    Top = 398
     Width = 110
     Caption = 'Test connection'
-    TabOrder = 9
+    TabOrder = 11
     OnClick = TestButtonClick
   end
   object CloseButton: TButton
     Left = 525
-    Top = 346
+    Top = 398
     Width = 75
     Caption = 'Close'
     ModalResult = 2
-    TabOrder = 10
+    TabOrder = 12
   end
   object KeyDialog: TOpenDialog
     Options = [ofHideReadOnly, ofNoChangeDir, ofFileMustExist, ofPathMustExist, ofEnableSizing]

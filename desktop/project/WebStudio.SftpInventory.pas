@@ -1,0 +1,404 @@
+unit WebStudio.SftpInventory;
+{$B-}
+
+interface
+
+type
+  TSftpInventoryEntry = record
+    Path: string;
+    Size: UInt64;
+    Sha256: string;
+  end;
+
+{ Read-only SFTP directory inventory. Unsupported entries fail the scan. }
+function ScanSftpInventory(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory: string): TArray<TSftpInventoryEntry>;
+procedure SaveSftpInventory(const Entries: TArray<TSftpInventoryEntry>; const Destination: string);
+
+implementation
+
+uses Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils, System.Hash, System.JSON,
+  System.Generics.Collections;
+
+type
+  TSftpScanner = class
+  private
+    FInput, FOutput, FJob: THandle;
+    FProcess: TProcessInformation;
+    FDeadline: UInt64;
+    FId: Cardinal;
+    FTotalBytes: UInt64;
+    FEntries: TList<TSftpInventoryEntry>;
+    procedure ReadExact(var Buffer; Count: Cardinal);
+    procedure SendPacket(Stream: TBytesStream);
+    function ReceivePacket: TBytesStream;
+    function Request(Kind: Byte; const Value: TBytes; const Extra: TBytes = nil): TBytesStream;
+    function HashFile(const RemotePath: string; ExpectedSize: UInt64): string;
+    procedure ScanDirectory(const Root, Relative: string; Depth: Integer);
+  public
+    constructor Create(const Host, UserName, KeyFile, KnownHostsFile: string; Port: Word);
+    destructor Destroy; override;
+    function Scan(const RemoteDirectory: string): TArray<TSftpInventoryEntry>;
+  end;
+
+procedure PutUInt32(Stream: TStream; Value: Cardinal);
+var Buffer: array[0..3] of Byte;
+begin
+  Buffer[0] := (Value shr 24) and $FF; Buffer[1] := (Value shr 16) and $FF;
+  Buffer[2] := (Value shr 8) and $FF; Buffer[3] := Value and $FF;
+  Stream.WriteBuffer(Buffer, 4);
+end;
+
+function GetUInt32(Stream: TStream): Cardinal;
+var Buffer: array[0..3] of Byte;
+begin
+  Stream.ReadBuffer(Buffer, 4);
+  Result := (Cardinal(Buffer[0]) shl 24) or (Cardinal(Buffer[1]) shl 16) or
+    (Cardinal(Buffer[2]) shl 8) or Cardinal(Buffer[3]);
+end;
+
+procedure PutBytes(Stream: TStream; const Value: TBytes);
+begin
+  PutUInt32(Stream, Length(Value));
+  if Length(Value) > 0 then Stream.WriteBuffer(Value[0], Length(Value));
+end;
+
+function GetBytes(Stream: TStream): TBytes;
+var Count: Cardinal;
+begin
+  Count := GetUInt32(Stream);
+  if (Count > 1024 * 1024) or (Int64(Count) > Stream.Size - Stream.Position) then
+    raise EInvalidOpException.Create('Invalid SFTP response length.');
+  SetLength(Result, Count);
+  if Count > 0 then Stream.ReadBuffer(Result[0], Count);
+end;
+
+constructor TSftpScanner.Create(const Host, UserName, KeyFile, KnownHostsFile: string; Port: Word);
+var
+  I: Integer;
+  SystemFolder: array[0..MAX_PATH] of Char;
+  SshPath, KeyPath, HostsPath, CommandLine: string;
+  Security: TSecurityAttributes;
+  Startup: TStartupInfo;
+  Limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION;
+  ChildInput, ChildOutput, NullOutput: THandle;
+begin
+  inherited Create;
+  FEntries := TList<TSftpInventoryEntry>.Create;
+  if (Host = '') or (UserName = '') or (Port = 0) then
+    raise EArgumentException.Create('Enter a host, username and port.');
+  if not CharInSet(Host[1], ['A'..'Z', 'a'..'z', '0'..'9']) or
+     not CharInSet(UserName[1], ['A'..'Z', 'a'..'z', '0'..'9', '_']) then
+    raise EArgumentException.Create('Invalid host or username.');
+  for I := 1 to Length(Host) do
+    if not CharInSet(Host[I], ['A'..'Z', 'a'..'z', '0'..'9', '.', '-']) then
+      raise EArgumentException.Create('Invalid host.');
+  for I := 1 to Length(UserName) do
+    if not CharInSet(UserName[I], ['A'..'Z', 'a'..'z', '0'..'9', '.', '_', '-']) then
+      raise EArgumentException.Create('Invalid username.');
+  if (Length(Host) > 253) or (Length(UserName) > 64) or (KeyFile = '') or (KnownHostsFile = '') then
+    raise EArgumentException.Create('Invalid connection details.');
+  KeyPath := ExpandFileName(KeyFile); HostsPath := ExpandFileName(KnownHostsFile);
+  if not TFile.Exists(KeyPath) or not TFile.Exists(HostsPath) or (Pos('"', KeyPath + HostsPath) > 0) then
+    raise EArgumentException.Create('Choose an existing private key and trusted known_hosts file.');
+  for I := 1 to Length(KeyPath) do if KeyPath[I] < #32 then raise EArgumentException.Create('Invalid key path.');
+  for I := 1 to Length(HostsPath) do if HostsPath[I] < #32 then raise EArgumentException.Create('Invalid trusted hosts path.');
+  if GetSystemDirectory(SystemFolder, Length(SystemFolder)) = 0 then RaiseLastOSError;
+  SshPath := TPath.Combine(string(SystemFolder), 'OpenSSH\ssh.exe');
+  if not TFile.Exists(SshPath) then raise EInvalidOpException.Create('Windows OpenSSH is not installed.');
+  ChildInput := 0; ChildOutput := 0; NullOutput := 0;
+  try
+    FillChar(Security, SizeOf(Security), 0); Security.nLength := SizeOf(Security); Security.bInheritHandle := True;
+    if not CreatePipe(ChildInput, FInput, @Security, 0) then RaiseLastOSError;
+    if not SetHandleInformation(FInput, HANDLE_FLAG_INHERIT, 0) then RaiseLastOSError;
+    if not CreatePipe(FOutput, ChildOutput, @Security, 0) then RaiseLastOSError;
+    if not SetHandleInformation(FOutput, HANDLE_FLAG_INHERIT, 0) then RaiseLastOSError;
+    NullOutput := CreateFile('NUL', GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE,
+      @Security, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    if NullOutput = INVALID_HANDLE_VALUE then begin NullOutput := 0; RaiseLastOSError end;
+    FJob := CreateJobObject(nil, nil);
+    if FJob = 0 then RaiseLastOSError;
+    FillChar(Limits, SizeOf(Limits), 0);
+    Limits.BasicLimitInformation.LimitFlags := JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    if not SetInformationJobObject(FJob, JobObjectExtendedLimitInformation, @Limits, SizeOf(Limits)) then RaiseLastOSError;
+    CommandLine := Format('"%s" -T -F NUL -o BatchMode=yes -o StrictHostKeyChecking=yes ' +
+      '-o "UserKnownHostsFile=\"%s\"" -o GlobalKnownHostsFile=NUL -o UpdateHostKeys=no ' +
+      '-o ClearAllForwardings=yes -o PermitLocalCommand=no -o ConnectTimeout=12 ' +
+      '-o IdentitiesOnly=yes -i "%s" -p %d -s %s@%s sftp',
+      [SshPath, HostsPath, KeyPath, Port, UserName, Host]);
+    UniqueString(CommandLine);
+    FillChar(Startup, SizeOf(Startup), 0); Startup.cb := SizeOf(Startup);
+    Startup.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW; Startup.wShowWindow := SW_HIDE;
+    Startup.hStdInput := ChildInput; Startup.hStdOutput := ChildOutput; Startup.hStdError := NullOutput;
+    if not CreateProcess(PChar(SshPath), PChar(CommandLine), nil, nil, True,
+      CREATE_SUSPENDED or CREATE_NO_WINDOW, nil, nil, Startup, FProcess) then RaiseLastOSError;
+    if not AssignProcessToJobObject(FJob, FProcess.hProcess) then begin
+      TerminateProcess(FProcess.hProcess, 1); raise EInvalidOpException.Create('Could not control the SFTP process.')
+    end;
+    if ResumeThread(FProcess.hThread) = Cardinal(-1) then RaiseLastOSError;
+    FDeadline := GetTickCount64 + 60000;
+  finally
+    if ChildInput <> 0 then CloseHandle(ChildInput);
+    if ChildOutput <> 0 then CloseHandle(ChildOutput);
+    if NullOutput <> 0 then CloseHandle(NullOutput);
+  end;
+end;
+
+destructor TSftpScanner.Destroy;
+begin
+  if FInput <> 0 then CloseHandle(FInput);
+  if FOutput <> 0 then CloseHandle(FOutput);
+  if FJob <> 0 then CloseHandle(FJob);
+  if FProcess.hThread <> 0 then CloseHandle(FProcess.hThread);
+  if FProcess.hProcess <> 0 then CloseHandle(FProcess.hProcess);
+  FEntries.Free;
+  inherited;
+end;
+
+procedure TSftpScanner.ReadExact(var Buffer; Count: Cardinal);
+var Available, Actual, Offset: Cardinal;
+begin
+  Offset := 0;
+  while Offset < Count do begin
+    if GetTickCount64 >= FDeadline then raise EInvalidOpException.Create('SFTP inventory timed out.');
+    if not PeekNamedPipe(FOutput, nil, 0, nil, @Available, nil) then
+      raise EInvalidOpException.Create('SFTP connection closed while reading the destination.');
+    if Available = 0 then begin Sleep(20); Continue end;
+    if Available > Count - Offset then Available := Count - Offset;
+    if not ReadFile(FOutput, PByte(NativeUInt(@Buffer) + Offset)^, Available, Actual, nil) or (Actual = 0) then
+      raise EInvalidOpException.Create('Could not read the SFTP response.');
+    Inc(Offset, Actual);
+  end;
+end;
+
+procedure TSftpScanner.SendPacket(Stream: TBytesStream);
+var Header: array[0..3] of Byte; Count, Written: Cardinal;
+begin
+  Count := Stream.Size;
+  Header[0] := (Count shr 24) and $FF; Header[1] := (Count shr 16) and $FF;
+  Header[2] := (Count shr 8) and $FF; Header[3] := Count and $FF;
+  if not WriteFile(FInput, Header, 4, Written, nil) or (Written <> 4) then raise EInvalidOpException.Create('Could not send SFTP request.');
+  if (Count > 0) and (not WriteFile(FInput, Stream.Bytes[0], Count, Written, nil) or (Written <> Count)) then
+    raise EInvalidOpException.Create('Could not send SFTP request.');
+end;
+
+function TSftpScanner.ReceivePacket: TBytesStream;
+var Header: array[0..3] of Byte; Count: Cardinal; Bytes: TBytes;
+begin
+  ReadExact(Header, 4);
+  Count := (Cardinal(Header[0]) shl 24) or (Cardinal(Header[1]) shl 16) or (Cardinal(Header[2]) shl 8) or Header[3];
+  if (Count = 0) or (Count > 1024 * 1024) then raise EInvalidOpException.Create('Invalid SFTP packet size.');
+  SetLength(Bytes, Count); ReadExact(Bytes[0], Count);
+  Result := TBytesStream.Create(Bytes);
+end;
+
+function TSftpScanner.Request(Kind: Byte; const Value: TBytes; const Extra: TBytes): TBytesStream;
+var Packet: TBytesStream; ResponseKind: Byte; Id: Cardinal;
+begin
+  Inc(FId); Id := FId;
+  Packet := TBytesStream.Create;
+  try
+    Packet.WriteBuffer(Kind, 1); PutUInt32(Packet, Id); PutBytes(Packet, Value);
+    if Length(Extra) > 0 then Packet.WriteBuffer(Extra[0], Length(Extra));
+    SendPacket(Packet);
+  finally Packet.Free end;
+  Result := ReceivePacket;
+  try
+    Result.ReadBuffer(ResponseKind, 1);
+    if GetUInt32(Result) <> Id then raise EInvalidOpException.Create('Unexpected SFTP response.');
+    Result.Position := 0;
+  except Result.Free; raise end;
+end;
+
+function TSftpScanner.HashFile(const RemotePath: string; ExpectedSize: UInt64): string;
+var
+  Packet, Extra: TBytesStream;
+  Kind: Byte;
+  Handle, Data, RequestData: TBytes;
+  Offset: UInt64;
+  Requested: Cardinal;
+  Hash: THashSHA2;
+begin
+  if (ExpectedSize > 512 * 1024 * 1024) or (FTotalBytes + ExpectedSize > 512 * 1024 * 1024) then
+    raise EInvalidOpException.Create('The destination exceeds the 512 MiB scan limit.');
+  Inc(FTotalBytes, ExpectedSize);
+  Extra := TBytesStream.Create;
+  try
+    PutUInt32(Extra, 1); PutUInt32(Extra, 0);
+    RequestData := Copy(Extra.Bytes, 0, Extra.Size);
+  finally Extra.Free end;
+  Packet := Request(3, TEncoding.UTF8.GetBytes(RemotePath), RequestData);
+  try
+    Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
+    if Kind <> 102 then raise EInvalidOpException.Create('Cannot read a destination file.');
+    Handle := GetBytes(Packet);
+    if Length(Handle) > 256 then raise EInvalidOpException.Create('Invalid SFTP file handle.');
+  finally Packet.Free end;
+  Hash := THashSHA2.Create;
+  Offset := 0;
+  repeat
+    if Offset < ExpectedSize then begin
+      Requested := 65536;
+      if ExpectedSize - Offset < Requested then Requested := Cardinal(ExpectedSize - Offset);
+    end else Requested := 1;
+    Extra := TBytesStream.Create;
+    try
+      PutUInt32(Extra, Cardinal(Offset shr 32)); PutUInt32(Extra, Cardinal(Offset)); PutUInt32(Extra, Requested);
+      RequestData := Copy(Extra.Bytes, 0, Extra.Size);
+    finally Extra.Free end;
+    Packet := Request(5, Handle, RequestData);
+    try
+      Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
+      if Kind = 101 then begin
+        if (GetUInt32(Packet) <> 1) or (Offset <> ExpectedSize) then
+          raise EInvalidOpException.Create('A destination file changed or could not be read during the scan.');
+        Break;
+      end;
+      if Kind <> 103 then raise EInvalidOpException.Create('Unexpected SFTP file response.');
+      Data := GetBytes(Packet);
+      if (Length(Data) = 0) or (Cardinal(Length(Data)) > Requested) or (UInt64(Length(Data)) > ExpectedSize - Offset) then
+        raise EInvalidOpException.Create('A destination file changed during the scan.');
+      Hash.Update(Data, Length(Data)); Inc(Offset, Length(Data));
+    finally Packet.Free end;
+  until False;
+  Packet := Request(4, Handle);
+  try
+    Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
+    if (Kind <> 101) or (GetUInt32(Packet) <> 0) then raise EInvalidOpException.Create('Could not close the SFTP file.');
+  finally Packet.Free end;
+  Result := LowerCase(Hash.HashAsString);
+end;
+
+procedure TSftpScanner.ScanDirectory(const Root, Relative: string; Depth: Integer);
+var
+  Packet: TBytesStream;
+  Kind: Byte;
+  Handle, NameBytes: TBytes;
+  Count, Index, Flags, Mode, Extended, X: Cardinal;
+  Size: UInt64;
+  Name, Path: string;
+  Entry: TSftpInventoryEntry;
+begin
+  if Depth > 32 then raise EInvalidOpException.Create('The destination has too many nested folders.');
+  Packet := Request(11, TEncoding.UTF8.GetBytes(Root + Relative));
+  try
+    Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
+    if Kind <> 102 then raise EInvalidOpException.Create('Cannot open the SFTP destination folder.');
+    Handle := GetBytes(Packet);
+    if Length(Handle) > 256 then raise EInvalidOpException.Create('Invalid SFTP directory handle.');
+  finally Packet.Free end;
+  repeat
+    Packet := Request(12, Handle);
+    try
+      Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
+      if Kind = 101 then begin
+        if GetUInt32(Packet) <> 1 then raise EInvalidOpException.Create('Cannot list the SFTP destination.');
+        Break;
+      end;
+      if Kind <> 104 then raise EInvalidOpException.Create('Unexpected SFTP directory response.');
+      Count := GetUInt32(Packet);
+      if Count > 10000 then raise EInvalidOpException.Create('The destination contains too many files.');
+      for Index := 1 to Count do begin
+        NameBytes := GetBytes(Packet); GetBytes(Packet);
+        if not TEncoding.UTF8.IsBufferValid(NameBytes) then raise EInvalidOpException.Create('The destination contains a filename that is not valid UTF-8.');
+        Name := TEncoding.UTF8.GetString(NameBytes);
+        Flags := GetUInt32(Packet); Size := 0; Mode := 0;
+        if Flags and 1 <> 0 then Size := (UInt64(GetUInt32(Packet)) shl 32) or GetUInt32(Packet);
+        if Flags and 2 <> 0 then begin GetUInt32(Packet); GetUInt32(Packet) end;
+        if Flags and 4 <> 0 then Mode := GetUInt32(Packet);
+        if Flags and 8 <> 0 then begin GetUInt32(Packet); GetUInt32(Packet) end;
+        if Flags and $80000000 <> 0 then begin
+          Extended := GetUInt32(Packet);
+          if Extended > 1024 then raise EInvalidOpException.Create('Invalid SFTP file attributes.');
+          for X := 1 to Extended do begin GetBytes(Packet); GetBytes(Packet) end;
+        end;
+        if (Name = '.') or (Name = '..') then Continue;
+        if (Name = '') or (Pos('/', Name) > 0) or (Pos('\', Name) > 0) then raise EInvalidOpException.Create('Invalid destination filename.');
+        for X := 1 to Length(Name) do if Name[X] < #32 then raise EInvalidOpException.Create('Unsupported destination filename.');
+        Path := Relative + Name;
+        if Length(TEncoding.UTF8.GetBytes(Root + Path)) > 2048 then
+          raise EInvalidOpException.Create('The destination contains a path that is too long to scan.');
+        case Mode and $F000 of
+          $4000: ScanDirectory(Root, Path + '/', Depth + 1);
+          $8000: begin
+            if Flags and 1 = 0 then raise EInvalidOpException.Create('The server did not provide a file size.');
+            if FEntries.Count >= 10000 then raise EInvalidOpException.Create('The destination contains too many files.');
+            Entry.Path := Path; Entry.Size := Size; Entry.Sha256 := HashFile(Root + Path, Size); FEntries.Add(Entry);
+          end;
+        else raise EInvalidOpException.Create('The destination contains a link or unsupported file type; the scan is incomplete.');
+        end;
+      end;
+    finally Packet.Free end;
+  until False;
+  Packet := Request(4, Handle);
+  try
+    Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
+    if (Kind <> 101) or (GetUInt32(Packet) <> 0) then raise EInvalidOpException.Create('Could not close the SFTP directory.');
+  finally Packet.Free end;
+end;
+
+function TSftpScanner.Scan(const RemoteDirectory: string): TArray<TSftpInventoryEntry>;
+var Packet: TBytesStream; Kind: Byte; Path, Part: string; Index: Integer;
+begin
+  if (RemoteDirectory = '') or (Length(RemoteDirectory) > 1024) or (RemoteDirectory[1] <> '/') or (Pos('\', RemoteDirectory) > 0) then
+    raise EArgumentException.Create('Enter an absolute SFTP destination folder.');
+  for Index := 1 to Length(RemoteDirectory) do
+    if RemoteDirectory[Index] < #32 then raise EArgumentException.Create('Invalid destination folder.');
+  for Part in RemoteDirectory.Split(['/']) do
+    if (Part = '.') or (Part = '..') then raise EArgumentException.Create('The destination folder cannot contain dot segments.');
+  Path := RemoteDirectory;
+  if not Path.EndsWith('/') then Path := Path + '/';
+  Packet := TBytesStream.Create;
+  try Kind := 1; Packet.WriteBuffer(Kind, 1); PutUInt32(Packet, 3); SendPacket(Packet) finally Packet.Free end;
+  Packet := ReceivePacket;
+  try
+    Packet.ReadBuffer(Kind, 1);
+    if (Kind <> 2) or (GetUInt32(Packet) <> 3) then raise EInvalidOpException.Create('The server does not support SFTP version 3.');
+  finally Packet.Free end;
+  ScanDirectory(Path, '', 0);
+  Result := FEntries.ToArray;
+end;
+
+function ScanSftpInventory(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory: string): TArray<TSftpInventoryEntry>;
+var Scanner: TSftpScanner;
+begin
+  Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
+  try Result := Scanner.Scan(RemoteDirectory) finally Scanner.Free end;
+end;
+
+procedure SaveSftpInventory(const Entries: TArray<TSftpInventoryEntry>; const Destination: string);
+var
+  Entry: TSftpInventoryEntry;
+  Document, Item: TJSONObject;
+  Files: TJSONArray;
+  Bytes: TBytes;
+  Output: THandle;
+  Written: Cardinal;
+begin
+  Document := TJSONObject.Create;
+  try
+    Document.AddPair('format', 'webstudio-website-manifest');
+    Document.AddPair('version', TJSONNumber.Create(1));
+    Files := TJSONArray.Create;
+    Document.AddPair('files', Files);
+    for Entry in Entries do begin
+      Item := TJSONObject.Create;
+      Item.AddPair('path', Entry.Path);
+      Item.AddPair('size', TJSONNumber.Create(Int64(Entry.Size)));
+      Item.AddPair('sha256', Entry.Sha256);
+      Files.AddElement(Item);
+    end;
+    Bytes := TEncoding.UTF8.GetBytes(Document.ToJSON);
+    if Length(Bytes) > 2 * 1024 * 1024 then
+      raise EInvalidOpException.Create('The scan is too large for the Export comparison.');
+  finally Document.Free end;
+  Output := CreateFile(PChar(Destination), GENERIC_WRITE, 0, nil, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, 0);
+  if Output = INVALID_HANDLE_VALUE then RaiseLastOSError;
+  try
+    if (Length(Bytes) > 0) and (not WriteFile(Output, Bytes[0], Length(Bytes), Written, nil) or (Written <> Cardinal(Length(Bytes)))) then
+      raise EInvalidOpException.Create('Could not write the complete scan file.');
+  finally CloseHandle(Output) end;
+end;
+
+end.

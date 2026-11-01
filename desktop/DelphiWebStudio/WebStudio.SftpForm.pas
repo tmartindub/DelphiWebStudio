@@ -28,18 +28,22 @@ type
     RemoteEdit: TEdit;
     DownloadButton: TButton;
     SnapshotSaveDialog: TSaveDialog;
+    FolderLabel: TLabel;
+    FolderEdit: TEdit;
+    ScanButton: TButton;
     procedure KeyBrowseClick(Sender: TObject);
     procedure HostsBrowseClick(Sender: TObject);
     procedure TestButtonClick(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure DownloadButtonClick(Sender: TObject);
+    procedure ScanButtonClick(Sender: TObject);
   private
     FChecking: Boolean;
   end;
 
 implementation
 
-uses System.SysUtils, WebStudio.SftpConnection;
+uses System.SysUtils, WebStudio.SftpConnection, WebStudio.SftpInventory;
 
 {$R *.dfm}
 
@@ -74,6 +78,7 @@ begin
   FChecking := True;
   TestButton.Enabled := False;
   DownloadButton.Enabled := False;
+  ScanButton.Enabled := False;
   CloseButton.Enabled := False;
   StatusLabel.Caption := 'Testing connection...';
   TThread.CreateAnonymousThread(procedure
@@ -91,6 +96,7 @@ begin
       FChecking := False;
       TestButton.Enabled := True;
       DownloadButton.Enabled := True;
+      ScanButton.Enabled := True;
       CloseButton.Enabled := True;
     end);
   end).Start;
@@ -115,6 +121,7 @@ begin
   FChecking := True;
   TestButton.Enabled := False;
   DownloadButton.Enabled := False;
+  ScanButton.Enabled := False;
   CloseButton.Enabled := False;
   StatusLabel.Caption := 'Downloading saved snapshot...';
   TThread.CreateAnonymousThread(procedure
@@ -132,6 +139,53 @@ begin
       FChecking := False;
       TestButton.Enabled := True;
       DownloadButton.Enabled := True;
+      ScanButton.Enabled := True;
+      CloseButton.Enabled := True;
+    end);
+  end).Start;
+end;
+
+procedure TSftpForm.ScanButtonClick(Sender: TObject);
+var
+  Host, UserName, KeyFile, KnownHosts, RemoteFolder, Destination: string;
+  Port: Integer;
+begin
+  if not TryStrToInt(PortEdit.Text, Port) or (Port < 1) or (Port > 65535) then begin
+    StatusLabel.Caption := 'Enter a port from 1 to 65535.';
+    Exit;
+  end;
+  if not SnapshotSaveDialog.Execute then Exit;
+  Host := Trim(HostEdit.Text);
+  UserName := Trim(UserEdit.Text);
+  KeyFile := KeyEdit.Text;
+  KnownHosts := HostsEdit.Text;
+  RemoteFolder := Trim(FolderEdit.Text);
+  Destination := SnapshotSaveDialog.FileName;
+  FChecking := True;
+  TestButton.Enabled := False;
+  DownloadButton.Enabled := False;
+  ScanButton.Enabled := False;
+  CloseButton.Enabled := False;
+  StatusLabel.Caption := 'Scanning destination; this reads files without changing them...';
+  TThread.CreateAnonymousThread(procedure
+  var
+    MessageText: string;
+    Entries: TArray<TSftpInventoryEntry>;
+  begin
+    try
+      Entries := ScanSftpInventory(Host, UserName, KeyFile, KnownHosts, Port, RemoteFolder);
+      SaveSftpInventory(Entries, Destination);
+      MessageText := 'Scan saved. Compare it in Export; scan again if the destination changes.';
+    except
+      on E: Exception do MessageText := E.Message;
+    end;
+    TThread.Queue(nil, procedure
+    begin
+      StatusLabel.Caption := MessageText;
+      FChecking := False;
+      TestButton.Enabled := True;
+      DownloadButton.Enabled := True;
+      ScanButton.Enabled := True;
       CloseButton.Enabled := True;
     end);
   end).Start;

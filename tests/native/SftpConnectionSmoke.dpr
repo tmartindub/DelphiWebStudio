@@ -4,14 +4,27 @@ program SftpConnectionSmoke;
 
 uses
   System.SysUtils, System.IOUtils, Vcl.Forms, WebStudio.SftpConnection,
-  WebStudio.SftpForm;
+  WebStudio.SftpForm, WebStudio.SftpInventory;
 
 var
   DirectoryName, KeyName, HostsName: string;
   Rejected: Boolean;
   Dialog: TSftpForm;
+  Entry: TSftpInventoryEntry;
+  Entries: TArray<TSftpInventoryEntry>;
 begin
   try
+    if ParamCount = 6 then begin
+      Entries := ScanSftpInventory('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4));
+      SaveSftpInventory(Entries, ParamStr(5));
+      Writeln('Scan saved.');
+      Exit;
+    end;
+    if ParamCount = 4 then begin
+      for Entry in ScanSftpInventory('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4)) do
+        Writeln(Entry.Path, ':', Entry.Size, ':', Entry.Sha256);
+      Exit;
+    end;
     if ParamCount = 5 then begin
       DownloadSftpSnapshot('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(5));
       Writeln('Snapshot downloaded.');
