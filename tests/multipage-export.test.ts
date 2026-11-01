@@ -125,7 +125,10 @@ describe('multi-page export', () => {
     const media = [{ id: 'example', projectId: 'p', name: 'bulletin.pdf', path: 'assets/example.pdf', mime: 'application/pdf', size: 9, sha256: '3c87d37f1dbea6909f917ce437c390fb8e655a774387d9e69301c0b2283d5b63', content: new Blob(['%PDF-test'], { type: 'application/pdf' }) }]
     const zip = await JSZip.loadAsync(await (await exportSiteZip(site, undefined, media)).arrayBuffer())
     expect(await zip.file('assets/example.pdf')!.async('string')).toBe('%PDF-test')
-    expect(await zip.file('community/news.html')!.async('string')).toContain('src="../assets/pdfjs/viewer.html?file=..%2Fexample.pdf"')
+    const html = await zip.file('community/news.html')!.async('string')
+    expect(html).toContain('src="../assets/pdfjs/viewer.html?file=..%2Fexample.pdf"')
+    expect(html).toContain('data-webstudio-pdf-local-notice hidden')
+    expect(html).toContain("location.protocol==='file:'")
     expect(zip.file('assets/pdfjs/pdf.worker.min.js')).not.toBeNull()
     expect(zip.file('assets/pdfjs/viewer.js')).not.toBeNull()
     await expect(exportSiteZip(site)).rejects.toThrow('Missing media file')

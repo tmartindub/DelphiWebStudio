@@ -1237,7 +1237,7 @@ function renderBlock(block: BlockConfig): string {
       }
       const caption = typeof block.props.caption === 'string' && block.props.caption ? `<p class="text-sm mb-3">${escapeHtml(block.props.caption)}</p>` : ''
       const download = block.props.showDownload !== false ? `<a href="${escapeHtml(src)}" class="text-green" download>Open or download PDF</a>` : ''
-      const embedded = `<iframe src="${escapeHtml(viewer)}" title="${accessibilityLabel}" style="width:100%;height:${height}px;border:0" allowfullscreen></iframe>${download}`
+      const embedded = `<p data-webstudio-pdf-local-notice hidden>To use the PDF viewer, open this site through a local web server. If an open or download link is available below, you can use it to open the PDF directly.</p><iframe data-webstudio-pdf-viewer src="${escapeHtml(viewer)}" title="${accessibilityLabel}" style="width:100%;height:${height}px;border:0" allowfullscreen></iframe>${download}<noscript>JavaScript and a local web server are required for the PDF viewer.</noscript>`
       const content = block.props.mobileMode === 'link' ? `<a href="${escapeHtml(src)}" class="ws-pdf-mobile-link text-green" download>Open or download PDF</a><div class="ws-pdf-viewer-when-wide">${embedded}</div>` : embedded
       return `<section class="p-6"><h2 class="text-xl font-semibold mb-3">${title}</h2>${caption}${content}</section>`
     }
@@ -1263,6 +1263,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
     return classes.length ? `<div class="${classes.join(' ')}">${html}</div>` : html
   }).join('\n\n')}</main>`
   const documentLibraryScript = config.blocks.some(block => block.type === 'documentLibrary') ? `<script>document.querySelectorAll('[data-document-library]').forEach(function(library){var search=library.querySelector('[data-library-search]');search.addEventListener('input',function(){var query=search.value.toLocaleLowerCase();library.querySelectorAll('[data-library-item]').forEach(function(item){item.style.display=item.textContent.toLocaleLowerCase().includes(query)?'':'none';});});});</script>` : ''
+  const localPdfNoticeScript = config.blocks.some(block => block.type === 'pdfViewer') ? `<script>if(location.protocol==='file:'){document.querySelectorAll('[data-webstudio-pdf-viewer]').forEach(function(frame){frame.hidden=true});document.querySelectorAll('[data-webstudio-pdf-local-notice]').forEach(function(notice){notice.hidden=false})}</script>` : ''
 
   const pageTitle = (settings?.seoTitle || settings?.siteName || config.name || 'Website').trim()
   const pageDescription = (settings?.seoDescription || settings?.siteDescription || '').trim()
@@ -1435,6 +1436,7 @@ ${posthogScript}
 <!-- WEBSTUDIO_PAGE_NAV -->
 
 ${blocksHtml}
+${localPdfNoticeScript}
 ${documentLibraryScript}
 ${faqScript}
 ${contactScript}
