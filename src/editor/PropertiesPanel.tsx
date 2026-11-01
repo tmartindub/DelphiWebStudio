@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, ChevronRight, Code } from 'lucide-react'
+import { toast } from 'sonner'
 import type { BlockConfig, BlockType } from '@/blocks/types'
 import { useConfigStore } from '@/store/configStore'
 import { portableProjectsEnabled } from '@/project/project-file'
@@ -496,7 +497,27 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
             rows={3}
             className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-2 text-text-0 text-xs outline-none focus:border-green resize-y"
           />
-          {contentMedia && <p className="mt-1 text-[10px] text-text-3">For a link, write [label](/page) or [label](https://example.com).</p>}
+          {contentMedia && portableProjectsEnabled && (pages ?? []).some(page => page.webstudioArticle?.status !== 'draft') && <select aria-label="Insert page link in Body" value="" onChange={event => {
+            const page = pages?.find(item => item.id === event.target.value && item.webstudioArticle?.status !== 'draft')
+            if (!page) return
+            const input = textArea.current
+            const text = String(value || '')
+            const start = input?.selectionStart ?? text.length
+            const end = input?.selectionEnd ?? text.length
+            const selected = text.slice(start, end)
+            const label = selected || page.name
+            if (!label.trim() || label.includes('[') || label.includes(']') || /[\r\n]/.test(label) || /[()]/.test(page.path)) {
+              toast.error('Choose plain text for the link and a page address without parentheses.')
+              return
+            }
+            const link = `[${label}](${page.path})`
+            onChange(text.slice(0, start) + link + text.slice(end))
+            requestAnimationFrame(() => { input?.focus(); input?.setSelectionRange(start + link.length, start + link.length) })
+          }} className="mt-1 w-full rounded border border-border-default bg-bg-2 px-2 py-1.5 text-xs text-text-0">
+            <option value="">Insert a link to a page...</option>
+            {(pages ?? []).filter(page => page.webstudioArticle?.status !== 'draft').map(page => <option key={page.id} value={page.id}>{page.name}</option>)}
+          </select>}
+          {contentMedia && <p className="mt-1 text-[10px] text-text-3">Select text before choosing a page to use it as the link label.</p>}
           {contentMedia && portableProjectsEnabled && media?.projectId === projectId && media.revision === mediaRevision && media.images.length > 0 && <select aria-label="Insert media link in Body" value="" onChange={event => {
             const asset = media.images.find(item => item.path === event.target.value)
             if (!asset) return

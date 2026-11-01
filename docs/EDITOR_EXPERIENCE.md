@@ -12,6 +12,8 @@ An automated no-code check on the current preview created a community site, edit
 
 Shared headers and footers, reusable sections, page links, and preset and custom preview widths are available. M2 remains in progress: broader editor requirements, including direct editing of generated markup, remain to be checked.
 
+In a Content section, select text in Body and choose a page from “Insert a link to a page” to create a link without typing its address. If no text is selected, the page name becomes the link label. Draft articles are excluded.
+
 ## Responsive preview checks
 
 Desktop preview can expand to 1,200 pixels; tablet and phone previews use 768 and 375 pixels. On a narrower editor window, the fixed device previews can be scrolled horizontally. A sample centered hero, image, and PDF block were compared with exported HTML at those three widths; their measured widths matched and the sample did not horizontally overflow. The centered hero uses the same root font size and container breakpoint in preview and export. The PDF preview uses the browser's PDF object while export uses the bundled viewer, so their controls differ.
