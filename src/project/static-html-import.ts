@@ -46,7 +46,10 @@ export function importStaticHtml(files: { path: string; text: string }[], skippe
         const destination = path ? pagePaths.get(path) : undefined
         const label = inner.replace(/<[^>]*>/g, '').replaceAll('[', '').replaceAll(']', '').trim()
         return destination && label ? `[${label}](${destination})` : whole
-      }).replace(/<\/?(?:p|div|br|li|h[1-6]|blockquote)\b[^>]*>/gi, '\n').replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#0*39;|&apos;/gi, "'").trim()
+      }).replace(/<h[12]\b[^>]*>/gi, '\n## ').replace(/<h[3-6]\b[^>]*>/gi, '\n### ').replace(/<\/h[1-6]\s*>/gi, '\n')
+        .replace(/<li\b[^>]*>/gi, '\n- ').replace(/<\/li\s*>/gi, '\n')
+        .replace(/<\/?(?:strong|b)\b[^>]*>/gi, '**').replace(/<\/?(?:em|i)\b[^>]*>/gi, '*')
+        .replace(/<\/?(?:p|div|br|blockquote)\b[^>]*>/gi, '\n').replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#0*39;|&apos;/gi, "'").trim()
       if (body) blocks.push({ id: `block-${crypto.randomUUID()}`, type: 'content', variant: 'prose', props: { body } })
     }
     return { id: `page-${crypto.randomUUID()}`, name, path: index === 0 ? '/' : `/imported-page-${index + 1}`, blocks }

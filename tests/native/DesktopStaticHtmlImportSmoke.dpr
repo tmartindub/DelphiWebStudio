@@ -7,20 +7,25 @@ uses Winapi.Windows, Winapi.Messages, Winapi.CommDlg, Winapi.Dlgs,
   WebStudio.Main in 'WebStudio.Main.pas' {MainForm};
 
 type TDriver = class
+  Count: Integer;
   procedure SaveShown(Sender: TObject);
 end;
 
 procedure TDriver.SaveShown(Sender: TObject);
-var Window: HWND;
+var Window: HWND; Name: string;
 begin
-  if TFile.Exists(TPath.Combine(ExtractFilePath(ParamStr(0)), 'html-project.webstudio.zip')) then
+  Inc(Count);
+  if Count = 1 then Name := 'html-project.webstudio.zip'
+  else if Count = 2 then Name := 'html-website.zip'
+  else raise Exception.Create('Unexpected save dialog.');
+  if TFile.Exists(TPath.Combine(ExtractFilePath(ParamStr(0)), Name)) then
     raise Exception.Create('Test output already exists.');
   Window := GetParent(TSaveDialog(Sender).Handle);
-  SendMessage(Window, CDM_SETCONTROLTEXT, edt1, LPARAM(PChar('html-project.webstudio.zip')));
+  SendMessage(Window, CDM_SETCONTROLTEXT, edt1, LPARAM(PChar(Name)));
   PostMessage(Window, WM_COMMAND, IDOK, 0);
 end;
 
-var Deadline: UInt64; Value, Folder, AssetPath: string; Driver: TDriver; Project: TJSONValue; Zip: TZipFile; Bytes: TBytes;
+var Deadline: UInt64; Value, Folder, AssetPath, Html: string; Driver: TDriver; Project: TJSONValue; Zip: TZipFile; Bytes: TBytes;
 begin
   Folder := ExtractFilePath(ParamStr(0));
   if not TFile.Exists(TPath.Combine(Folder, 'editor\index.html.fixture')) then raise Exception.Create('HTML fixture missing.');
@@ -36,6 +41,8 @@ begin
     if Failed(MainForm.EditorBrowser.ControllerInterface.Set_IsVisible(1)) then raise Exception.Create('Could not activate WebView.');
     MainForm.ProjectSaveDialog.InitialDir := Folder;
     MainForm.ProjectSaveDialog.OnShow := Driver.SaveShown;
+    MainForm.SaveDownloadDialog.InitialDir := Folder;
+    MainForm.SaveDownloadDialog.OnShow := Driver.SaveShown;
     Deadline := GetTickCount64 + 15000;
     repeat
       CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
@@ -73,6 +80,7 @@ begin
         if not Assigned(Project) or (Project.GetValue<TJSONArray>('webstudioStaticSource').Count <> 3) then raise Exception.Create('Original HTML and CSS were not retained.');
         if Project.GetValue<TJSONObject>('config').GetValue<TJSONArray>('pages').Count <> 2 then raise Exception.Create('Imported page count differs.');
         if not Project.GetValue<TJSONObject>('config').ToJSON.Contains('Welcome from HTML') then raise Exception.Create('Editable content missing.');
+        if not Project.GetValue<TJSONObject>('config').ToJSON.Contains('## Welcome from HTML') then raise Exception.Create('Imported heading missing.');
         if not Project.GetValue<TJSONObject>('config').ToJSON.Contains('[About](/imported-page-2)') then raise Exception.Create('Imported page link missing.');
         if Project.GetValue<TJSONArray>('assets').Count <> 1 then raise Exception.Create('Imported image missing from project.');
         AssetPath := Project.GetValue<TJSONArray>('assets').Items[0].GetValue<string>('path');
@@ -80,6 +88,18 @@ begin
         Zip.Read(AssetPath, Bytes);
         if not TEncoding.UTF8.GetString(Bytes).Contains('<svg') then raise Exception.Create('Imported image content missing.');
       finally Project.Free end;
+    finally Zip.Free end;
+    MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Export").click()');
+    Deadline := GetTickCount64 + 30000;
+    while (MainForm.StatusLabel.Caption <> 'Download completed: html-website.zip') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(50) end;
+    if MainForm.StatusLabel.Caption <> 'Download completed: html-website.zip' then raise Exception.Create('Imported website did not export.');
+    Zip := TZipFile.Create;
+    try
+      Zip.Open(TPath.Combine(Folder, 'html-website.zip'), zmRead);
+      Zip.Read('index.html', Bytes);
+      Html := TEncoding.UTF8.GetString(Bytes);
+      if not Html.Contains('Welcome from HTML') or not Html.Contains('href="imported-page-2.html"') then raise Exception.Create('Exported heading or page link missing.');
+      if not Html.Contains(AssetPath) or (Zip.IndexOf(AssetPath) < 0) then raise Exception.Create('Exported image reference or file missing.');
     finally Zip.Free end;
     TFile.Copy(TPath.Combine(Folder, 'html-project.webstudio.zip'), TPath.Combine(Folder, 'editor\reopen.zip'));
     MainForm.EditorBrowser.ExecuteScript('fetch("/reopen.zip").then(r=>r.blob()).then(b=>{const i=document.querySelector("input[aria-label=\"Choose project file\"]"),d=new DataTransfer();d.items.add(new File([b],"reopen.zip",{type:"application/zip"}));i.files=d.files;i.dispatchEvent(new Event("change",{bubbles:true}));})');
@@ -110,6 +130,6 @@ begin
       Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("textarea[aria-label=\"Imported source text\"]")?.value.includes("color: blue")', '');
     until (Value = 'true') or (GetTickCount64 >= Deadline);
     if Value <> 'true' then raise Exception.Create('Original CSS is not visible.');
-    Writeln('HTML and image import, save, reopen and read-only source review passed.');
+    Writeln('HTML and image import, save, export, reopen and read-only source review passed.');
   finally Driver.Free; MainForm.Free end;
 end.

@@ -33,4 +33,11 @@ describe('static HTML import', () => {
     expect(blocks[1]).toMatchObject({ type: 'image', props: { assetId: 'image-id', src: 'assets/image-id-logo.svg', alt: 'Logo' } })
     expect(blocks.filter(block => block.type === 'image')).toHaveLength(1)
   })
+
+  it('converts basic headings, lists and emphasis into editable content', () => {
+    const result = importStaticHtml([{ path: 'site/index.html', text: '<body><h2>Welcome</h2><ul><li><strong>One</strong></li><li><em>Two</em></li></ul></body>' }], 0)
+    expect(result.project.config.pages![0].blocks[0].props.body).toContain('## Welcome')
+    expect(result.project.config.pages![0].blocks[0].props.body).toContain('- **One**')
+    expect(result.project.config.pages![0].blocks[0].props.body).toContain('- *Two*')
+  })
 })
