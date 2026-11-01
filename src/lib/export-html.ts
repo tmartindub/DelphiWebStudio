@@ -1237,7 +1237,7 @@ function renderBlock(block: BlockConfig): string {
       }
       const caption = typeof block.props.caption === 'string' && block.props.caption ? `<p class="text-sm mb-3">${escapeHtml(block.props.caption)}</p>` : ''
       const download = block.props.showDownload !== false ? `<a href="${escapeHtml(src)}" class="text-green" download>Open or download PDF</a>` : ''
-      const embedded = `<p data-webstudio-pdf-local-notice hidden>To use the PDF viewer, open this site through a local web server. If an open or download link is available below, you can use it to open the PDF directly.</p><iframe data-webstudio-pdf-viewer src="${escapeHtml(viewer)}" title="${accessibilityLabel}" style="width:100%;height:${height}px;border:0" allowfullscreen></iframe>${download}<noscript>JavaScript and a local web server are required for the PDF viewer.</noscript>`
+      const embedded = `<p data-webstudio-pdf-local-notice hidden>The PDF viewer requires a local web server. <a href="${escapeHtml(src)}">Open PDF locally</a>.</p><iframe data-webstudio-pdf-viewer src="${escapeHtml(viewer)}" title="${accessibilityLabel}" style="width:100%;height:${height}px;border:0" allowfullscreen></iframe>${download}<noscript>JavaScript and a local web server are required for the PDF viewer. <a href="${escapeHtml(src)}">Open PDF</a>.</noscript>`
       const content = block.props.mobileMode === 'link' ? `<a href="${escapeHtml(src)}" class="ws-pdf-mobile-link text-green" download>Open or download PDF</a><div class="ws-pdf-viewer-when-wide">${embedded}</div>` : embedded
       return `<section class="p-6"><h2 class="text-xl font-semibold mb-3">${title}</h2>${caption}${content}</section>`
     }

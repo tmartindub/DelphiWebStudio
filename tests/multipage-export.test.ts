@@ -148,6 +148,7 @@ describe('multi-page export', () => {
     expect(html).toContain('ws-pdf-mobile-link')
     expect(html).toContain('page=3&amp;fit=page&amp;thumbnails=1&amp;search=0&amp;print=0&amp;download=0&amp;fullscreen=0')
     expect(html.match(/Open or download PDF/g)).toHaveLength(1)
+    expect(html).toContain('href="../assets/example.pdf">Open PDF locally</a>')
   })
 
   it('exports a searchable document library with local links on nested pages', async () => {
