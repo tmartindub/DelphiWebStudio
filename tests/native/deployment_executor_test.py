@@ -22,7 +22,7 @@ hosts = work / 'known_hosts'
 hosts.write_text(f'[127.0.0.1]:{port} {host_key.get_name()} {host_key.get_base64()}\n', encoding='ascii')
 
 baseline = {'index.html': b'Hello world!', 'assets/image.png': b'picture', 'empty.txt': b''}
-roots = ['/success', '/rollback', '/gui', '/stale', '/race', '/journal', '/deny', '/midfail', '/postchange', '/private-missing', '/private-link']
+roots = ['/success', '/rollback', '/rollback-gui', '/gui', '/stale', '/race', '/journal', '/deny', '/midfail', '/postchange', '/private-missing', '/private-link']
 files = {prefix + '/' + name: content for prefix in roots for name, content in baseline.items()}
 directories = {'/', '/private'} | {directory for prefix in roots for directory in [prefix, prefix + '/assets']}
 removed = []
@@ -108,7 +108,7 @@ class Files(paramiko.SFTPServerInterface):
 errors = []
 def serve():
     try:
-        for _ in range(69):
+        for _ in range(84):
             connection, _ = listener.accept()
             transport = paramiko.Transport(connection)
             try:
@@ -194,6 +194,15 @@ assert [event['event'] for event in rollback_events] == ['reviewed', 'retain-sta
 assert '/rollback/newfolder/new.txt' not in files and '/rollback/secondfolder/second.txt' not in files
 assert files[rollback_events[1]['retainedPath']] == b'synthetic addition' and files[rollback_events[3]['retainedPath']] == b'second addition'
 assert files['/rollback/index.html'] == b'new synthetic data' and files['/rollback/assets/image.png'] == b'picture'
+
+rollback_gui_source = work / 'rollback-gui-source.jsonl'
+gui_deploy = execute('/rollback-gui', rollback_gui_source)
+assert gui_deploy.returncode == 0, (gui_deploy.stdout, gui_deploy.stderr)
+rollback_gui_receipt = work / 'rollback-gui-receipt.jsonl'
+rollback_gui = subprocess.run([str(exe), str(port), str(key), str(hosts), '/rollback-gui', str(backup), str(rollback_scan), str(rollback_backup), str(rollback_gui_receipt), str(rollback_gui_source)] + ['test'] * 17, capture_output=True, text=True, timeout=50)
+assert rollback_gui.returncode == 0 and 'Synthetic native rollback workflow passed.' in rollback_gui.stdout, (rollback_gui.stdout, rollback_gui.stderr)
+assert '/rollback-gui/newfolder/new.txt' not in files and '/rollback-gui/secondfolder/second.txt' not in files
+assert [json.loads(line)['event'] for line in rollback_gui_receipt.read_text(encoding='utf8').splitlines()][-1] == 'complete'
 
 # Restore the old backup using a fresh scan and backup of the current destination.
 # All paths and contents remain inside this in-memory test server.

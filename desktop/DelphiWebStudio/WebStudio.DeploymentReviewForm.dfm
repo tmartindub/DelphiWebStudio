@@ -1,7 +1,7 @@
 object DeploymentReviewForm: TDeploymentReviewForm
   BorderStyle = bsDialog
   Caption = 'Review website files'
-  ClientHeight = 540
+  ClientHeight = 620
   ClientWidth = 700
   Position = poScreenCenter
   OnCloseQuery = FormCloseQuery
@@ -34,9 +34,14 @@ object DeploymentReviewForm: TDeploymentReviewForm
     Top = 172
     Caption = 'Private recovery folder'
   end
+  object ReceiptLabel: TLabel
+    Left = 16
+    Top = 209
+    Caption = 'Original receipt'
+  end
   object StatusLabel: TLabel
     Left = 16
-    Top = 475
+    Top = 550
     Width = 665
     Height = 30
     AutoSize = False
@@ -89,12 +94,12 @@ object DeploymentReviewForm: TDeploymentReviewForm
   end
   object ResultsMemo: TMemo
     Left = 16
-    Top = 212
+    Top = 249
     Width = 664
     Height = 250
     ReadOnly = True
     ScrollBars = ssBoth
-    TabOrder = 7
+    TabOrder = 9
     WordWrap = False
   end
   object RecoveryEdit: TEdit
@@ -104,39 +109,72 @@ object DeploymentReviewForm: TDeploymentReviewForm
     TabOrder = 6
     OnChange = InputChanged
   end
+  object ReceiptEdit: TEdit
+    Left = 135
+    Top = 205
+    Width = 460
+    TabOrder = 7
+    OnChange = InputChanged
+  end
+  object ReceiptBrowse: TButton
+    Left = 605
+    Top = 204
+    Width = 75
+    Caption = 'Browse...'
+    TabOrder = 8
+    OnClick = ReceiptBrowseClick
+  end
   object ReviewButton: TButton
     Left = 490
-    Top = 507
+    Top = 587
     Width = 100
     Caption = 'Review files'
-    TabOrder = 9
+    TabOrder = 13
     OnClick = ReviewButtonClick
   end
   object CheckButton: TButton
     Left = 355
-    Top = 507
+    Top = 587
     Width = 120
     Caption = 'Check destination'
     Enabled = False
-    TabOrder = 8
+    TabOrder = 12
     OnClick = CheckButtonClick
   end
   object PublishButton: TButton
     Left = 245
-    Top = 507
+    Top = 587
     Width = 95
     Caption = 'Publish...'
     Enabled = False
-    TabOrder = 10
+    TabOrder = 14
     OnClick = PublishButtonClick
   end
   object CloseButton: TButton
     Left = 605
-    Top = 507
+    Top = 587
     Width = 75
     Caption = 'Close'
     ModalResult = 2
+    TabOrder = 15
+  end
+  object RollbackReviewButton: TButton
+    Left = 16
+    Top = 510
+    Width = 155
+    Caption = 'Review added rollback'
+    Enabled = False
+    TabOrder = 10
+    OnClick = RollbackReviewButtonClick
+  end
+  object RollbackButton: TButton
+    Left = 186
+    Top = 510
+    Width = 165
+    Caption = 'Retain added files...'
+    Enabled = False
     TabOrder = 11
+    OnClick = RollbackButtonClick
   end
   object WebsiteDialog: TOpenDialog
     Filter = 'Website ZIP|*.zip'
@@ -167,5 +205,12 @@ object DeploymentReviewForm: TDeploymentReviewForm
     Title = 'Choose a new deployment receipt file'
     Left = 168
     Top = 492
+  end
+  object ReceiptDialog: TOpenDialog
+    Filter = 'Deployment receipt|*.jsonl'
+    Options = [ofHideReadOnly, ofNoChangeDir, ofFileMustExist, ofPathMustExist, ofEnableSizing]
+    Title = 'Select the original deployment receipt'
+    Left = 216
+    Top = 552
   end
 end

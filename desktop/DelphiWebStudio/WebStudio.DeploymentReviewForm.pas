@@ -2,7 +2,7 @@ unit WebStudio.DeploymentReviewForm;
 
 interface
 
-uses System.Classes, Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Vcl.Dialogs, WebStudio.DeploymentReview;
+uses System.Classes, Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Vcl.Dialogs, WebStudio.DeploymentReview, WebStudio.SftpInventory;
 
 type
   TDeploymentReviewForm = class(TForm)
@@ -28,6 +28,12 @@ type
     RecoveryEdit: TEdit;
     PublishButton: TButton;
     JournalDialog: TSaveDialog;
+    ReceiptLabel: TLabel;
+    ReceiptEdit: TEdit;
+    ReceiptBrowse: TButton;
+    ReceiptDialog: TOpenDialog;
+    RollbackReviewButton: TButton;
+    RollbackButton: TButton;
     procedure WebsiteBrowseClick(Sender: TObject);
     procedure ScanBrowseClick(Sender: TObject);
     procedure BackupBrowseClick(Sender: TObject);
@@ -35,11 +41,16 @@ type
     procedure InputChanged(Sender: TObject);
     procedure CheckButtonClick(Sender: TObject);
     procedure PublishButtonClick(Sender: TObject);
+    procedure ReceiptBrowseClick(Sender: TObject);
+    procedure RollbackReviewButtonClick(Sender: TObject);
+    procedure RollbackButtonClick(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
   private
     FWorking: Boolean;
     FHasReview: Boolean;
     FHasPreflight: Boolean;
+    FHasRollbackReview: Boolean;
+    FAdded: TArray<TSftpInventoryEntry>;
     FReview: TDeploymentReview;
     FHost, FUserName, FKeyFile, FKnownHostsFile, FPortText, FRemoteDirectory: string;
   public
@@ -48,7 +59,8 @@ type
 
 implementation
 
-uses System.SysUtils, WebStudio.DeploymentPreflight, WebStudio.DeploymentExecutor;
+uses System.SysUtils, WebStudio.DeploymentPreflight, WebStudio.DeploymentExecutor,
+  WebStudio.RollbackReview, WebStudio.RollbackExecutor;
 
 {$R *.dfm}
 
@@ -74,6 +86,11 @@ begin
   if BackupDialog.Execute then BackupEdit.Text := BackupDialog.FileName;
 end;
 
+procedure TDeploymentReviewForm.ReceiptBrowseClick(Sender: TObject);
+begin
+  if ReceiptDialog.Execute then ReceiptEdit.Text := ReceiptDialog.FileName;
+end;
+
 procedure TDeploymentReviewForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   CanClose := not FWorking;
@@ -84,8 +101,11 @@ begin
   if not FWorking then begin
     FHasReview := False;
     FHasPreflight := False;
+    FHasRollbackReview := False;
     if Assigned(CheckButton) then CheckButton.Enabled := False;
     if Assigned(PublishButton) then PublishButton.Enabled := False;
+    if Assigned(RollbackReviewButton) then RollbackReviewButton.Enabled := False;
+    if Assigned(RollbackButton) then RollbackButton.Enabled := False;
     if Assigned(ResultsMemo) then ResultsMemo.Clear;
     if Assigned(StatusLabel) then StatusLabel.Caption := '';
   end;
@@ -104,13 +124,16 @@ begin
   FWorking := True;
   FHasReview := False;
   FHasPreflight := False;
+  FHasRollbackReview := False;
   PublishButton.Enabled := False;
+  RollbackReviewButton.Enabled := False; RollbackButton.Enabled := False;
   CheckButton.Enabled := False;
   ReviewButton.Enabled := False;
   CloseButton.Enabled := False;
   WebsiteEdit.Enabled := False; WebsiteBrowse.Enabled := False;
   ScanEdit.Enabled := False; ScanBrowse.Enabled := False;
   BackupEdit.Enabled := False; BackupBrowse.Enabled := False;
+  RecoveryEdit.Enabled := False; ReceiptEdit.Enabled := False; ReceiptBrowse.Enabled := False;
   StatusLabel.Caption := 'Checking files...';
   ResultsMemo.Clear;
   TThread.CreateAnonymousThread(procedure
@@ -151,12 +174,14 @@ begin
       if Success then FReview := Review;
       FHasReview := Success;
       CheckButton.Enabled := Success;
+      RollbackReviewButton.Enabled := Success;
       FWorking := False;
       ReviewButton.Enabled := True;
       CloseButton.Enabled := True;
       WebsiteEdit.Enabled := True; WebsiteBrowse.Enabled := True;
       ScanEdit.Enabled := True; ScanBrowse.Enabled := True;
       BackupEdit.Enabled := True; BackupBrowse.Enabled := True;
+      RecoveryEdit.Enabled := True; ReceiptEdit.Enabled := True; ReceiptBrowse.Enabled := True;
     end);
   end).Start;
 end;
@@ -173,10 +198,12 @@ begin
   FWorking := True;
   FHasPreflight := False;
   PublishButton.Enabled := False;
+  RollbackButton.Enabled := False; RollbackReviewButton.Enabled := False;
   ReviewButton.Enabled := False; CheckButton.Enabled := False; CloseButton.Enabled := False;
   WebsiteEdit.Enabled := False; WebsiteBrowse.Enabled := False;
   ScanEdit.Enabled := False; ScanBrowse.Enabled := False;
   BackupEdit.Enabled := False; BackupBrowse.Enabled := False;
+  RecoveryEdit.Enabled := False; ReceiptEdit.Enabled := False; ReceiptBrowse.Enabled := False;
   StatusLabel.Caption := 'Checking the destination without changing it...';
   TThread.CreateAnonymousThread(procedure
   var MessageText: string; Success: Boolean;
@@ -196,10 +223,105 @@ begin
       if not Success then FHasReview := False;
       FHasPreflight := Success;
       ReviewButton.Enabled := True; CheckButton.Enabled := FHasReview; CloseButton.Enabled := True;
-      PublishButton.Enabled := FHasPreflight;
+      PublishButton.Enabled := FHasPreflight and not FHasRollbackReview;
+      RollbackButton.Enabled := FHasPreflight and FHasRollbackReview;
+      RollbackReviewButton.Enabled := FHasReview;
       WebsiteEdit.Enabled := True; WebsiteBrowse.Enabled := True;
       ScanEdit.Enabled := True; ScanBrowse.Enabled := True;
       BackupEdit.Enabled := True; BackupBrowse.Enabled := True;
+      RecoveryEdit.Enabled := True; ReceiptEdit.Enabled := True; ReceiptBrowse.Enabled := True;
+    end);
+  end).Start;
+end;
+
+procedure TDeploymentReviewForm.RollbackReviewButtonClick(Sender: TObject);
+var OriginalReceipt: string; Port: Integer; Reviewed: TDeploymentReview;
+begin
+  if not FHasReview then Exit;
+  if (Trim(ReceiptEdit.Text) = '') or not TryStrToInt(FPortText, Port) or (Port < 1) or (Port > 65535) then begin
+    StatusLabel.Caption := 'Select the original transfer receipt and enter a valid port.';
+    Exit;
+  end;
+  OriginalReceipt := ReceiptEdit.Text; Reviewed := FReview;
+  FWorking := True; FHasPreflight := False; FHasRollbackReview := False;
+  ReviewButton.Enabled := False; CheckButton.Enabled := False; CloseButton.Enabled := False;
+  PublishButton.Enabled := False; RollbackButton.Enabled := False; RollbackReviewButton.Enabled := False;
+  WebsiteEdit.Enabled := False; WebsiteBrowse.Enabled := False; ScanEdit.Enabled := False; ScanBrowse.Enabled := False;
+  BackupEdit.Enabled := False; BackupBrowse.Enabled := False; RecoveryEdit.Enabled := False;
+  ReceiptEdit.Enabled := False; ReceiptBrowse.Enabled := False;
+  StatusLabel.Caption := 'Reviewing receipt-added files...';
+  TThread.CreateAnonymousThread(procedure
+  var Added: TArray<TSftpInventoryEntry>; Entry: TSftpInventoryEntry; Lines: TStringList; Summary, MessageText: string; Success: Boolean;
+  begin
+    Success := False; Summary := '';
+    try
+      Added := ReviewAddedRollback(OriginalReceipt, FHost, FRemoteDirectory, Port, Reviewed);
+      if Length(Added) = 0 then raise EInvalidOpException.Create('The receipt contains no added files to retain.');
+      Lines := TStringList.Create;
+      try
+        Lines.Add('Step 1: move these receipt-added files into private recovery:');
+        for Entry in Added do Lines.Add('  ' + Entry.Path);
+        Lines.Add('');
+        Lines.Add('Other files will not be changed in this step.');
+        Lines.Add('Then scan and back up again before restoring the earlier website ZIP.');
+        Summary := Lines.Text;
+      finally Lines.Free end;
+      MessageText := 'Rollback list ready. Check the destination before continuing.';
+      Success := True;
+    except on E: Exception do MessageText := E.Message end;
+    TThread.Queue(nil, procedure
+    begin
+      ResultsMemo.Text := Summary; StatusLabel.Caption := MessageText;
+      if Success then FAdded := Added;
+      FHasRollbackReview := Success; FWorking := False;
+      ReviewButton.Enabled := True; CheckButton.Enabled := FHasReview; CloseButton.Enabled := True;
+      RollbackReviewButton.Enabled := FHasReview;
+      WebsiteEdit.Enabled := True; WebsiteBrowse.Enabled := True; ScanEdit.Enabled := True; ScanBrowse.Enabled := True;
+      BackupEdit.Enabled := True; BackupBrowse.Enabled := True; RecoveryEdit.Enabled := True;
+      ReceiptEdit.Enabled := True; ReceiptBrowse.Enabled := True;
+    end);
+  end).Start;
+end;
+
+procedure TDeploymentReviewForm.RollbackButtonClick(Sender: TObject);
+var Website, Scan, Backup, OriginalReceipt, Journal, Recovery: string; Port: Integer;
+  Reviewed: TDeploymentReview; Added: TArray<TSftpInventoryEntry>;
+begin
+  if not FHasReview or not FHasRollbackReview or not FHasPreflight then Exit;
+  if not TryStrToInt(FPortText, Port) or (Port < 1) or (Port > 65535) then Exit;
+  Recovery := Trim(RecoveryEdit.Text);
+  if Recovery = '' then begin StatusLabel.Caption := 'Enter a private recovery folder.'; Exit end;
+  if not JournalDialog.Execute then Exit;
+  Journal := JournalDialog.FileName;
+  if MessageDlg('Move the ' + IntToStr(Length(FAdded)) + ' reviewed added files from ' + FHost + ':' + FPortText + ' ' + FRemoteDirectory +
+    ' to private recovery?' + sLineBreak + sLineBreak + 'Ensure this folder is not served by the host: ' + Recovery + sLineBreak +
+    'Receipt: ' + Journal + sLineBreak + sLineBreak + 'This is step 1; scan and back up again before restoring the earlier website files.',
+    mtWarning, [mbYes, mbNo], 0, mbNo) <> mrYes then Exit;
+  Website := WebsiteEdit.Text; Scan := ScanEdit.Text; Backup := BackupEdit.Text; OriginalReceipt := ReceiptEdit.Text;
+  Reviewed := FReview; Added := Copy(FAdded);
+  FWorking := True; FHasPreflight := False;
+  ReviewButton.Enabled := False; CheckButton.Enabled := False; CloseButton.Enabled := False;
+  PublishButton.Enabled := False; RollbackButton.Enabled := False; RollbackReviewButton.Enabled := False;
+  WebsiteEdit.Enabled := False; WebsiteBrowse.Enabled := False; ScanEdit.Enabled := False; ScanBrowse.Enabled := False;
+  BackupEdit.Enabled := False; BackupBrowse.Enabled := False; RecoveryEdit.Enabled := False;
+  ReceiptEdit.Enabled := False; ReceiptBrowse.Enabled := False;
+  StatusLabel.Caption := 'Preserving reviewed added files...';
+  TThread.CreateAnonymousThread(procedure
+  var MessageText: string;
+  begin
+    try
+      ExecuteAddedRollback(Website, Scan, Backup, OriginalReceipt, Journal, Reviewed, Added,
+        FHost, FUserName, FKeyFile, FKnownHostsFile, Port, FRemoteDirectory, Recovery, True);
+      MessageText := 'Added files retained. Scan and back up again. Receipt: ' + Journal;
+    except on E: Exception do MessageText := E.Message end;
+    TThread.Queue(nil, procedure
+    begin
+      StatusLabel.Caption := MessageText; FHasReview := False; FHasRollbackReview := False; FHasPreflight := False; FWorking := False;
+      ReviewButton.Enabled := True; CheckButton.Enabled := False; CloseButton.Enabled := True;
+      RollbackReviewButton.Enabled := False; RollbackButton.Enabled := False; PublishButton.Enabled := False;
+      WebsiteEdit.Enabled := True; WebsiteBrowse.Enabled := True; ScanEdit.Enabled := True; ScanBrowse.Enabled := True;
+      BackupEdit.Enabled := True; BackupBrowse.Enabled := True; RecoveryEdit.Enabled := True;
+      ReceiptEdit.Enabled := True; ReceiptBrowse.Enabled := True;
     end);
   end).Start;
 end;
@@ -224,10 +346,12 @@ begin
   Website := WebsiteEdit.Text; Scan := ScanEdit.Text; Backup := BackupEdit.Text; Reviewed := FReview;
   FWorking := True;
   FHasPreflight := False;
-  PublishButton.Enabled := False; ReviewButton.Enabled := False; CheckButton.Enabled := False; CloseButton.Enabled := False;
+  PublishButton.Enabled := False; RollbackButton.Enabled := False; RollbackReviewButton.Enabled := False;
+  ReviewButton.Enabled := False; CheckButton.Enabled := False; CloseButton.Enabled := False;
   WebsiteEdit.Enabled := False; WebsiteBrowse.Enabled := False;
   ScanEdit.Enabled := False; ScanBrowse.Enabled := False;
   BackupEdit.Enabled := False; BackupBrowse.Enabled := False; RecoveryEdit.Enabled := False;
+  ReceiptEdit.Enabled := False; ReceiptBrowse.Enabled := False;
   StatusLabel.Caption := 'Checking and transferring reviewed files...';
   TThread.CreateAnonymousThread(procedure
   var Outcome: TDeploymentExecution; MessageText: string;
@@ -243,10 +367,13 @@ begin
     begin
       StatusLabel.Caption := MessageText;
       FHasReview := False; FHasPreflight := False; FWorking := False;
+      FHasRollbackReview := False;
       ReviewButton.Enabled := True; CheckButton.Enabled := False; PublishButton.Enabled := False; CloseButton.Enabled := True;
+      RollbackReviewButton.Enabled := False; RollbackButton.Enabled := False;
       WebsiteEdit.Enabled := True; WebsiteBrowse.Enabled := True;
       ScanEdit.Enabled := True; ScanBrowse.Enabled := True;
       BackupEdit.Enabled := True; BackupBrowse.Enabled := True; RecoveryEdit.Enabled := True;
+      ReceiptEdit.Enabled := True; ReceiptBrowse.Enabled := True;
     end);
   end).Start;
 end;

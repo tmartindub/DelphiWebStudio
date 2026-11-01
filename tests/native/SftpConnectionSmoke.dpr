@@ -51,6 +51,34 @@ var
   ConfirmTimer: TTimer;
 begin
   try
+    if ParamCount = 26 then begin
+      if ParamStr(4) <> '/rollback-gui' then raise Exception.Create('The dialog test requires the synthetic local destination.');
+      Application.Initialize; UseLatestCommonDialogs := False;
+      ReviewDialog := TDeploymentReviewForm.Create(nil); Driver := TDialogDriver.Create; ConfirmTimer := TTimer.Create(nil);
+      try
+        ReviewDialog.SetConnection('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), ParamStr(1), ParamStr(4));
+        ReviewDialog.WebsiteEdit.Text := ParamStr(5); ReviewDialog.ScanEdit.Text := ParamStr(6);
+        ReviewDialog.BackupEdit.Text := ParamStr(7); ReviewDialog.RecoveryEdit.Text := '/private';
+        ReviewDialog.ReceiptEdit.Text := ParamStr(9);
+        ReviewDialog.JournalDialog.InitialDir := ExtractFilePath(ParamStr(8)); ReviewDialog.JournalDialog.OnShow := Driver.SaveShown;
+        ReviewDialog.ReviewButton.Click; Deadline := GetTickCount64 + 30000;
+        while not ReviewDialog.ReviewButton.Enabled and (GetTickCount64 < Deadline) do begin Application.ProcessMessages; CheckSynchronize(0); Sleep(10) end;
+        if not ReviewDialog.RollbackReviewButton.Enabled then raise Exception.Create('Rollback input review failed.');
+        ReviewDialog.RollbackReviewButton.Click; Deadline := GetTickCount64 + 30000;
+        while not ReviewDialog.ReviewButton.Enabled and (GetTickCount64 < Deadline) do begin Application.ProcessMessages; CheckSynchronize(0); Sleep(10) end;
+        if Pos('newfolder/new.txt', ReviewDialog.ResultsMemo.Text) = 0 then raise Exception.Create('Rollback file review failed.');
+        ReviewDialog.CheckButton.Click; Deadline := GetTickCount64 + 30000;
+        while not ReviewDialog.ReviewButton.Enabled and (GetTickCount64 < Deadline) do begin Application.ProcessMessages; CheckSynchronize(0); Sleep(10) end;
+        if not ReviewDialog.RollbackButton.Enabled or ReviewDialog.PublishButton.Enabled then raise Exception.Create('Rollback destination check failed.');
+        ConfirmTimer.Enabled := False; ConfirmTimer.Interval := 100; ConfirmTimer.OnTimer := Driver.Confirm; ConfirmTimer.Enabled := True;
+        ReviewDialog.RollbackButton.Click; Deadline := GetTickCount64 + 30000;
+        while not ReviewDialog.ReviewButton.Enabled and (GetTickCount64 < Deadline) do begin Application.ProcessMessages; CheckSynchronize(0); Sleep(10) end;
+        if (Pos('Added files retained', ReviewDialog.StatusLabel.Caption) = 0) or not TFile.Exists(ParamStr(8)) then
+          raise Exception.Create('Rollback dialog failed: ' + ReviewDialog.StatusLabel.Caption);
+        Writeln('Synthetic native rollback workflow passed.');
+      finally ConfirmTimer.Free; Driver.Free; ReviewDialog.Free end;
+      Exit;
+    end;
     if ParamCount = 25 then begin
       Review := ReviewDeployment(ParamStr(1), ParamStr(2), ParamStr(3));
       Entries := ReviewAddedRollback(ParamStr(4), '127.0.0.1', ParamStr(9), StrToInt(ParamStr(8)), Review);
