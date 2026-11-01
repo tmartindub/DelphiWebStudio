@@ -44,6 +44,7 @@ export function JsonDrawer() {
   const [pageSource, setPageSource] = useState<string | null>(null)
   const [customDraft, setCustomDraft] = useState<{ projectId: string | null; pageId: string; pageName: string; baseline: string; html: string; css: string; js: string } | null>(null)
   const [showCustomPreview, setShowCustomPreview] = useState(false)
+  const customPreviewAvailable = window.location.hostname !== 'webstudio.local'
   const [editValue, setEditValue] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -163,9 +164,9 @@ export function JsonDrawer() {
       <div className="flex-1 overflow-auto px-3.5 py-2.5 font-mono text-[11.5px] leading-relaxed text-text-1">
         {customDraft ? (
           <div className="flex flex-col gap-2">
-            <p className="text-status-yellow">Only use code you trust. Exported HTML and JavaScript can run in visitors' browsers. Preview disables scripts and isolates the content.</p>
+            <p className="text-status-yellow">Only use code you trust. Exported HTML and JavaScript can run in visitors' browsers. {customPreviewAvailable ? 'Preview disables scripts and isolates the content.' : 'Custom code preview is unavailable in the desktop app; inspect the exported website separately.'}</p>
             {(['html', 'css', 'js'] as const).map(field => <label key={field} className="flex flex-col gap-1">{field.toUpperCase()}<textarea aria-label={`Custom ${field.toUpperCase()}`} value={customDraft[field]} onChange={event => setCustomDraft({ ...customDraft, [field]: event.target.value })} className="h-20 w-full bg-bg-2 border border-border-default rounded p-1 font-mono" spellCheck={false} /></label>)}
-            <div className="flex gap-3"><button onClick={applyCustomCode}>Apply custom code</button><button onClick={() => setShowCustomPreview(true)}>Preview HTML/CSS</button><button onClick={() => { setCustomDraft(null); setShowCustomPreview(false) }}>Cancel draft</button></div>
+            <div className="flex gap-3"><button onClick={applyCustomCode}>Apply custom code</button>{customPreviewAvailable && <button onClick={() => setShowCustomPreview(true)}>Preview HTML/CSS</button>}<button onClick={() => { setCustomDraft(null); setShowCustomPreview(false) }}>Cancel draft</button></div>
             {showCustomPreview && <iframe title="Sandboxed custom code preview" sandbox="" className="w-full h-48 bg-white" srcDoc={`<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src data: 'unsafe-inline'; img-src data: blob:; font-src data:"><link rel="stylesheet" href="data:text/css;charset=utf-8,${encodeURIComponent(customDraft.css)}">${customDraft.html}`} />}
           </div>
         ) : pageSource !== null ? (
