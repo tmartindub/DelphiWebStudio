@@ -70,7 +70,7 @@ begin
     Limits.BasicLimitInformation.LimitFlags := JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
     if not SetInformationJobObject(Job, JobObjectExtendedLimitInformation, @Limits, SizeOf(Limits)) then RaiseLastOSError;
     CommandLine := Format('"%s" -F NUL -o BatchMode=yes -o StrictHostKeyChecking=yes ' +
-      '-o "UserKnownHostsFile=%s" -o GlobalKnownHostsFile=NUL -o UpdateHostKeys=no ' +
+      '-o "UserKnownHostsFile=\"%s\"" -o GlobalKnownHostsFile=NUL -o UpdateHostKeys=no ' +
       '-o ClearAllForwardings=yes -o PermitLocalCommand=no -o ConnectTimeout=12 ' +
       '-o IdentitiesOnly=yes -i "%s" -P %d -b - %s@%s',
       [SftpPath, HostsPath, KeyPath, Port, UserName, Host]);

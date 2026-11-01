@@ -12,6 +12,11 @@ var
   Dialog: TSftpForm;
 begin
   try
+    if ParamCount = 3 then begin
+      TestSftpConnection('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)));
+      Writeln('SFTP connection succeeded.');
+      Exit;
+    end;
     Application.Initialize;
     Dialog := TSftpForm.Create(nil);
     try
