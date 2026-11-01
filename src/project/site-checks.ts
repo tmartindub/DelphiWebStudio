@@ -26,6 +26,20 @@ export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; se
   for (const page of pages) {
     for (const block of page.blocks) {
       const add = (message: string) => issues.push({ pageId: page.id, pageName: page.name, blockId: block.id, message })
+      if (settings) {
+        const directMedia = [block.props.heroImage, block.props.logoImage]
+        if (['image', 'audio', 'mediaVideo', 'document'].includes(block.type)) directMedia.push(block.props.src)
+        for (const collection of [block.props.images, block.props.items, block.props.members, block.props.logos]) {
+          if (!Array.isArray(collection)) continue
+          for (const item of collection) {
+            if (item && typeof item === 'object') directMedia.push(item.src, item.image, item.avatar)
+          }
+        }
+        const hostedVideo = block.type === 'video' && typeof block.props.url === 'string' && /(?:youtube\.com|youtu\.be|vimeo\.com)/i.test(block.props.url)
+        if (hostedVideo || directMedia.some(value => typeof value === 'string' && /^(?:https?:)?\/\//i.test(value.trim()))) {
+          add('This block uses online media. Import the file into Media for offline use; hosted videos require internet access.')
+        }
+      }
       if (block.type === 'navbar' || block.type === 'footer') {
         const links = Array.isArray(block.props.links) ? block.props.links : []
         const columns = block.type === 'footer' && block.variant === 'multi-column' && Array.isArray(block.props.columns) ? block.props.columns : []

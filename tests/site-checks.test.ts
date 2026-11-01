@@ -10,6 +10,18 @@ const config: SiteConfig = { name: 'Community', pages: [
 ], blocks: [hero] }
 
 describe('local site checks', () => {
+  it('warns about online media during export review without flagging ordinary links', () => {
+    const copy = structuredClone(config)
+    copy.pages![0].blocks.push(
+      { id: 'remote-image', type: 'image', variant: 'hero-image', props: { src: 'https://example.test/photo.jpg', alt: 'Photo' } },
+      { id: 'gallery', type: 'gallery', variant: 'grid', props: { images: [{ src: '//example.test/image.png', alt: 'Image' }] } },
+      { id: 'local-image', type: 'image', variant: 'hero-image', props: { src: 'assets/local.png', alt: 'Photo' } },
+      { id: 'video', type: 'video', variant: 'youtube', props: { url: 'https://youtu.be/abcdefghijk' } },
+    )
+    copy.blocks = copy.pages![0].blocks
+    const issues = checkSite(copy, { siteDescription: 'Community information' }).filter(issue => issue.message.includes('online media'))
+    expect(issues.map(issue => issue.blockId)).toEqual(['remote-image', 'gallery', 'video'])
+  })
   it('checks exported SEO titles and descriptions using page and site settings', () => {
     const copy = structuredClone(config)
     const issues = checkSite(copy, { seoTitle: 'Community', siteDescription: '' })
