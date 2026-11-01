@@ -33,6 +33,7 @@ Source: "..\..\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\docs\PRIVACY.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "..\..\docs\RECOVERY.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 Source: "..\..\docs\THIRD_PARTY_LICENSE_TEXTS.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "..\..\docs\WEBVIEW2_SDK_LICENSE.txt"; DestDir: "{app}\docs"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Delphi Web Studio (Experimental)"; Filename: "{app}\DelphiWebStudio.exe"
