@@ -186,6 +186,8 @@ The experimental desktop SFTP dialog also supports a destination scan, a matchin
 
 To review restoration of an earlier destination backup, first scan the current destination and save a new backup of its current contents. In the desktop review, select the earlier backup as the website ZIP, and select the new scan and new backup as the destination evidence. Review the resulting file list and check the destination. Restoring requires a separate explicit confirmation and the same private recovery folder precautions. Files created since the earlier backup are listed as destination-only and are not removed, so this does not fully revert additions. No restore or publication occurs during scan, backup or review.
 
+A synthetic local SFTP test restored a changed file from an earlier backup, retained two newer destination-only files, and kept the displaced file in the private recovery folder. This tests the transfer engine; restoration through the desktop confirmation dialog and a real host remains unverified.
+
 ## Optional site search
 
 In Settings → General, set **Site search** to **Include in website ZIP** to add a Search link and a local search page. Search uses an index embedded in the exported page; it does not send queries to a search service. It searches page names and common text fields such as headings, descriptions, captions, questions and answers. It does not extract text from PDFs or search every possible block or plugin field. The index is part of the public website export and should contain only content intended for publication. A page path that would overwrite `search.html` is rejected. The Search link in the editor is a preview; use the exported website to run a search.

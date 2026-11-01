@@ -108,7 +108,7 @@ class Files(paramiko.SFTPServerInterface):
 errors = []
 def serve():
     try:
-        for _ in range(38):
+        for _ in range(43):
             connection, _ = listener.accept()
             transport = paramiko.Transport(connection)
             try:
@@ -144,8 +144,8 @@ with zipfile.ZipFile(website, 'w') as archive:
     archive.writestr('secondfolder/second.txt', b'second addition')
 exe = base / 'm6-sftp-build' / 'SftpConnectionSmoke.exe'
 
-def execute(remote, journal, confirmed='confirmed', source=website, extra=10, recovery='/private'):
-    return subprocess.run([str(exe), str(port), str(key), str(hosts), remote, str(source), str(scan), str(backup), str(journal), confirmed, recovery] + ['test'] * extra, capture_output=True, text=True, timeout=90)
+def execute(remote, journal, confirmed='confirmed', source=website, extra=10, recovery='/private', current_scan=scan, current_backup=backup):
+    return subprocess.run([str(exe), str(port), str(key), str(hosts), remote, str(source), str(current_scan), str(current_backup), str(journal), confirmed, recovery] + ['test'] * extra, capture_output=True, text=True, timeout=90)
 
 not_confirmed_path = work / 'not-confirmed.jsonl'
 not_confirmed = execute('/success', not_confirmed_path, 'no')
@@ -164,6 +164,29 @@ assert files['/success/secondfolder/second.txt'] == b'second addition'
 assert files['/success/assets/image.png'] == b'picture'
 assert records[8]['originalPath'].startswith('/private/') and files[records[8]['originalPath']] == b'Hello world!'
 assert not any(path.startswith('/success/.webstudio-original-') for path in files)
+
+# Restore the old backup using a fresh scan and backup of the current destination.
+# All paths and contents remain inside this in-memory test server.
+current = {path.removeprefix('/success/'): content for path, content in files.items() if path.startswith('/success/')}
+current_scan = work / 'restore-scan.json'
+current_scan.write_text(json.dumps({'format': 'webstudio-website-manifest', 'version': 1, 'files': [
+    {'path': name, 'size': len(content), 'sha256': hashlib.sha256(content).hexdigest()}
+    for name, content in current.items()]}), encoding='utf8')
+current_backup = work / 'restore-current.zip'
+with zipfile.ZipFile(current_backup, 'w') as archive:
+    for name, content in current.items():
+        archive.writestr(name, content)
+restore_journal = work / 'restore.jsonl'
+restore = execute('/success', restore_journal, source=backup, current_scan=current_scan, current_backup=current_backup)
+assert restore.returncode == 0, (restore.stdout, restore.stderr)
+assert restore.stdout.strip() == 'Transfers:1|Preserved:2'
+assert files['/success/index.html'] == baseline['index.html']
+assert files['/success/newfolder/new.txt'] == b'synthetic addition'
+assert files['/success/secondfolder/second.txt'] == b'second addition'
+restore_records = [json.loads(line) for line in restore_journal.read_text(encoding='utf8').splitlines()]
+assert restore_records[-1]['event'] == 'complete'
+restore_original = next(record['originalPath'] for record in restore_records if record['event'] == 'transfer-verified')
+assert files[restore_original] == b'new synthetic data'
 
 replacement_website = work / 'replacement.zip'
 with zipfile.ZipFile(replacement_website, 'w') as archive:
