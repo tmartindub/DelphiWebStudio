@@ -14,6 +14,8 @@ New Gemini and Deploy Access Keys entered in Settings are held in memory until t
 
 The optional local AI feature runs the selected model as a local process bound to the computer's loopback interface. Downloading its runtime or model opens a browser and contacts the selected download provider. The separate cloud-generation path can send its prompt to Google when a key is available or to a configured server endpoint; do not include private content unless you intend to send it. The optional SFTP functions connect to the configured server when requested. Opening, saving, previewing and exporting a project do not publish a website. Review any links, custom code, external media or configured third-party services in a project: these may contact external services when used or viewed.
 
+The Microsoft Edge WebView2 Runtime may collect and send diagnostic information as described in [Microsoft's WebView2 data and privacy documentation](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/data-privacy). This is separate from the application's own project storage and optional network features.
+
 ## Retention and removal
 
 Uninstalling the experimental application does not remove saved projects, the WebView profile, local revisions or optional AI files. Removing browser/profile data may permanently remove local drafts and media; first save and verify separate project files and backups. The application does not currently provide a complete privacy or data-erasure audit.

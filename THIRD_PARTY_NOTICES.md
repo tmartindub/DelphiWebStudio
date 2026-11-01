@@ -4,7 +4,7 @@ Last changed: 2026-10-29. Baseline lockfile inventory includes platform-optional
 
 OpenPage: copyright (c) 2026 Federico De Ponte, MIT. Preserve LICENSE and original history.
 
-This is declared-license inventory, not a complete redistribution bundle. Before release, retain applicable license/NOTICE texts and MPL covered-source obligations; separately review packaged fonts/media/PDF.js/models/WebView2/Delphi redistributables. No model or new font is bundled in M0. Development tools are not automatically shipped.
+This is the baseline declared-license inventory. The accompanying `docs/THIRD_PARTY_LICENSE_TEXTS.txt` contains texts from installed non-development lockfile packages, including optional and build-only packages. It does not establish complete redistribution compliance. Before release, review applicable notices and MPL covered-source obligations, packaged fonts/media/PDF.js/models, WebView2 and Delphi redistributables. No model or new font was bundled in M0. Development tools are not automatically shipped.
 
 | Package path | Version | Declared license | Scope |
 | --- | --- | --- | --- |
