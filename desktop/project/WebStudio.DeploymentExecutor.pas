@@ -13,11 +13,11 @@ type
 
 { Internal executor, not connected to any user interface. A future caller must
   show the destination and complete reviewed diff, obtain explicit confirmation,
-  and then call this function. Destination-only files are never deleted.
-  Replacement is disabled until originals can be retained outside the website. }
+  and then call this function. The caller must ensure the recovery folder is
+  not served by the host. Destination-only files are never deleted. }
 function ExecuteReviewedDeployment(const WebsiteZip, ScanFile, BackupZip, JournalFile: string;
   const Reviewed: TDeploymentReview; const Host, UserName, KeyFile, KnownHostsFile: string;
-  Port: Word; const RemoteDirectory: string; Confirmed: Boolean): TDeploymentExecution;
+  Port: Word; const RemoteDirectory, RecoveryDirectory: string; Confirmed: Boolean): TDeploymentExecution;
 
 implementation
 
@@ -26,7 +26,7 @@ uses System.SysUtils, System.Classes, System.Zip, System.Hash, System.Generics.C
 
 function ExecuteReviewedDeployment(const WebsiteZip, ScanFile, BackupZip, JournalFile: string;
   const Reviewed: TDeploymentReview; const Host, UserName, KeyFile, KnownHostsFile: string;
-  Port: Word; const RemoteDirectory: string; Confirmed: Boolean): TDeploymentExecution;
+  Port: Word; const RemoteDirectory, RecoveryDirectory: string; Confirmed: Boolean): TDeploymentExecution;
 var
   WebsiteStream, ScanStream, BackupStream: TFileStream;
   Verified: TDeploymentReview;
@@ -38,7 +38,7 @@ var
   Live: TArray<TSftpInventoryEntry>;
   ExpectedFiles: TDictionary<string, TSftpInventoryEntry>;
   Index, ZipIndex, Slash, Count: Integer;
-  Root, Parent, RelativeFolder, Name, FailureMessage: string;
+  Root, RecoveryRoot, Parent, RelativeFolder, Name, FailureMessage: string;
   Data: TStream;
   Memory: TMemoryStream;
   Header: TZipHeader;
@@ -46,7 +46,7 @@ var
   Buffer: array[0..65535] of Byte;
   Total, ProjectedSize: UInt64;
   OperationId: TGUID;
-  Pending: Boolean;
+  Pending, HasReplacement: Boolean;
 begin
   if not Confirmed then raise EInvalidOpException.Create('Explicit confirmation is required before any transfer.');
   WebsiteStream := TFileStream.Create(WebsiteZip, fmOpenRead or fmShareDenyWrite);
@@ -60,11 +60,14 @@ begin
            (Verified.ScanSha256 <> Reviewed.ScanSha256) or
            (Verified.BackupSha256 <> Reviewed.BackupSha256) then
           raise EInvalidOpException.Create('The reviewed files changed. Review them again.');
-        for Transfer in Verified.Transfers do
-          if Transfer.IsReplacement then
-            raise EInvalidOpException.Create('Replacing existing files is unavailable until private recovery storage is configured.');
+        HasReplacement := False;
+        for Transfer in Verified.Transfers do if Transfer.IsReplacement then HasReplacement := True;
+        RecoveryRoot := '';
+        if HasReplacement then RecoveryRoot := NormalizePrivateRecoveryDirectory(RemoteDirectory, RecoveryDirectory);
         CheckDeploymentPreflight(WebsiteZip, ScanFile, BackupZip, Reviewed,
           Host, UserName, KeyFile, KnownHostsFile, Port, RemoteDirectory);
+        if HasReplacement then CheckPrivateSftpRecovery(Host, UserName, KeyFile, KnownHostsFile,
+          Port, RemoteDirectory, RecoveryRoot);
         Verified := ReviewDeployment(WebsiteZip, ScanFile, BackupZip);
         if (Verified.WebsiteSha256 <> Reviewed.WebsiteSha256) or
            (Verified.ScanSha256 <> Reviewed.ScanSha256) or
@@ -81,6 +84,10 @@ begin
           ExpectedFiles.Add(Destination.Path, Destination);
         end;
         for Transfer in Verified.Transfers do begin
+          if Transfer.IsReplacement then begin
+            if ProjectedSize < Transfer.ExpectedSize then raise EInvalidOpException.Create('Invalid destination size.');
+            Dec(ProjectedSize, Transfer.ExpectedSize);
+          end;
           Inc(ProjectedSize, Transfer.DesiredSize);
           if ProjectedSize > 512 * 1024 * 1024 then
             raise EInvalidOpException.Create('The resulting destination would exceed the 512 MiB verification limit.');
@@ -89,7 +96,7 @@ begin
         try
           WebsiteStream.Position := 0;
           Zip.Open(WebsiteStream, zmRead);
-          Journal := TDeploymentJournal.CreateNew(JournalFile, Host, Root, Port, Verified);
+          Journal := TDeploymentJournal.CreateNew(JournalFile, Host, Root, RecoveryRoot, Port, Verified);
           try
             Pending := False;
             try
@@ -133,7 +140,7 @@ begin
                   Pending := True;
                   Memory.Position := 0;
                   Receipt := TransferSftpStreamWithId(Host, UserName, KeyFile, KnownHostsFile,
-                    Port, Parent, Name, Memory, Transfer.IsReplacement, Transfer.ExpectedSize,
+                    Port, Parent, RecoveryRoot, Name, Memory, Transfer.IsReplacement, Transfer.ExpectedSize,
                     Transfer.ExpectedSha256, OperationId);
                   Journal.CompleteTransfer(Receipt);
                   Pending := False;
@@ -142,14 +149,8 @@ begin
                   Destination.Sha256 := Transfer.DesiredSha256;
                   ExpectedFiles.AddOrSetValue(Destination.Path, Destination);
                   if Transfer.IsReplacement then begin
-                    if not Receipt.PreviousPath.StartsWith(Root) then
-                      raise EInvalidOpException.Create('The retained original is outside the reviewed destination.');
-                    Destination.Path := Copy(Receipt.PreviousPath, Length(Root) + 1, MaxInt);
-                    Destination.Size := Transfer.ExpectedSize;
-                    Destination.Sha256 := Transfer.ExpectedSha256;
-                    if ExpectedFiles.ContainsKey(Destination.Path) then
-                      raise EInvalidOpException.Create('The retained original conflicts with another destination file.');
-                    ExpectedFiles.Add(Destination.Path, Destination);
+                    if not Receipt.PreviousPath.StartsWith(RecoveryRoot) then
+                      raise EInvalidOpException.Create('The retained original is outside the recovery folder.');
                   end;
                 finally Memory.Free end;
               end;

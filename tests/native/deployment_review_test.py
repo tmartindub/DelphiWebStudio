@@ -39,7 +39,8 @@ records = [json.loads(line) for line in journal.read_text(encoding='utf8').split
 assert [record['event'] for record in records] == ['reviewed', 'transfer-started', 'transfer-verified', 'transfer-started', 'transfer-verified', 'destination-verified', 'complete']
 assert records[0]['onlyAtDestination'] == ['assets/image.png']
 assert records[1]['stagedPath'] == '/site/.webstudio-upload-{11111111-1111-1111-1111-111111111111}.tmp'
-assert records[3]['originalPath'] == '/site/.webstudio-original-{22222222-2222-2222-2222-222222222222}.bak'
+assert records[3]['originalPath'] == '/private/.webstudio-original-{22222222-2222-2222-2222-222222222222}.bak'
+assert records[3]['stagedPath'] == '/private/.webstudio-upload-{22222222-2222-2222-2222-222222222222}.tmp'
 assert [json.loads(line)['event'] for line in failed_journal.read_text(encoding='utf8').splitlines()] == ['reviewed', 'transfer-started', 'transfer-failed']
 
 changed_input = work / 'website changed after review.zip'

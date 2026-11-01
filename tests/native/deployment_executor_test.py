@@ -22,9 +22,9 @@ hosts = work / 'known_hosts'
 hosts.write_text(f'[127.0.0.1]:{port} {host_key.get_name()} {host_key.get_base64()}\n', encoding='ascii')
 
 baseline = {'index.html': b'Hello world!', 'assets/image.png': b'picture', 'empty.txt': b''}
-roots = ['/success', '/stale', '/race', '/journal', '/deny', '/midfail', '/postchange']
+roots = ['/success', '/stale', '/race', '/journal', '/deny', '/midfail', '/postchange', '/private-missing', '/private-link']
 files = {prefix + '/' + name: content for prefix in roots for name, content in baseline.items()}
-directories = {directory for prefix in roots for directory in [prefix, prefix + '/assets']}
+directories = {'/', '/private'} | {directory for prefix in roots for directory in [prefix, prefix + '/assets']}
 removed = []
 class Writer(paramiko.SFTPHandle):
     def __init__(self, path, flags):
@@ -50,7 +50,9 @@ class Files(paramiko.SFTPServerInterface):
     def stat(self, path):
         path = path.rstrip('/') or '/'
         entry = paramiko.SFTPAttributes()
-        if path in directories:
+        if path == '/linkprivate':
+            entry.st_mode, entry.st_size = stat.S_IFLNK | 0o777, 0
+        elif path in directories:
             entry.st_mode, entry.st_size = stat.S_IFDIR | 0o755, 0
         elif path in files:
             entry.st_mode, entry.st_size = stat.S_IFREG | 0o644, len(files[path])
@@ -96,7 +98,7 @@ class Files(paramiko.SFTPServerInterface):
         if newpath == '/midfail/newfolder/new.txt':
             directories.add('/midfail/secondfolder')
             files['/midfail/secondfolder/second.txt'] = b'concurrent user data'
-        if newpath == '/postchange/secondfolder/second.txt' and '/.webstudio-upload-' in oldpath:
+        if newpath == '/postchange/index.html' and '/.webstudio-upload-' in oldpath:
             files['/postchange/assets/image.png'] = b'PicturE'
         return paramiko.SFTP_OK
     def remove(self, path):
@@ -106,7 +108,7 @@ class Files(paramiko.SFTPServerInterface):
 errors = []
 def serve():
     try:
-        for _ in range(24):
+        for _ in range(38):
             connection, _ = listener.accept()
             transport = paramiko.Transport(connection)
             try:
@@ -136,14 +138,14 @@ with zipfile.ZipFile(backup, 'w') as archive:
         archive.writestr(name, content)
 website = work / 'proposed.zip'
 with zipfile.ZipFile(website, 'w') as archive:
-    archive.writestr('index.html', b'Hello world!')
+    archive.writestr('index.html', b'new synthetic data')
     archive.writestr('empty.txt', b'')
     archive.writestr('newfolder/new.txt', b'synthetic addition')
     archive.writestr('secondfolder/second.txt', b'second addition')
 exe = base / 'm6-sftp-build' / 'SftpConnectionSmoke.exe'
 
-def execute(remote, journal, confirmed='confirmed', source=website, extra=11):
-    return subprocess.run([str(exe), str(port), str(key), str(hosts), remote, str(source), str(scan), str(backup), str(journal), confirmed] + ['test'] * extra, capture_output=True, text=True, timeout=90)
+def execute(remote, journal, confirmed='confirmed', source=website, extra=10, recovery='/private'):
+    return subprocess.run([str(exe), str(port), str(key), str(hosts), remote, str(source), str(scan), str(backup), str(journal), confirmed, recovery] + ['test'] * extra, capture_output=True, text=True, timeout=90)
 
 not_confirmed_path = work / 'not-confirmed.jsonl'
 not_confirmed = execute('/success', not_confirmed_path, 'no')
@@ -152,21 +154,30 @@ success_path = work / 'success.jsonl'
 success = execute('/success', success_path)
 if success.returncode:
     raise SystemExit('Synthetic execution failed: ' + success.stdout + success.stderr)
-assert success.stdout.strip() == 'Transfers:2|Preserved:1'
+assert success.stdout.strip() == 'Transfers:3|Preserved:1'
 records = [json.loads(line) for line in success_path.read_text(encoding='utf8').splitlines()]
-assert [record['event'] for record in records] == ['reviewed', 'directory-intent', 'transfer-started', 'transfer-verified', 'directory-intent', 'transfer-started', 'transfer-verified', 'destination-verified', 'complete']
+assert [record['event'] for record in records] == ['reviewed', 'directory-intent', 'transfer-started', 'transfer-verified', 'directory-intent', 'transfer-started', 'transfer-verified', 'transfer-started', 'transfer-verified', 'destination-verified', 'complete']
 assert records[0]['onlyAtDestination'] == ['assets/image.png']
-assert files['/success/index.html'] == b'Hello world!'
+assert files['/success/index.html'] == b'new synthetic data'
 assert files['/success/newfolder/new.txt'] == b'synthetic addition'
 assert files['/success/secondfolder/second.txt'] == b'second addition'
 assert files['/success/assets/image.png'] == b'picture'
+assert records[8]['originalPath'].startswith('/private/') and files[records[8]['originalPath']] == b'Hello world!'
+assert not any(path.startswith('/success/.webstudio-original-') for path in files)
 
 replacement_website = work / 'replacement.zip'
 with zipfile.ZipFile(replacement_website, 'w') as archive:
     archive.writestr('index.html', b'replacement')
 replacement_journal = work / 'replacement.jsonl'
-replacement = execute('/success', replacement_journal, source=replacement_website)
-assert replacement.returncode != 0 and 'private recovery storage' in replacement.stdout.lower() and not replacement_journal.exists()
+replacement = execute('/success', replacement_journal, source=replacement_website, recovery='/success/private')
+assert replacement.returncode != 0 and 'private recovery folder' in replacement.stdout.lower() and not replacement_journal.exists()
+
+missing_private_path = work / 'missing-private.jsonl'
+missing_private = execute('/private-missing', missing_private_path, recovery='/missing')
+assert missing_private.returncode != 0 and not missing_private_path.exists() and files['/private-missing/index.html'] == b'Hello world!'
+linked_private_path = work / 'linked-private.jsonl'
+linked_private = execute('/private-link', linked_private_path, recovery='/linkprivate/secret')
+assert linked_private.returncode != 0 and not linked_private_path.exists() and files['/private-link/index.html'] == b'Hello world!'
 
 files['/stale/index.html'] = b'Xello world!'
 stale_path = work / 'stale.jsonl'
@@ -200,13 +211,13 @@ assert files['/midfail/index.html'] == b'Hello world!' and files['/midfail/newfo
 postchange_path = work / 'postchange.jsonl'
 postchange = execute('/postchange', postchange_path)
 assert postchange.returncode != 0 and postchange_path.exists()
-assert [json.loads(line)['event'] for line in postchange_path.read_text(encoding='utf8').splitlines()] == ['reviewed', 'directory-intent', 'transfer-started', 'transfer-verified', 'directory-intent', 'transfer-started', 'transfer-verified', 'stopped']
+assert [json.loads(line)['event'] for line in postchange_path.read_text(encoding='utf8').splitlines()] == ['reviewed', 'directory-intent', 'transfer-started', 'transfer-verified', 'directory-intent', 'transfer-started', 'transfer-verified', 'transfer-started', 'transfer-verified', 'stopped']
 assert files['/postchange/assets/image.png'] == b'PicturE'
 
 changed_website = work / 'changed.zip'
 changed_website.write_bytes(website.read_bytes())
 changed_path = work / 'changed.jsonl'
-changed = execute('/stale', changed_path, source=changed_website, extra=12)
+changed = execute('/stale', changed_path, source=changed_website, extra=11)
 assert changed.returncode != 0 and not changed_path.exists(), (changed.returncode, changed.stdout, changed.stderr, changed_path.exists())
 thread.join(timeout=5)
 assert not thread.is_alive() and not errors and not removed

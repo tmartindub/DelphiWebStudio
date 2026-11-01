@@ -34,30 +34,32 @@ function UploadNewSftpFileWithId(const Host, UserName, KeyFile, KnownHostsFile: 
   Port: Word; const RemoteDirectory, RemoteName, LocalFile: string;
   const OperationId: TGUID): TSftpTransferReceipt;
 function ReplaceSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
-  Port: Word; const RemoteDirectory, RemoteName, LocalFile: string;
+  Port: Word; const RemoteDirectory, RecoveryDirectory, RemoteName, LocalFile: string;
   ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
 function ReplaceSftpFileWithId(const Host, UserName, KeyFile, KnownHostsFile: string;
-  Port: Word; const RemoteDirectory, RemoteName, LocalFile: string;
+  Port: Word; const RemoteDirectory, RecoveryDirectory, RemoteName, LocalFile: string;
   ExpectedSize: UInt64; const ExpectedSha256: string; const OperationId: TGUID): TSftpTransferReceipt;
 function TransferSftpStreamWithId(const Host, UserName, KeyFile, KnownHostsFile: string;
-  Port: Word; const RemoteDirectory, RemoteName: string; Source: TStream;
+  Port: Word; const RemoteDirectory, RecoveryDirectory, RemoteName: string; Source: TStream;
   Replacing: Boolean; ExpectedSize: UInt64; const ExpectedSha256: string;
   const OperationId: TGUID): TSftpTransferReceipt;
 { Replacement is also internal. The caller must first review the full diff,
   back up the destination, and obtain explicit publication confirmation. The
   original is retained under the receipt's PreviousPath; it is never deleted.
-  This location is inside the website and may be publicly accessible. Do not
-  expose replacement until a private recovery location is implemented. }
+  The recovery directory must be outside all server-served website paths. }
 { Internal rollback primitive; not connected to the UI. Both files must match
   reviewed hashes. The displaced current file is retained, never deleted. }
 function RestoreSftpOriginal(const Host, UserName, KeyFile, KnownHostsFile: string;
-  Port: Word; const RemoteDirectory, RemoteName, PreviousName: string;
+  Port: Word; const RemoteDirectory, RecoveryDirectory, RemoteName, PreviousName: string;
   CurrentSize: UInt64; const CurrentSha256: string; OriginalSize: UInt64;
   const OriginalSha256: string): TSftpTransferReceipt;
 { Internal transfer primitive, not connected to the UI. Creates missing
   directories only; it never follows links or removes existing entries. }
 function EnsureSftpDirectories(const Host, UserName, KeyFile, KnownHostsFile: string;
   Port: Word; const RemoteDirectory, RelativeDirectory: string): TArray<string>;
+function NormalizePrivateRecoveryDirectory(const WebsiteDirectory, RecoveryDirectory: string): string;
+procedure CheckPrivateSftpRecovery(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const WebsiteDirectory, RecoveryDirectory: string);
 
 implementation
 
@@ -81,12 +83,13 @@ type
     function Request(Kind: Byte; const Value: TBytes; const Extra: TBytes = nil): TBytesStream;
     function HashFile(const RemotePath: string; ExpectedSize: UInt64; Capture: TStream = nil): string;
     procedure RequireRegularFile(const RemotePath: string; ExpectedSize: UInt64);
+    procedure RequireDirectoryChain(const RemotePath: string);
     procedure Initialize;
     procedure RenameNoReplace(const OldPath, NewPath: string);
-    function UploadFile(const RemoteDirectory, RemoteName: string; Source: TStream;
+    function UploadFile(const RemoteDirectory, RecoveryDirectory, RemoteName: string; Source: TStream;
       Replacing: Boolean; ExpectedSize: UInt64; const ExpectedSha256: string;
       const OperationId: TGUID): TSftpTransferReceipt;
-    function RestoreOriginal(const RemoteDirectory, RemoteName, PreviousName: string;
+    function RestoreOriginal(const RemoteDirectory, RecoveryDirectory, RemoteName, PreviousName: string;
       CurrentSize: UInt64; const CurrentSha256: string; OriginalSize: UInt64;
       const OriginalSha256: string): TSftpTransferReceipt;
     function EnsureDirectories(const RemoteDirectory, RelativeDirectory: string): TArray<string>;
@@ -96,6 +99,28 @@ type
     destructor Destroy; override;
     function Scan(const RemoteDirectory: string): TArray<TSftpInventoryEntry>;
   end;
+
+function NormalizePrivateRecoveryDirectory(const WebsiteDirectory, RecoveryDirectory: string): string;
+var Website, Recovery, Part, Path: string; Index: Integer;
+begin
+  Website := WebsiteDirectory;
+  Recovery := RecoveryDirectory;
+  for Path in TArray<string>.Create(Website, Recovery) do begin
+    if (Path = '') or (Path[1] <> '/') or (Length(Path) > 1024) or (Pos('\', Path) > 0) or (Pos('//', Path) > 0) then
+      raise EArgumentException.Create('Website and recovery folders must be absolute SFTP paths.');
+    for Part in Path.Split(['/']) do
+      if (Part = '.') or (Part = '..') then raise EArgumentException.Create('Invalid website or recovery folder.');
+    for Index := 1 to Length(Path) do
+      if Path[Index] < #32 then raise EArgumentException.Create('Invalid website or recovery folder.');
+  end;
+  while (Length(Website) > 1) and Website.EndsWith('/') do Delete(Website, Length(Website), 1);
+  while (Length(Recovery) > 1) and Recovery.EndsWith('/') do Delete(Recovery, Length(Recovery), 1);
+  if (Website = '/') or (Recovery = '/') or SameText(Website, Recovery) or
+     LowerCase(Recovery).StartsWith(LowerCase(Website) + '/') or
+     LowerCase(Website).StartsWith(LowerCase(Recovery) + '/') then
+    raise EArgumentException.Create('Choose a private recovery folder separate from the website folder.');
+  Result := Recovery + '/';
+end;
 
 procedure PutUInt32(Stream: TStream; Value: Cardinal);
 var Buffer: array[0..3] of Byte;
@@ -489,11 +514,38 @@ begin
   finally Packet.Free end;
 end;
 
-function TSftpScanner.UploadFile(const RemoteDirectory, RemoteName: string; Source: TStream;
+procedure TSftpScanner.RequireDirectoryChain(const RemotePath: string);
+var Current, Part: string;
+  procedure CheckDirectory(const Path: string);
+  var Packet: TBytesStream; Kind: Byte; Flags, Mode: Cardinal;
+  begin
+    Packet := Request(7, TEncoding.UTF8.GetBytes(Path));
+    try
+      Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
+      if Kind <> 105 then raise EInvalidOpException.Create('Cannot inspect folder ' + Path + '.');
+      Flags := GetUInt32(Packet);
+      if Flags and 1 <> 0 then begin GetUInt32(Packet); GetUInt32(Packet) end;
+      if Flags and 2 <> 0 then begin GetUInt32(Packet); GetUInt32(Packet) end;
+      if Flags and 4 = 0 then raise EInvalidOpException.Create('The server did not provide a folder type.');
+      Mode := GetUInt32(Packet);
+      if Mode and $F000 <> $4000 then raise EInvalidOpException.Create('A folder is a link or unsupported type: ' + Path + '.');
+    finally Packet.Free end;
+  end;
+begin
+  Current := '/';
+  CheckDirectory(Current);
+  for Part in RemotePath.Split(['/']) do begin
+    if Part = '' then Continue;
+    if Current.EndsWith('/') then Current := Current + Part else Current := Current + '/' + Part;
+    CheckDirectory(Current);
+  end;
+end;
+
+function TSftpScanner.UploadFile(const RemoteDirectory, RecoveryDirectory, RemoteName: string; Source: TStream;
   Replacing: Boolean; ExpectedSize: UInt64; const ExpectedSha256: string;
   const OperationId: TGUID): TSftpTransferReceipt;
 var
-  Root, Part, TempPath, TargetPath, PreviousPath, LocalHash, RemoteHash: string;
+  Root, RecoveryRoot, Part, TempPath, TargetPath, PreviousPath, LocalHash, RemoteHash: string;
   Index, ReadCount: Integer;
   Packet, Extra: TBytesStream;
   Handle, RequestData, Bytes: TBytes;
@@ -527,8 +579,11 @@ begin
   TargetPath := Root + RemoteName;
   if GUIDToString(OperationId) = '{00000000-0000-0000-0000-000000000000}' then
     raise EArgumentException.Create('A unique transfer identifier is required.');
-  TempPath := Root + '.webstudio-upload-' + GUIDToString(OperationId) + '.tmp';
-  PreviousPath := Root + '.webstudio-original-' + GUIDToString(OperationId) + '.bak';
+  RecoveryRoot := '';
+  if Replacing then RecoveryRoot := NormalizePrivateRecoveryDirectory(RemoteDirectory, RecoveryDirectory);
+  if Replacing then TempPath := RecoveryRoot + '.webstudio-upload-' + GUIDToString(OperationId) + '.tmp'
+  else TempPath := Root + '.webstudio-upload-' + GUIDToString(OperationId) + '.tmp';
+  PreviousPath := RecoveryRoot + '.webstudio-original-' + GUIDToString(OperationId) + '.bak';
   Initialize;
   Created := False;
   Renamed := False;
@@ -537,6 +592,8 @@ begin
   OriginalMoved := False;
   try
     if Replacing then begin
+      RequireDirectoryChain(RemoteDirectory);
+      RequireDirectoryChain(RecoveryRoot);
       RequireRegularFile(TargetPath, ExpectedSize);
       if HashFile(TargetPath, ExpectedSize) <> LowerCase(ExpectedSha256) then
         raise EInvalidOpException.Create('The destination file no longer matches the reviewed scan.');
@@ -620,11 +677,11 @@ begin
   end;
 end;
 
-function TSftpScanner.RestoreOriginal(const RemoteDirectory, RemoteName, PreviousName: string;
+function TSftpScanner.RestoreOriginal(const RemoteDirectory, RecoveryDirectory, RemoteName, PreviousName: string;
   CurrentSize: UInt64; const CurrentSha256: string; OriginalSize: UInt64;
   const OriginalSha256: string): TSftpTransferReceipt;
 var
-  Root, Part, TargetPath, PreviousPath, DisplacedPath: string;
+  Root, RecoveryRoot, Part, TargetPath, PreviousPath, DisplacedPath: string;
   Index: Integer;
   UniqueId: TGUID;
   MoveAttempted, CurrentMoved, OriginalRestored: Boolean;
@@ -655,12 +712,15 @@ begin
       raise EArgumentException.Create('The reviewed rollback checksum is invalid.');
   Root := RemoteDirectory;
   if not Root.EndsWith('/') then Root := Root + '/';
+  RecoveryRoot := NormalizePrivateRecoveryDirectory(RemoteDirectory, RecoveryDirectory);
   TargetPath := Root + RemoteName;
-  PreviousPath := Root + PreviousName;
+  PreviousPath := RecoveryRoot + PreviousName;
   if TargetPath = PreviousPath then raise EArgumentException.Create('The original and destination must be different files.');
   if CreateGUID(UniqueId) <> 0 then raise EInvalidOpException.Create('Could not create a rollback staging filename.');
-  DisplacedPath := Root + '.webstudio-displaced-' + GUIDToString(UniqueId) + '.bak';
+  DisplacedPath := RecoveryRoot + '.webstudio-displaced-' + GUIDToString(UniqueId) + '.bak';
   Initialize;
+  RequireDirectoryChain(RemoteDirectory);
+  RequireDirectoryChain(RecoveryRoot);
   RequireRegularFile(TargetPath, CurrentSize);
   if HashFile(TargetPath, CurrentSize) <> LowerCase(CurrentSha256) then
     raise EInvalidOpException.Create('The destination file no longer matches the reviewed scan.');
@@ -884,34 +944,34 @@ begin
   Source := TFileStream.Create(LocalFile, fmOpenRead or fmShareDenyWrite);
   try
     Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
-    try Result := Scanner.UploadFile(RemoteDirectory, RemoteName, Source, False, 0, '', OperationId) finally Scanner.Free end;
+    try Result := Scanner.UploadFile(RemoteDirectory, '', RemoteName, Source, False, 0, '', OperationId) finally Scanner.Free end;
   finally Source.Free end;
 end;
 
 function ReplaceSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
-  Port: Word; const RemoteDirectory, RemoteName, LocalFile: string;
+  Port: Word; const RemoteDirectory, RecoveryDirectory, RemoteName, LocalFile: string;
   ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
 var OperationId: TGUID;
 begin
   if CreateGUID(OperationId) <> 0 then raise EInvalidOpException.Create('Could not create a transfer identifier.');
   Result := ReplaceSftpFileWithId(Host, UserName, KeyFile, KnownHostsFile, Port,
-    RemoteDirectory, RemoteName, LocalFile, ExpectedSize, ExpectedSha256, OperationId);
+    RemoteDirectory, RecoveryDirectory, RemoteName, LocalFile, ExpectedSize, ExpectedSha256, OperationId);
 end;
 
 function ReplaceSftpFileWithId(const Host, UserName, KeyFile, KnownHostsFile: string;
-  Port: Word; const RemoteDirectory, RemoteName, LocalFile: string;
+  Port: Word; const RemoteDirectory, RecoveryDirectory, RemoteName, LocalFile: string;
   ExpectedSize: UInt64; const ExpectedSha256: string; const OperationId: TGUID): TSftpTransferReceipt;
 var Scanner: TSftpScanner; Source: TFileStream;
 begin
   Source := TFileStream.Create(LocalFile, fmOpenRead or fmShareDenyWrite);
   try
     Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
-    try Result := Scanner.UploadFile(RemoteDirectory, RemoteName, Source, True, ExpectedSize, ExpectedSha256, OperationId) finally Scanner.Free end;
+    try Result := Scanner.UploadFile(RemoteDirectory, RecoveryDirectory, RemoteName, Source, True, ExpectedSize, ExpectedSha256, OperationId) finally Scanner.Free end;
   finally Source.Free end;
 end;
 
 function TransferSftpStreamWithId(const Host, UserName, KeyFile, KnownHostsFile: string;
-  Port: Word; const RemoteDirectory, RemoteName: string; Source: TStream;
+  Port: Word; const RemoteDirectory, RecoveryDirectory, RemoteName: string; Source: TStream;
   Replacing: Boolean; ExpectedSize: UInt64; const ExpectedSha256: string;
   const OperationId: TGUID): TSftpTransferReceipt;
 var Scanner: TSftpScanner;
@@ -919,20 +979,20 @@ begin
   if not Assigned(Source) then raise EArgumentException.Create('A transfer source is required.');
   Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
   try
-    Result := Scanner.UploadFile(RemoteDirectory, RemoteName, Source,
+    Result := Scanner.UploadFile(RemoteDirectory, RecoveryDirectory, RemoteName, Source,
       Replacing, ExpectedSize, ExpectedSha256, OperationId);
   finally Scanner.Free end;
 end;
 
 function RestoreSftpOriginal(const Host, UserName, KeyFile, KnownHostsFile: string;
-  Port: Word; const RemoteDirectory, RemoteName, PreviousName: string;
+  Port: Word; const RemoteDirectory, RecoveryDirectory, RemoteName, PreviousName: string;
   CurrentSize: UInt64; const CurrentSha256: string; OriginalSize: UInt64;
   const OriginalSha256: string): TSftpTransferReceipt;
 var Scanner: TSftpScanner;
 begin
   Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
   try
-    Result := Scanner.RestoreOriginal(RemoteDirectory, RemoteName, PreviousName,
+    Result := Scanner.RestoreOriginal(RemoteDirectory, RecoveryDirectory, RemoteName, PreviousName,
       CurrentSize, CurrentSha256, OriginalSize, OriginalSha256);
   finally Scanner.Free end;
 end;
@@ -943,6 +1003,19 @@ var Scanner: TSftpScanner;
 begin
   Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
   try Result := Scanner.EnsureDirectories(RemoteDirectory, RelativeDirectory) finally Scanner.Free end;
+end;
+
+procedure CheckPrivateSftpRecovery(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const WebsiteDirectory, RecoveryDirectory: string);
+var Scanner: TSftpScanner; RecoveryRoot: string;
+begin
+  RecoveryRoot := NormalizePrivateRecoveryDirectory(WebsiteDirectory, RecoveryDirectory);
+  Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
+  try
+    Scanner.Initialize;
+    Scanner.RequireDirectoryChain(WebsiteDirectory);
+    Scanner.RequireDirectoryChain(RecoveryRoot);
+  finally Scanner.Free end;
 end;
 
 end.

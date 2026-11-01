@@ -27,20 +27,20 @@ begin
       Review := ReviewDeployment(ParamStr(5), ParamStr(6), ParamStr(7));
       TFile.AppendAllText(ParamStr(5), 'changed after review');
       Execution := ExecuteReviewedDeployment(ParamStr(5), ParamStr(6), ParamStr(7), ParamStr(8), Review,
-        '127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), True);
+        '127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(10), True);
       Writeln('Unexpected execution:', Execution.VerifiedTransfers);
       Exit;
     end;
     if ParamCount = 20 then begin
       Review := ReviewDeployment(ParamStr(5), ParamStr(6), ParamStr(7));
       Execution := ExecuteReviewedDeployment(ParamStr(5), ParamStr(6), ParamStr(7), ParamStr(8), Review,
-        '127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(9) = 'confirmed');
+        '127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(10), ParamStr(9) = 'confirmed');
       Writeln('Transfers:', Execution.VerifiedTransfers, '|Preserved:', Execution.PreservedFiles);
       Exit;
     end;
     if ParamCount = 19 then begin
       OperationId := StringToGUID(ParamStr(9));
-      Receipt := ReplaceSftpFileWithId('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(5), ParamStr(6), StrToUInt64(ParamStr(7)), ParamStr(8), OperationId);
+      Receipt := ReplaceSftpFileWithId('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), '/private', ParamStr(5), ParamStr(6), StrToUInt64(ParamStr(7)), ParamStr(8), OperationId);
       Writeln(Receipt.Path, '|', Receipt.Size, '|', Receipt.Sha256, '|', Receipt.PreviousPath);
       Exit;
     end;
@@ -49,7 +49,7 @@ begin
       if Length(Review.Transfers) <> 2 then raise Exception.Create('Unexpected journal test plan.');
       OperationId := StringToGUID('{11111111-1111-1111-1111-111111111111}');
       SecondId := StringToGUID('{22222222-2222-2222-2222-222222222222}');
-      Journal := TDeploymentJournal.CreateNew(ParamStr(4), 'example.test', '/site', 22, Review);
+      Journal := TDeploymentJournal.CreateNew(ParamStr(4), 'example.test', '/site', '/private', 22, Review);
       try
         Rejected := False;
         try Journal.Finish except on E: Exception do Rejected := True end;
@@ -72,7 +72,7 @@ begin
         Receipt.Path := '/site/' + Review.Transfers[1].Path;
         Receipt.Size := Review.Transfers[1].DesiredSize;
         Receipt.Sha256 := Review.Transfers[1].DesiredSha256;
-        Receipt.PreviousPath := '/site/.webstudio-original-' + GUIDToString(SecondId) + '.bak';
+        Receipt.PreviousPath := '/private/.webstudio-original-' + GUIDToString(SecondId) + '.bak';
         Journal.CompleteTransfer(Receipt);
         Rejected := False;
         try Journal.Finish except on E: Exception do Rejected := True end;
@@ -82,11 +82,11 @@ begin
       finally Journal.Free end;
       Rejected := False;
       try
-        Journal := TDeploymentJournal.CreateNew(ParamStr(4), 'example.test', '/site', 22, Review);
+        Journal := TDeploymentJournal.CreateNew(ParamStr(4), 'example.test', '/site', '/private', 22, Review);
         Journal.Free;
       except on E: Exception do Rejected := True end;
       if not Rejected then raise Exception.Create('Journal replaced an existing file.');
-      Journal := TDeploymentJournal.CreateNew(ParamStr(5), 'example.test', '/site', 22, Review);
+      Journal := TDeploymentJournal.CreateNew(ParamStr(5), 'example.test', '/site', '/private', 22, Review);
       try
         Journal.BeginTransfer(0, OperationId);
         Journal.FailTransfer('synthetic failure');
@@ -183,12 +183,12 @@ begin
       Exit;
     end;
     if ParamCount = 11 then begin
-      Receipt := RestoreSftpOriginal('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(5), ParamStr(6), StrToUInt64(ParamStr(7)), ParamStr(8), StrToUInt64(ParamStr(9)), ParamStr(10));
+      Receipt := RestoreSftpOriginal('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), '/private', ParamStr(5), ParamStr(6), StrToUInt64(ParamStr(7)), ParamStr(8), StrToUInt64(ParamStr(9)), ParamStr(10));
       Writeln(Receipt.Path, '|', Receipt.Size, '|', Receipt.Sha256, '|', Receipt.PreviousPath);
       Exit;
     end;
     if ParamCount = 10 then begin
-      Receipt := ReplaceSftpFile('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(5), ParamStr(6), StrToUInt64(ParamStr(7)), ParamStr(8));
+      Receipt := ReplaceSftpFile('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), '/private', ParamStr(5), ParamStr(6), StrToUInt64(ParamStr(7)), ParamStr(8));
       Writeln(Receipt.Path, '|', Receipt.Size, '|', Receipt.Sha256, '|', Receipt.PreviousPath);
       Exit;
     end;

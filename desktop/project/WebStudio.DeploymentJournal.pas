@@ -13,7 +13,7 @@ type
   TDeploymentJournal = class
   private
     FHandle: THandle;
-    FRoot: string;
+    FRoot, FRecoveryRoot: string;
     FTransfers: TArray<TDeploymentTransfer>;
     FNext: Integer;
     FPending, FFinished, FBroken, FFinalVerified: Boolean;
@@ -21,7 +21,7 @@ type
     FUsedIds: TDictionary<string, Boolean>;
     procedure WriteRecord(RecordValue: TJSONObject);
   public
-    constructor CreateNew(const FileName, Host, RemoteDirectory: string; Port: Word;
+    constructor CreateNew(const FileName, Host, RemoteDirectory, RecoveryDirectory: string; Port: Word;
       const Review: TDeploymentReview);
     destructor Destroy; override;
     procedure RecordDirectoryIntent(const RelativeDirectory: string);
@@ -56,7 +56,7 @@ begin
     if not CharInSet(Character, ['0'..'9', 'a'..'f']) then raise EArgumentException.Create('Invalid reviewed checksum.');
 end;
 
-constructor TDeploymentJournal.CreateNew(const FileName, Host, RemoteDirectory: string; Port: Word;
+constructor TDeploymentJournal.CreateNew(const FileName, Host, RemoteDirectory, RecoveryDirectory: string; Port: Word;
   const Review: TDeploymentReview);
 var
   Index: Integer;
@@ -64,6 +64,7 @@ var
   RecordValue: TJSONObject;
   Preserved: TJSONArray;
   Transfer: TDeploymentTransfer;
+  HasReplacement: Boolean;
 begin
   inherited Create;
   FHandle := INVALID_HANDLE_VALUE;
@@ -82,6 +83,7 @@ begin
   if (Length(Review.Transfers) <> Length(Review.Added) + Length(Review.Changed)) or
      (Length(Review.Transfers) > 10000) or (Length(Review.OnlyAtDestination) > 10000) then
     raise EArgumentException.Create('Invalid reviewed transfer plan.');
+  HasReplacement := False;
   for Index := 0 to High(Review.Transfers) do begin
     Transfer := Review.Transfers[Index];
     ValidateRelative(Transfer.Path); ValidateHash(Transfer.DesiredSha256);
@@ -91,6 +93,7 @@ begin
          (Transfer.ExpectedSize <> 0) or (Transfer.ExpectedSha256 <> '') then
         raise EArgumentException.Create('Invalid reviewed new-file transfer.');
     end else begin
+      HasReplacement := True;
       if not Transfer.IsReplacement or (Transfer.Path <> Review.Changed[Index - Length(Review.Added)]) or
          (Transfer.ExpectedSize > 64 * 1024 * 1024) then raise EArgumentException.Create('Invalid reviewed replacement.');
       ValidateHash(Transfer.ExpectedSha256);
@@ -100,6 +103,8 @@ begin
   FRoot := RemoteDirectory;
   while (Length(FRoot) > 1) and FRoot.EndsWith('/') do Delete(FRoot, Length(FRoot), 1);
   if not FRoot.EndsWith('/') then FRoot := FRoot + '/';
+  if HasReplacement then FRecoveryRoot := NormalizePrivateRecoveryDirectory(RemoteDirectory, RecoveryDirectory)
+  else FRecoveryRoot := '';
   FTransfers := Copy(Review.Transfers);
   FHandle := CreateFile(PChar(FileName), GENERIC_WRITE, FILE_SHARE_READ, nil,
     CREATE_NEW, FILE_ATTRIBUTE_NORMAL, 0);
@@ -112,6 +117,7 @@ begin
     RecordValue.AddPair('host', Host);
     RecordValue.AddPair('port', TJSONNumber.Create(Port));
     RecordValue.AddPair('destination', FRoot);
+    if FRecoveryRoot <> '' then RecordValue.AddPair('recoveryDirectory', FRecoveryRoot);
     RecordValue.AddPair('websiteSha256', Review.WebsiteSha256);
     RecordValue.AddPair('scanSha256', Review.ScanSha256);
     RecordValue.AddPair('backupSha256', Review.BackupSha256);
@@ -177,10 +183,11 @@ begin
     RecordValue.AddPair('index', TJSONNumber.Create(Index));
     RecordValue.AddPair('path', FRoot + Transfer.Path);
     RecordValue.AddPair('operationId', Id);
-    RecordValue.AddPair('stagedPath', Parent + '.webstudio-upload-' + Id + '.tmp');
+    if Transfer.IsReplacement then RecordValue.AddPair('stagedPath', FRecoveryRoot + '.webstudio-upload-' + Id + '.tmp')
+    else RecordValue.AddPair('stagedPath', Parent + '.webstudio-upload-' + Id + '.tmp');
     if Transfer.IsReplacement then begin
       RecordValue.AddPair('action', 'replace');
-      RecordValue.AddPair('originalPath', Parent + '.webstudio-original-' + Id + '.bak');
+      RecordValue.AddPair('originalPath', FRecoveryRoot + '.webstudio-original-' + Id + '.bak');
       RecordValue.AddPair('expectedSize', TJSONNumber.Create(Int64(Transfer.ExpectedSize)));
       RecordValue.AddPair('expectedSha256', Transfer.ExpectedSha256);
     end else RecordValue.AddPair('action', 'new');
@@ -194,14 +201,12 @@ begin
 end;
 
 procedure TDeploymentJournal.CompleteTransfer(const Receipt: TSftpTransferReceipt);
-var Transfer: TDeploymentTransfer; RecordValue: TJSONObject; Parent, Previous: string; Slash: Integer;
+var Transfer: TDeploymentTransfer; RecordValue: TJSONObject; Previous: string;
 begin
   if not FPending then raise EInvalidOpException.Create('No transfer is pending.');
   Transfer := FTransfers[FNext];
-  Slash := LastDelimiter('/', Transfer.Path);
-  Parent := FRoot + Copy(Transfer.Path, 1, Slash);
   Previous := '';
-  if Transfer.IsReplacement then Previous := Parent + '.webstudio-original-' + GUIDToString(FPendingId) + '.bak';
+  if Transfer.IsReplacement then Previous := FRecoveryRoot + '.webstudio-original-' + GUIDToString(FPendingId) + '.bak';
   if (Receipt.Path <> FRoot + Transfer.Path) or (Receipt.Size <> Transfer.DesiredSize) or
      (Receipt.Sha256 <> Transfer.DesiredSha256) or (Receipt.PreviousPath <> Previous) then
     raise EInvalidOpException.Create('The verified transfer does not match the reviewed plan.');
