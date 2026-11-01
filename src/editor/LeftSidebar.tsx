@@ -100,6 +100,8 @@ function ComponentsPanel() {
               return (
                 <button
                   key={meta.type}
+                  draggable
+                  onDragStart={(event) => { event.dataTransfer.setData('application/x-webstudio-component', meta.type); event.dataTransfer.effectAllowed = 'copy' }}
                   onClick={() => handleAdd(meta.type)}
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] text-text-1 hover:bg-bg-3 hover:text-text-0 transition-colors text-left group"
                 >

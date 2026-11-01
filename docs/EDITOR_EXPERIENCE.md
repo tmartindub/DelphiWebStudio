@@ -14,6 +14,8 @@ Shared headers and footers, reusable sections, page links, and preset and custom
 
 In a Content section, select text in Body and choose a page from “Insert a link to a page” to create a link without typing its address. If no text is selected, the page name becomes the link label. Draft articles are excluded.
 
+In Components, click an item to add it at the end of the page, or drag it above or below an existing section on the canvas. The insertion can be undone. Layer reordering remains available in the Layers panel.
+
 ## Responsive preview checks
 
 Desktop preview can expand to 1,200 pixels; tablet and phone previews use 768 and 375 pixels. On a narrower editor window, the fixed device previews can be scrolled horizontally. A sample centered hero, image, and PDF block were compared with exported HTML at those three widths; their measured widths matched and the sample did not horizontally overflow. The centered hero uses the same root font size and container breakpoint in preview and export. The PDF preview uses the browser's PDF object while export uses the bundled viewer, so their controls differ.

@@ -8,6 +8,7 @@ import { resolveTheme, themeToCSS } from '@/lib/theme-presets'
 import { useProjectsStore } from '@/store/projectsStore'
 import { ProjectMediaLibrary } from '@/media/media-library'
 import { toast } from 'sonner'
+import { blockMetadata } from '@/lib/block-metadata'
 
 export function Canvas() {
   const blocks = useConfigStore((s) => {
@@ -116,8 +117,24 @@ export function Canvas() {
 
   return (
     <div className="flex-1 flex items-start justify-start p-6 overflow-auto relative bg-[#dce8f3]" onDragOver={event => {
-      if (event.dataTransfer.types.includes('application/x-webstudio-asset')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy' }
+      if (!previewMode && (event.dataTransfer.types.includes('application/x-webstudio-asset') || event.dataTransfer.types.includes('application/x-webstudio-component'))) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy' }
     }} onDrop={event => {
+      if (previewMode) return
+      const componentType = event.dataTransfer.getData('application/x-webstudio-component')
+      if (componentType) {
+        const meta = blockMetadata.find(item => item.type === componentType && item.type !== 'pricing')
+        if (!meta) return
+        event.preventDefault()
+        const target = event.target instanceof Element ? event.target.closest('[data-webstudio-block-id]') : null
+        const targetId = target?.getAttribute('data-webstudio-block-id')
+        const targetIndex = blocks.findIndex(block => block.id === targetId)
+        const index = targetIndex < 0 || !target ? undefined : targetIndex + (event.clientY >= target.getBoundingClientRect().top + target.getBoundingClientRect().height / 2 ? 1 : 0)
+        const id = `block-${crypto.randomUUID()}`
+        useConfigStore.getState().addBlock({ id, type: meta.type, variant: meta.variants[0], props: structuredClone(meta.defaultProps) }, index)
+        selectBlock(id)
+        toast(`${meta.label} added`)
+        return
+      }
       const assetId = event.dataTransfer.getData('application/x-webstudio-asset')
       if (!assetId || !activeProjectId) return
       event.preventDefault()

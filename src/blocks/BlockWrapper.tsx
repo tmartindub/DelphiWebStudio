@@ -54,6 +54,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
         (scrollRef as React.MutableRefObject<HTMLDivElement | null>).current = el
         ;(revealRef as React.MutableRefObject<HTMLDivElement | null>).current = el
       }}
+      data-webstudio-block-id={block.id}
       onClick={(e) => {
         if (e.target instanceof Element && e.target.closest('a')) e.preventDefault()
         e.stopPropagation()
