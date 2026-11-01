@@ -1,0 +1,9 @@
+Delphi Web Studio is experimental software, not a finished release.
+
+Windows 10 or 11 x64 and the Microsoft Edge WebView2 Runtime are required. The runtime is not included or downloaded by this installer. If it is missing, obtain it separately from Microsoft before running the application.
+
+The editor is installed locally and does not require Node.js on the user's PC. Optional local AI runtime and model files are not included.
+
+Projects, browser data, local revisions, and AI files are not removed by the application uninstaller. Keep separate backups of your projects.
+
+Opening, saving, reviewing, and exporting do not publish a website. Publishing and rollback require separate review and explicit confirmation.
