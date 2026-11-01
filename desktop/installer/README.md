@@ -12,4 +12,6 @@ To rebuild with an installed or portable `ISCC.exe`, use a freshly built stage c
 & 'C:\path\to\ISCC.exe' '/DStageDir=C:\path\to\verified-stage' '/OC:\path\to\output' 'desktop\installer\DelphiWebStudio.iss'
 ```
 
-The first local test installed to a fresh folder under `test-results`, compared all staged executable, loader and editor files by SHA-256, and uninstalled. The uninstaller preserved a synthetic user-created file in the install folder. This was not a clean Windows VM test and did not exercise the installed application end to end.
+The first local test installed to a fresh folder under `test-results`, compared all staged executable, loader and editor files by SHA-256, and uninstalled. The uninstaller preserved a synthetic user-created file in the install folder.
+
+A second isolated test installed the package to a fresh folder, then compiled a test harness from the same desktop source alongside the installed editor and loader. With a fresh WebView profile and Node.js absent from the test process's PATH, it opened a synthetic five-page project, saved and reopened it, exported the website ZIP, and verified the pages, a page link and original PDF bytes. The test installation was then uninstalled. It used the machine's existing WebView2 Runtime and a legacy test save dialog; it was not a clean Windows VM test and did not exercise new-site creation, editing or AI in that run.
