@@ -1,6 +1,6 @@
 # Local AI action foundation (experimental)
 
-Last changed: 2026-10-31. The experimental local AI planner is connected to the Windows application; M4 is not yet complete.
+Last changed: 2026-11-01. The experimental local AI planner is connected to the Windows application. M4's specified five-page generation and editing functions have been exercised in isolated checks; see the limits below.
 
 `src/ai/site-actions.ts` defines a versioned, preview-only request and a limited set of typed page, theme and block operations. Evaluation works on a copy of the validated project and returns a readable list of changes. It does not contact a model, execute commands, read files, publish a site or modify the editor. The result can be accepted only against the same source snapshot; a changed project or altered preview is rejected.
 
@@ -40,7 +40,7 @@ A subsequent isolated inference run used the same locally evaluated runtime and 
 
 Open a new blank project in the editor and choose **Local AI** from the native menu. If needed, use **Download runtime** and one of the model download buttons to obtain the exact supported files in your browser. The Qwen 1.7B model is about 1.8 GB; the optional Qwen 4B model is about 2.5 GB and uses more memory. Browse to the downloaded llama.cpp b12012 Windows CPU ZIP and either supported model, enter a brief, and choose **Generate**. The planner verifies the pinned archive and model checksums, starts the runtime as a supervised offline loopback process with a temporary key, and checks the process owns the listening port before sending the brief. Review the proposed page names and headlines, then apply or cancel. Applied pages can be edited and the operation can be undone.
 
-An isolated Windows app test used a fictional community-site brief: the 1.7B local model produced five pages, the app displayed the review, and applying it created five pages with editable hero sections. The owned server was stopped after the request. Downloads use the browser and require the user to select the files afterward; there is no automatic installer, progress cancellation, general conversational editing, or multi-machine model quality benchmark yet. Do not treat M4 as complete.
+An isolated Windows app test used a fictional community-site brief: the 1.7B local model produced five pages, the app displayed the review, and applying it created five pages with editable hero sections. The owned server was stopped after the request. A separate current-editor check applied a recorded response from that local model, edited a generated headline, and used undo. These were complementary checks, not one uninterrupted generate-and-edit run. Downloads use the browser and require the user to select the files afterward; there is no automatic installer, progress cancellation, general conversational editing, or multi-machine model quality benchmark yet.
 
 In an open project, the same Local AI dialog offers **Suggest website colors**. Describe the requested colors; the model proposes a background, text and accent color. The editor displays a sample and requires approval before applying the three theme tokens as one undoable edit. An isolated app test requested blue and white, reviewed and applied the model's proposal, then undid it. Invalid color values are rejected.
 

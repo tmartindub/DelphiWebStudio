@@ -18,6 +18,8 @@ Use small feature branches and PRs. M0 includes docs/evidence/CI and minimal lin
 
 M2's specified no-code build-and-export scenario passed an automated browser check using the current editor; independent testing by a nontechnical user has not been observed. The desktop app does not currently preview custom HTML/CSS inside its blocked frame.
 
-M3's specified mixed-media offline scenario passed on the current editor with two images, a PDF and a text file. The four files survived save, reopen and export byte-for-byte, and images and PDF displayed with external requests blocked. M4 is the next milestone under review.
+M3's specified mixed-media offline scenario passed on the current editor with two images, a PDF and a text file. The four files survived save, reopen and export byte-for-byte, and images and PDF displayed with external requests blocked.
+
+M4's specified local five-page generation and editing functions were exercised in complementary isolated checks without an account or API fee. The generation and subsequent edit were not observed in one uninterrupted run. Both handoff model candidates have been sampled locally, but a multi-machine benchmark remains unverified. M5 is the next milestone under review.
 
 Tracking: [issues 1–9](https://github.com/tmartindub/DelphiWebStudio/issues) correspond to M0–M8, each assigned to its matching GitHub milestone.
