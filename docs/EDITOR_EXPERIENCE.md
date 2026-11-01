@@ -8,7 +8,9 @@ The description box selects a starter locally; it does not claim to be AI or sen
 
 The editor has Beginner, Designer and Professional (JSON) views using the same site model. The Professional option opens the existing JSON editor. JSON changes are validated and undoable. These controls do not yet provide the complete advanced visual and source editing capabilities described in the handoff.
 
-M2 still requires full page navigation editing, reusable headers/footers and sections, advanced responsive layout controls, direct HTML/CSS/JS editing, deeper keyboard/accessibility testing and all specified templates/features before the milestone is complete.
+An automated no-code check on the current preview created a community site, edited its home page, added an About page, checked the phone, tablet and desktop previews, and exported both pages. The exported sample had no horizontal overflow at 375, 768 and 1440 pixels. This is evidence for the M2 exit scenario, not a test by a nontechnical person or a guarantee for every site.
+
+Shared headers and footers, reusable sections, page links, and preset and custom preview widths are available. M2 remains in progress: the Professional mode does not yet provide the handoff's HTML/CSS/JS editing and source inspection, and the broader editor requirements remain to be checked.
 
 ## Responsive preview checks
 
