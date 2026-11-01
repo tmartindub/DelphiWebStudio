@@ -67,6 +67,9 @@ begin
       if not Assigned(Project) or not Project.GetValue<string>('webstudioWordPressSource').Contains('<script>') then raise Exception.Create('Original WXR was not retained.');
       if Project.GetValue<TJSONObject>('config').GetValue<TJSONArray>('pages').Count <> 3 then raise Exception.Create('Imported page count differs.');
       if not Project.GetValue<TJSONObject>('config').ToJSON.Contains('Welcome from WordPress') then raise Exception.Create('Editable content missing.');
+      if not Project.GetValue<TJSONObject>('config').ToJSON.Contains('## Welcome from WordPress') then raise Exception.Create('Imported heading missing.');
+      if not Project.GetValue<TJSONObject>('config').ToJSON.Contains('[News](/imported-post-1)') then raise Exception.Create('Imported page link missing.');
+      if Project.GetValue<TJSONObject>('config').GetValue<TJSONArray>('pages').Items[1].GetValue<TJSONObject>('webstudioArticle').GetValue<string>('status') <> 'draft' then raise Exception.Create('Unpublished page was not kept as a draft.');
       if Project.GetValue<TJSONObject>('config').GetValue<TJSONArray>('pages').Items[2].GetValue<TJSONObject>('webstudioArticle').GetValue<string>('status') <> 'draft' then raise Exception.Create('Imported post was not a draft.');
     finally Project.Free end;
     TFile.Copy(TPath.Combine(Folder, 'wordpress-project.webstudio.json'), TPath.Combine(Folder, 'editor\reopen.json'));
