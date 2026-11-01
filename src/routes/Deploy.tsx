@@ -18,6 +18,7 @@ import { exportToHTML, downloadHTML, previewHTML, exportSiteZip } from '@/lib/ex
 import { portableProjectsEnabled } from '@/project/project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
 import { publishSite } from '@/lib/publish-site'
+import JSZip from 'jszip'
 
 const readyOptions = [
   { icon: Download, label: 'Static HTML', description: 'Download a standalone HTML file', action: 'html' },
@@ -40,6 +41,28 @@ export function Deploy() {
   const [exporting, setExporting] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [review, setReview] = useState<{ signature: string; files: string[]; zip: Blob; filename: string } | null>(null)
+  const signature = JSON.stringify({ projectId: activeProjectId, config, settings: project?.settings, mediaRevision: project?.mediaRevision })
+
+  async function reviewWebsiteFiles() {
+    if (!activeProjectId) { toast.error('Open a project first'); return }
+    setExporting(true)
+    try {
+      const media = await new ProjectMediaLibrary().list(activeProjectId)
+      const zip = await exportSiteZip(config, { settings: project?.settings }, media)
+      const archive = await JSZip.loadAsync(await zip.arrayBuffer())
+      const currentProjectId = useEditorStore.getState().activeProjectId
+      const currentProject = useProjectsStore.getState().projects.find(item => item.id === currentProjectId)
+      const current = JSON.stringify({ projectId: currentProjectId, config: useConfigStore.getState().config, settings: currentProject?.settings, mediaRevision: currentProject?.mediaRevision })
+      if (current !== signature) throw new Error('The project changed during the review. Review the files again.')
+      const files = Object.values(archive.files).filter(item => !item.dir).map(item => item.name).sort()
+      const filename = `${(project?.name || config.name || 'site').toLowerCase().replace(/[^a-z0-9-]+/g, '-')}.zip`
+      setReview({ signature, files, zip, filename })
+    } catch (error) {
+      setReview(null)
+      toast.error(error instanceof Error ? error.message : 'Website files could not be reviewed')
+    } finally { setExporting(false) }
+  }
 
   async function handleExport(action: (typeof readyOptions)[number]['action']) {
     if (action === 'json') {
@@ -151,7 +174,21 @@ export function Deploy() {
         </div>
       </div>
 
-      {hasDeployKey && (
+      {portableProjectsEnabled && <div className="px-4 md:px-12 pt-6">
+        <div className="rounded-xl border border-border-default bg-bg-1 p-4">
+          <h2 className="text-sm font-semibold">Review website files</h2>
+          <p className="mt-1 text-xs text-text-2">Build a local website ZIP and inspect its file list. This does not compare a destination or publish anything.</p>
+          <button type="button" onClick={reviewWebsiteFiles} disabled={exporting || !activeProjectId} className="mt-3 rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">{exporting ? 'Preparing…' : 'Review files'}</button>
+          {review && (review.signature === signature ? <div className="mt-3">
+            <p className="text-xs text-text-1">{review.files.length} files in the prepared website ZIP.</p>
+            <ul aria-label="Website files" className="mt-2 max-h-48 overflow-auto rounded border border-border-subtle p-2 font-mono text-xs">{review.files.map(file => <li key={file} className="break-all">{file}</li>)}</ul>
+            <button type="button" onClick={() => downloadHTML(review.zip, review.filename)} className="mt-3 rounded border border-border-default px-3 py-2 text-xs">Download reviewed ZIP</button>
+          </div> : <p className="mt-3 text-xs text-text-2">The project changed. Review the files again before downloading this version.</p>)}
+        </div>
+      </div>}
+
+      {portableProjectsEnabled && <div className="px-4 md:px-12 pt-6 text-xs text-text-2">Publishing is not available yet. Website ZIP export and local file review are available.</div>}
+      {hasDeployKey && !portableProjectsEnabled && (
         <div className="px-4 md:px-12 pt-8 animate-fade-in-up stagger-3">
           <h2 className="text-[11px] font-semibold uppercase tracking-wider text-text-3 mb-3">Publish</h2>
           <div className="p-5 rounded-xl border bg-bg-1 border-border-default">
