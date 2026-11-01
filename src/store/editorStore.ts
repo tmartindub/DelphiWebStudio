@@ -2,6 +2,7 @@ import { create } from 'zustand'
 
 export type Viewport = 'desktop' | 'tablet' | 'mobile'
 export type EditorMode = 'beginner' | 'designer' | 'professional'
+export type PendingMediaImport = { projectId: string; files: File[]; allowZip: boolean; duplicateMode: 'reuse' | 'keep' | 'skip' }
 
 interface EditorState {
   selectedBlockId: string | null
@@ -9,6 +10,7 @@ interface EditorState {
   customViewportWidth: number | null
   mode: EditorMode
   mediaImporting: boolean
+  pendingMediaImport: PendingMediaImport | null
   jsonDrawerOpen: boolean
   historyOpen: boolean
   shortcutsModalOpen: boolean
@@ -23,6 +25,7 @@ interface EditorState {
   setCustomViewportWidth: (width: number) => void
   setMode: (mode: EditorMode) => void
   setMediaImporting: (importing: boolean) => void
+  setPendingMediaImport: (pending: PendingMediaImport | null) => void
   toggleJsonDrawer: () => void
   toggleHistory: () => void
   toggleShortcutsModal: () => void
@@ -39,6 +42,7 @@ export const useEditorStore = create<EditorState>()((set) => ({
   customViewportWidth: null,
   mode: 'beginner',
   mediaImporting: false,
+  pendingMediaImport: null,
   jsonDrawerOpen: false,
   historyOpen: false,
   shortcutsModalOpen: false,
@@ -52,6 +56,7 @@ export const useEditorStore = create<EditorState>()((set) => ({
   setCustomViewportWidth: (width) => set(Number.isFinite(width) ? { customViewportWidth: Math.max(320, Math.min(1920, Math.round(width))) } : {}),
   setMode: (mode) => set({ mode, jsonDrawerOpen: mode === 'professional' }),
   setMediaImporting: (mediaImporting) => set({ mediaImporting }),
+  setPendingMediaImport: (pendingMediaImport) => set({ pendingMediaImport }),
   toggleJsonDrawer: () => set((s) => ({ jsonDrawerOpen: !s.jsonDrawerOpen })),
   toggleHistory: () => set((s) => ({ historyOpen: !s.historyOpen })),
   toggleShortcutsModal: () => set((s) => ({ shortcutsModalOpen: !s.shortcutsModalOpen })),

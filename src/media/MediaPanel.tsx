@@ -49,6 +49,7 @@ function MediaThumbnail({ asset }: { asset: MediaAsset }) {
 export function MediaPanel() {
   const projectId = useEditorStore(state => state.activeProjectId)
   const mediaBusy = useEditorStore(state => state.mediaImporting)
+  const pendingImport = useEditorStore(state => state.pendingMediaImport)
   const revision = useProjectsStore(state => state.projects.find(project => project.id === projectId)?.mediaRevision ?? 0)
   const [library] = useState(() => new ProjectMediaLibrary())
   const [assets, setAssets] = useState<MediaAsset[]>([])
@@ -72,34 +73,44 @@ export function MediaPanel() {
     return () => { active = false; cancel.current = true }
   }, [library, projectId, revision])
 
-  async function importFiles(files: File[]) {
+  async function importFiles(files: File[], resume = false) {
     if (!projectId || files.length === 0) return
     if (useEditorStore.getState().mediaImporting) { toast.error('Wait for the current media operation to finish.'); return }
+    const previous = useEditorStore.getState().pendingMediaImport
+    if (resume && (!previous || previous.projectId !== projectId)) { toast.error('Open the original project to resume this import.'); return }
+    if (!resume && previous && !window.confirm('Starting a new import will discard the unfinished import list. The original files will not be changed. Continue?')) return
+    const settings = resume && previous ? previous : { projectId, files, allowZip, duplicateMode }
+    useEditorStore.getState().setPendingMediaImport(null)
     useEditorStore.getState().setMediaImporting(true)
     cancel.current = false
     let imported = 0
     let duplicates = 0
     let skipped = 0
+    let nextIndex = 0
+    let cancelled = false
     const errors: string[] = []
     try {
       for (let index = 0; index < files.length && !cancel.current; index++) {
         setProgress(`${index + 1} / ${files.length}: ${files[index].name}`)
         try {
-          const result = await library.import(projectId, files[index], undefined, false, allowZip, duplicateMode)
+          const result = await library.import(projectId, files[index], undefined, false, settings.allowZip, settings.duplicateMode)
           if (result.skipped) skipped++
           else if (result.duplicate) duplicates++
           else imported++
         } catch (error) {
           errors.push(error instanceof Error ? error.message : files[index].name)
         }
+        nextIndex = index + 1
       }
+      cancelled = cancel.current
+      if (cancelled && nextIndex < files.length) useEditorStore.getState().setPendingMediaImport({ ...settings, files: files.slice(nextIndex) })
       useProjectsStore.getState().mediaChanged(projectId)
     } finally {
       useEditorStore.getState().setMediaImporting(false)
       setProgress('')
     }
     setFailures(errors)
-    toast(`${imported} imported, ${duplicates} reused, ${skipped} skipped${cancel.current ? ', cancelled' : ''}${errors.length ? `, ${errors.length} failed` : ''}`)
+    toast(`${imported} imported, ${duplicates} reused, ${skipped} skipped${cancelled ? ', cancelled' : ''}${errors.length ? `, ${errors.length} failed` : ''}`)
   }
 
   return (
@@ -122,6 +133,11 @@ export function MediaPanel() {
       </label>
       <label className="text-xs text-text-1"><input type="checkbox" checked={allowZip} onChange={event => setAllowZip(event.target.checked)} /> Allow ZIP archives</label>
       {progress && <div className="text-xs text-text-1" role="status">{progress} <button type="button" onClick={() => { cancel.current = true }} className="text-green">Cancel</button></div>}
+      {pendingImport && <div className="rounded border border-border-default p-2 text-xs text-text-1" role="status">
+        <p>{pendingImport.files.length} files remain in an unfinished import{pendingImport.projectId !== projectId ? ' from another project' : ''}. The list is available until the app closes.</p>
+        <button type="button" disabled={mediaBusy || pendingImport.projectId !== projectId} onClick={() => void importFiles(pendingImport.files, true)} className="mr-3 mt-1 text-green disabled:opacity-50">Resume import</button>
+        <button type="button" disabled={mediaBusy} onClick={() => useEditorStore.getState().setPendingMediaImport(null)} className="mt-1 text-text-2">Discard list</button>
+      </div>}
       <input aria-label="Search media" value={filter} onChange={event => setFilter(event.target.value)} placeholder="Search media..." className="w-full px-2 py-1.5 rounded bg-bg-2 border border-border-default text-xs" />
       <div className="flex gap-1">
         <select aria-label="Filter media by type" value={fileType} onChange={event => setFileType(event.target.value)} className="min-w-0 flex-1 bg-bg-2 border border-border-default rounded text-xs p-1">
