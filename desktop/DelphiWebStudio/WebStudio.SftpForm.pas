@@ -31,12 +31,15 @@ type
     FolderLabel: TLabel;
     FolderEdit: TEdit;
     ScanButton: TButton;
+    BackupButton: TButton;
+    BackupSaveDialog: TSaveDialog;
     procedure KeyBrowseClick(Sender: TObject);
     procedure HostsBrowseClick(Sender: TObject);
     procedure TestButtonClick(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure DownloadButtonClick(Sender: TObject);
     procedure ScanButtonClick(Sender: TObject);
+    procedure BackupButtonClick(Sender: TObject);
   private
     FChecking: Boolean;
   end;
@@ -79,6 +82,7 @@ begin
   TestButton.Enabled := False;
   DownloadButton.Enabled := False;
   ScanButton.Enabled := False;
+  BackupButton.Enabled := False;
   CloseButton.Enabled := False;
   StatusLabel.Caption := 'Testing connection...';
   TThread.CreateAnonymousThread(procedure
@@ -97,6 +101,7 @@ begin
       TestButton.Enabled := True;
       DownloadButton.Enabled := True;
       ScanButton.Enabled := True;
+      BackupButton.Enabled := True;
       CloseButton.Enabled := True;
     end);
   end).Start;
@@ -122,6 +127,7 @@ begin
   TestButton.Enabled := False;
   DownloadButton.Enabled := False;
   ScanButton.Enabled := False;
+  BackupButton.Enabled := False;
   CloseButton.Enabled := False;
   StatusLabel.Caption := 'Downloading saved snapshot...';
   TThread.CreateAnonymousThread(procedure
@@ -140,6 +146,7 @@ begin
       TestButton.Enabled := True;
       DownloadButton.Enabled := True;
       ScanButton.Enabled := True;
+      BackupButton.Enabled := True;
       CloseButton.Enabled := True;
     end);
   end).Start;
@@ -165,6 +172,7 @@ begin
   TestButton.Enabled := False;
   DownloadButton.Enabled := False;
   ScanButton.Enabled := False;
+  BackupButton.Enabled := False;
   CloseButton.Enabled := False;
   StatusLabel.Caption := 'Scanning destination; this reads files without changing them...';
   TThread.CreateAnonymousThread(procedure
@@ -186,6 +194,52 @@ begin
       TestButton.Enabled := True;
       DownloadButton.Enabled := True;
       ScanButton.Enabled := True;
+      BackupButton.Enabled := True;
+      CloseButton.Enabled := True;
+    end);
+  end).Start;
+end;
+
+procedure TSftpForm.BackupButtonClick(Sender: TObject);
+var
+  Host, UserName, KeyFile, KnownHosts, RemoteFolder, Destination: string;
+  Port: Integer;
+begin
+  if not TryStrToInt(PortEdit.Text, Port) or (Port < 1) or (Port > 65535) then begin
+    StatusLabel.Caption := 'Enter a port from 1 to 65535.';
+    Exit;
+  end;
+  if not BackupSaveDialog.Execute then Exit;
+  Host := Trim(HostEdit.Text);
+  UserName := Trim(UserEdit.Text);
+  KeyFile := KeyEdit.Text;
+  KnownHosts := HostsEdit.Text;
+  RemoteFolder := Trim(FolderEdit.Text);
+  Destination := BackupSaveDialog.FileName;
+  FChecking := True;
+  TestButton.Enabled := False;
+  DownloadButton.Enabled := False;
+  ScanButton.Enabled := False;
+  BackupButton.Enabled := False;
+  CloseButton.Enabled := False;
+  StatusLabel.Caption := 'Backing up destination without changing it...';
+  TThread.CreateAnonymousThread(procedure
+  var MessageText: string;
+  begin
+    try
+      BackupSftpDestination(Host, UserName, KeyFile, KnownHosts, Port, RemoteFolder, Destination);
+      MessageText := 'Destination backup saved. It reflects the site during the backup.';
+    except
+      on E: Exception do MessageText := E.Message;
+    end;
+    TThread.Queue(nil, procedure
+    begin
+      StatusLabel.Caption := MessageText;
+      FChecking := False;
+      TestButton.Enabled := True;
+      DownloadButton.Enabled := True;
+      ScanButton.Enabled := True;
+      BackupButton.Enabled := True;
       CloseButton.Enabled := True;
     end);
   end).Start;

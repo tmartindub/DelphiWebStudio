@@ -37,7 +37,7 @@ object SftpForm: TSftpForm
     Height = 42
     AutoSize = False
     WordWrap = True
-    Caption = 'Use an SSH key and trusted known_hosts file. Scan reads up to 512 MiB; links are unsupported. Compare results in Export. No files are uploaded.'
+    Caption = 'Use an SSH key and trusted hosts file. Scan or back up up to 512 MiB; backup files must be 64 MiB or less. Links are unsupported. No files are uploaded.'
   end
   object RemoteLabel: TLabel
     Left = 16
@@ -134,12 +134,20 @@ object SftpForm: TSftpForm
     TabOrder = 10
     OnClick = ScanButtonClick
   end
+  object BackupButton: TButton
+    Left = 75
+    Top = 355
+    Width = 145
+    Caption = 'Back up destination...'
+    TabOrder = 11
+    OnClick = BackupButtonClick
+  end
   object TestButton: TButton
     Left = 396
     Top = 398
     Width = 110
     Caption = 'Test connection'
-    TabOrder = 11
+    TabOrder = 12
     OnClick = TestButtonClick
   end
   object CloseButton: TButton
@@ -148,7 +156,7 @@ object SftpForm: TSftpForm
     Width = 75
     Caption = 'Close'
     ModalResult = 2
-    TabOrder = 12
+    TabOrder = 13
   end
   object KeyDialog: TOpenDialog
     Options = [ofHideReadOnly, ofNoChangeDir, ofFileMustExist, ofPathMustExist, ofEnableSizing]
@@ -168,6 +176,14 @@ object SftpForm: TSftpForm
     Options = [ofHideReadOnly, ofNoChangeDir, ofPathMustExist, ofEnableSizing]
     Title = 'Save snapshot with a new filename'
     Left = 128
+    Top = 328
+  end
+  object BackupSaveDialog: TSaveDialog
+    DefaultExt = 'zip'
+    Filter = 'ZIP backup|*.zip'
+    Options = [ofHideReadOnly, ofNoChangeDir, ofPathMustExist, ofEnableSizing]
+    Title = 'Save destination backup with a new filename'
+    Left = 176
     Top = 328
   end
 end

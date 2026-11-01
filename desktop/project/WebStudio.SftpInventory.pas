@@ -14,10 +14,12 @@ type
 function ScanSftpInventory(const Host, UserName, KeyFile, KnownHostsFile: string;
   Port: Word; const RemoteDirectory: string): TArray<TSftpInventoryEntry>;
 procedure SaveSftpInventory(const Entries: TArray<TSftpInventoryEntry>; const Destination: string);
+procedure BackupSftpDestination(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, Destination: string);
 
 implementation
 
-uses Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils, System.Hash, System.JSON,
+uses Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils, System.Hash, System.JSON, System.Zip,
   System.Generics.Collections;
 
 type
@@ -29,11 +31,13 @@ type
     FId: Cardinal;
     FTotalBytes: UInt64;
     FEntries: TList<TSftpInventoryEntry>;
+    FBackupNames: TDictionary<string, Boolean>;
+    FBackup: TZipFile;
     procedure ReadExact(var Buffer; Count: Cardinal);
     procedure SendPacket(Stream: TBytesStream);
     function ReceivePacket: TBytesStream;
     function Request(Kind: Byte; const Value: TBytes; const Extra: TBytes = nil): TBytesStream;
-    function HashFile(const RemotePath: string; ExpectedSize: UInt64): string;
+    function HashFile(const RemotePath: string; ExpectedSize: UInt64; Capture: TStream = nil): string;
     procedure ScanDirectory(const Root, Relative: string; Depth: Integer);
   public
     constructor Create(const Host, UserName, KeyFile, KnownHostsFile: string; Port: Word);
@@ -85,6 +89,7 @@ var
 begin
   inherited Create;
   FEntries := TList<TSftpInventoryEntry>.Create;
+  FBackupNames := TDictionary<string, Boolean>.Create;
   if (Host = '') or (UserName = '') or (Port = 0) then
     raise EArgumentException.Create('Enter a host, username and port.');
   if not CharInSet(Host[1], ['A'..'Z', 'a'..'z', '0'..'9']) or
@@ -152,6 +157,7 @@ begin
   if FProcess.hThread <> 0 then CloseHandle(FProcess.hThread);
   if FProcess.hProcess <> 0 then CloseHandle(FProcess.hProcess);
   FEntries.Free;
+  FBackupNames.Free;
   inherited;
 end;
 
@@ -210,7 +216,7 @@ begin
   except Result.Free; raise end;
 end;
 
-function TSftpScanner.HashFile(const RemotePath: string; ExpectedSize: UInt64): string;
+function TSftpScanner.HashFile(const RemotePath: string; ExpectedSize: UInt64; Capture: TStream): string;
 var
   Packet, Extra: TBytesStream;
   Kind: Byte;
@@ -221,6 +227,8 @@ var
 begin
   if (ExpectedSize > 512 * 1024 * 1024) or (FTotalBytes + ExpectedSize > 512 * 1024 * 1024) then
     raise EInvalidOpException.Create('The destination exceeds the 512 MiB scan limit.');
+  if Assigned(Capture) and (ExpectedSize > 64 * 1024 * 1024) then
+    raise EInvalidOpException.Create('A destination file exceeds the 64 MiB backup limit.');
   Inc(FTotalBytes, ExpectedSize);
   Extra := TBytesStream.Create;
   try
@@ -258,7 +266,9 @@ begin
       Data := GetBytes(Packet);
       if (Length(Data) = 0) or (Cardinal(Length(Data)) > Requested) or (UInt64(Length(Data)) > ExpectedSize - Offset) then
         raise EInvalidOpException.Create('A destination file changed during the scan.');
-      Hash.Update(Data, Length(Data)); Inc(Offset, Length(Data));
+      Hash.Update(Data, Length(Data));
+      if Assigned(Capture) then Capture.WriteBuffer(Data[0], Length(Data));
+      Inc(Offset, Length(Data));
     finally Packet.Free end;
   until False;
   Packet := Request(4, Handle);
@@ -276,8 +286,9 @@ var
   Handle, NameBytes: TBytes;
   Count, Index, Flags, Mode, Extended, X: Cardinal;
   Size: UInt64;
-  Name, Path: string;
+  Name, Path, BaseName: string;
   Entry: TSftpInventoryEntry;
+  Capture: TMemoryStream;
 begin
   if Depth > 32 then raise EInvalidOpException.Create('The destination has too many nested folders.');
   Packet := Request(11, TEncoding.UTF8.GetBytes(Root + Relative));
@@ -315,15 +326,42 @@ begin
         if (Name = '.') or (Name = '..') then Continue;
         if (Name = '') or (Pos('/', Name) > 0) or (Pos('\', Name) > 0) then raise EInvalidOpException.Create('Invalid destination filename.');
         for X := 1 to Length(Name) do if Name[X] < #32 then raise EInvalidOpException.Create('Unsupported destination filename.');
+        if Assigned(FBackup) then begin
+          BaseName := UpperCase(Name);
+          if Pos('.', BaseName) > 0 then BaseName := Copy(BaseName, 1, Pos('.', BaseName) - 1);
+          if Name.EndsWith('.') or Name.EndsWith(' ') or (Pos(':', Name) > 0) or
+             (Pos('*', Name) > 0) or (Pos('?', Name) > 0) or (Pos('"', Name) > 0) or
+             (Pos('<', Name) > 0) or (Pos('>', Name) > 0) or (Pos('|', Name) > 0) or
+             (BaseName = 'CON') or (BaseName = 'PRN') or (BaseName = 'AUX') or (BaseName = 'NUL') or
+             ((Length(BaseName) = 4) and ((Copy(BaseName, 1, 3) = 'COM') or (Copy(BaseName, 1, 3) = 'LPT')) and CharInSet(BaseName[4], ['1'..'9'])) then
+            raise EInvalidOpException.Create('The destination contains a filename that cannot be safely backed up.');
+        end;
         Path := Relative + Name;
         if Length(TEncoding.UTF8.GetBytes(Root + Path)) > 2048 then
           raise EInvalidOpException.Create('The destination contains a path that is too long to scan.');
+        if Assigned(FBackup) then begin
+          if FBackupNames.ContainsKey(LowerCase(Path)) then
+            raise EInvalidOpException.Create('The destination contains names that collide on Windows.');
+          FBackupNames.Add(LowerCase(Path), True);
+        end;
         case Mode and $F000 of
-          $4000: ScanDirectory(Root, Path + '/', Depth + 1);
+          $4000: begin
+            if Assigned(FBackup) then FBackup.Add(TBytes(nil), Path + '/');
+            ScanDirectory(Root, Path + '/', Depth + 1);
+          end;
           $8000: begin
             if Flags and 1 = 0 then raise EInvalidOpException.Create('The server did not provide a file size.');
             if FEntries.Count >= 10000 then raise EInvalidOpException.Create('The destination contains too many files.');
-            Entry.Path := Path; Entry.Size := Size; Entry.Sha256 := HashFile(Root + Path, Size); FEntries.Add(Entry);
+            Entry.Path := Path; Entry.Size := Size;
+            if Assigned(FBackup) then begin
+              Capture := TMemoryStream.Create;
+              try
+                Entry.Sha256 := HashFile(Root + Path, Size, Capture);
+                Capture.Position := 0;
+                FBackup.Add(Capture, Path);
+              finally Capture.Free end;
+            end else Entry.Sha256 := HashFile(Root + Path, Size);
+            FEntries.Add(Entry);
           end;
         else raise EInvalidOpException.Create('The destination contains a link or unsupported file type; the scan is incomplete.');
         end;
@@ -399,6 +437,41 @@ begin
     if (Length(Bytes) > 0) and (not WriteFile(Output, Bytes[0], Length(Bytes), Written, nil) or (Written <> Cardinal(Length(Bytes)))) then
       raise EInvalidOpException.Create('Could not write the complete scan file.');
   finally CloseHandle(Output) end;
+end;
+
+procedure BackupSftpDestination(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, Destination: string);
+var
+  TargetFile, TempDirectory, TempZip: string;
+  UniqueId: TGUID;
+  Scanner: TSftpScanner;
+  Archive: TZipFile;
+begin
+  if Destination = '' then raise EArgumentException.Create('Choose a new backup ZIP filename.');
+  TargetFile := ExpandFileName(Destination);
+  if not TDirectory.Exists(ExtractFileDir(TargetFile)) or TFile.Exists(TargetFile) or TDirectory.Exists(TargetFile) then
+    raise EArgumentException.Create('Choose a new backup ZIP filename; existing files are not replaced.');
+  if CreateGUID(UniqueId) <> 0 then raise EInvalidOpException.Create('Could not create a temporary backup folder.');
+  TempDirectory := TPath.Combine(ExtractFileDir(TargetFile), '.webstudio-backup-' + GUIDToString(UniqueId));
+  if TDirectory.Exists(TempDirectory) or not CreateDir(TempDirectory) then
+    raise EInvalidOpException.Create('Could not create a temporary backup folder.');
+  TempZip := TPath.Combine(TempDirectory, 'backup.zip');
+  try
+    Archive := TZipFile.Create;
+    try
+      Archive.Open(TempZip, zmWrite);
+      Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
+      try
+        Scanner.FBackup := Archive;
+        Scanner.Scan(RemoteDirectory);
+      finally Scanner.Free end;
+      Archive.Close;
+    finally Archive.Free end;
+    if not MoveFile(PChar(TempZip), PChar(TargetFile)) then RaiseLastOSError;
+  finally
+    if TFile.Exists(TempZip) then DeleteFile(PChar(TempZip));
+    RemoveDir(TempDirectory);
+  end;
 end;
 
 end.

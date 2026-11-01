@@ -14,6 +14,11 @@ var
   Entries: TArray<TSftpInventoryEntry>;
 begin
   try
+    if ParamCount = 7 then begin
+      BackupSftpDestination('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(5));
+      Writeln('Backup saved.');
+      Exit;
+    end;
     if ParamCount = 6 then begin
       Entries := ScanSftpInventory('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4));
       SaveSftpInventory(Entries, ParamStr(5));
