@@ -1,6 +1,6 @@
 # Editor experience
 
-Last changed: 2026-10-29. M2 is in progress.
+Last changed: 2026-11-01. M2's specified no-code exit scenario has passed an automated browser check; independent user testing remains unverified.
 
 The application chrome uses the blue and orange palette from VCL2FMXConverter 7. New blank projects begin with an empty Home page. Eight local starters cover personal, portfolio, community, church, school club, business, documentation and blog sites. Starter text is generic and editable; pricing, contact forms, subscriptions and fabricated testimonials are not inserted. Pricing is hidden from creation palettes while existing pricing blocks remain readable and exportable.
 
@@ -10,7 +10,7 @@ The editor has Beginner, Designer and Professional views using the same site mod
 
 An automated no-code check on the current preview created a community site, edited its home page, added an About page, checked the phone, tablet and desktop previews, and exported both pages. The exported sample had no horizontal overflow at 375, 768 and 1440 pixels. This is evidence for the M2 exit scenario, not a test by a nontechnical person or a guarantee for every site.
 
-Shared headers and footers, reusable sections, page links, and preset and custom preview widths are available. M2 remains in progress: broader editor requirements, including direct editing of generated markup, remain to be checked.
+Shared headers and footers, reusable sections, page links, and preset and custom preview widths are available. The automated exit check does not establish that every broader editor feature is complete or that every site will behave correctly.
 
 In a Content section, select text in Body and choose a page from “Insert a link to a page” to create a link without typing its address. If no text is selected, the page name becomes the link label. Draft articles are excluded.
 
