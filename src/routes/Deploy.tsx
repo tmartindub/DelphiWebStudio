@@ -7,8 +7,6 @@ import {
   Eye,
   Copy,
   Check,
-  Loader2,
-  RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useConfigStore } from '@/store/configStore'
@@ -17,7 +15,6 @@ import { useProjectsStore } from '@/store/projectsStore'
 import { exportToHTML, downloadHTML, previewHTML, exportSiteZip } from '@/lib/export-html'
 import { portableProjectsEnabled } from '@/project/project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
-import { publishSite } from '@/lib/publish-site'
 import JSZip from 'jszip'
 import { createDeploymentPlan, createRestorePlan, createWebsiteManifest, validateWebsiteManifest, compareWebsiteManifests, type WebsiteManifest } from '@/lib/website-manifest'
 import { checkSite, type SiteIssue } from '@/project/site-checks'
@@ -33,7 +30,6 @@ export function Deploy() {
   const config = useConfigStore((s) => s.config)
   const activeProjectId = useEditorStore((s) => s.activeProjectId)
   const projects = useProjectsStore((s) => s.projects)
-  const setDeployInfo = useProjectsStore((s) => s.setDeployInfo)
 
   const project = activeProjectId ? projects.find((p) => p.id === activeProjectId) : null
   const deployUrl = project?.deployUrl
@@ -41,7 +37,6 @@ export function Deploy() {
   const hasDeployKey = !!project?.settings?.deployAccessKey?.trim()
 
   const [exporting, setExporting] = useState(false)
-  const [publishing, setPublishing] = useState(false)
   const [copied, setCopied] = useState(false)
   const [review, setReview] = useState<{ signature: string; files: string[]; warnings: SiteIssue[]; zip: Blob; filename: string } | null>(null)
   const [manifest, setManifest] = useState<{ signature: string; data: WebsiteManifest } | null>(null)
@@ -164,32 +159,6 @@ export function Deploy() {
     }
   }
 
-  async function handlePublish() {
-    if (portableProjectsEnabled) {
-      toast.error('Publishing is not available until destination review and verification are implemented.')
-      return
-    }
-    if (!activeProjectId) {
-      toast.error('Save your project first')
-      return
-    }
-
-    setPublishing(true)
-    try {
-      const { liveUrl, deploymentId } = await publishSite({
-        config,
-        projectName: project?.name || config.name,
-        settings: project?.settings,
-      })
-      setDeployInfo(activeProjectId, liveUrl, deploymentId)
-      toast.success('Published')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Deploy failed')
-    } finally {
-      setPublishing(false)
-    }
-  }
-
   function handleCopy() {
     if (!deployUrl) return
     navigator.clipboard
@@ -260,7 +229,7 @@ export function Deploy() {
         </div>
       </div>}
 
-      {portableProjectsEnabled && <div className="px-4 md:px-12 pt-6 text-xs text-text-2">Publishing is not available yet. Website ZIP export and local file review are available.</div>}
+      {portableProjectsEnabled && <div className="px-4 md:px-12 pt-6 text-xs text-text-2">Website ZIP export and local file review are available. SFTP publishing is reviewed separately in the desktop application.</div>}
       {portableProjectsEnabled && <div className="px-4 md:px-12 pt-6">
         <div className="rounded-xl border border-border-default bg-bg-1 p-4">
           <h2 className="text-sm font-semibold">Review a restore plan</h2>
@@ -287,7 +256,7 @@ export function Deploy() {
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold">Publish to Web</h3>
                 <p className="text-[11.5px] text-text-2 mt-0.5">
-                  Deploy your site to a live URL in seconds
+                  Legacy publishing is unavailable. Use the desktop destination review workflow.
                 </p>
 
                 {deployUrl && (
@@ -324,23 +293,10 @@ export function Deploy() {
 
                 <div className="mt-3 flex items-center gap-2">
                   <button
-                    onClick={handlePublish}
-                    disabled={publishing}
+                    disabled
                     className="px-4 py-1.5 rounded-lg bg-green text-bg-0 text-[12.5px] font-semibold hover:bg-green/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                   >
-                    {publishing ? (
-                      <>
-                        <Loader2 size={13} className="animate-spin" />
-                        Publishing...
-                      </>
-                    ) : deployUrl ? (
-                      <>
-                        <RefreshCw size={13} />
-                        Update
-                      </>
-                    ) : (
-                      'Publish'
-                    )}
+                    Publishing unavailable
                   </button>
                   {timeAgo && (
                     <span className="text-[11px] text-text-3">Last published {timeAgo}</span>
