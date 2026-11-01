@@ -8,15 +8,18 @@ uses System.SysUtils;
 { Send only the user's brief to an already-running local model. The caller
   owns process identity, the protected key, execution off the UI thread,
   cancellation and review of the returned plan. }
-function GenerateLocalSitePlan(Port: Word; const AccessKey, Brief: string): string;
+function GenerateLocalSitePlan(Port: Word; const AccessKey, Brief: string;
+  const ProposalKind: string = 'pages'): string;
 
 implementation
 
 uses System.Classes, System.JSON, System.Net.HttpClient, System.Net.URLClient;
 
-function GenerateLocalSitePlan(Port: Word; const AccessKey, Brief: string): string;
+function GenerateLocalSitePlan(Port: Word; const AccessKey, Brief, ProposalKind: string): string;
 const
   SchemaJSON = '{"type":"object","properties":{"pages":{"type":"array","items":{"type":"object","properties":{"name":{"type":"string"},"headline":{"type":"string"}},"required":["name","headline"],"additionalProperties":false},"minItems":5,"maxItems":5}},"required":["pages"],"additionalProperties":false}';
+  ThemeSchemaJSON = '{"type":"object","properties":{"bg0":{"type":"string"},"text0":{"type":"string"},"accent":{"type":"string"}},"required":["bg0","text0","accent"],"additionalProperties":false}';
+  ThemeKeys: array[0..2] of string = ('bg0', 'text0', 'accent');
 var
   Client: THTTPClient;
   Request, FormatObject, SchemaObject, MessageObject, ResponseObject, PageObject: TJSONObject;
@@ -25,7 +28,7 @@ var
   HTTPResponse: IHTTPResponse;
   Parsed, Plan: TJSONValue;
   Value: TJSONValue;
-  Index: Integer;
+  Index, CharacterIndex: Integer;
   Headers: TNetHeaders;
   Text: string;
 begin
@@ -34,6 +37,7 @@ begin
     if not CharInSet(AccessKey[Index], ['0'..'9', 'A'..'F', 'a'..'f']) then raise EArgumentException.Create('Invalid local AI connection.');
   Text := Trim(Brief);
   if (Text = '') or (Length(Text) > 4000) then raise EArgumentException.Create('Enter a site description of up to 4,000 characters.');
+  if (ProposalKind <> 'pages') and (ProposalKind <> 'theme') then raise EArgumentException.Create('Invalid local AI proposal type.');
 
   Request := TJSONObject.Create;
   try
@@ -42,15 +46,23 @@ begin
     Request.AddPair('messages', Messages);
     MessageObject := TJSONObject.Create;
     MessageObject.AddPair('role', 'user');
-    MessageObject.AddPair('content', 'Plan an informational website based on this description. Return exactly five distinct pages, beginning with Home, each with a short name and a headline. Use neutral headings; do not invent activities, schedules, services, business practices, contact details, paid features, advertisements, donations, or signups. Description: ' + Text);
+    if ProposalKind = 'theme' then
+      MessageObject.AddPair('content', 'Choose accessible website colors based on this request. Return bg0 for the page background, text0 for readable foreground text, and accent for highlights. Each value must be a six-digit hexadecimal color beginning with #. Request: ' + Text)
+    else
+      MessageObject.AddPair('content', 'Plan an informational website based on this description. Return exactly five distinct pages, beginning with Home, each with a short name and a headline. Use neutral headings; do not invent activities, schedules, services, business practices, contact details, paid features, advertisements, donations, or signups. Description: ' + Text);
     Messages.AddElement(MessageObject);
     FormatObject := TJSONObject.Create;
     Request.AddPair('response_format', FormatObject);
     FormatObject.AddPair('type', 'json_schema');
     SchemaObject := TJSONObject.Create;
     FormatObject.AddPair('json_schema', SchemaObject);
-    SchemaObject.AddPair('name', 'site_plan');
-    Value := TJSONObject.ParseJSONValue(SchemaJSON);
+    if ProposalKind = 'theme' then begin
+      SchemaObject.AddPair('name', 'site_colors');
+      Value := TJSONObject.ParseJSONValue(ThemeSchemaJSON);
+    end else begin
+      SchemaObject.AddPair('name', 'site_plan');
+      Value := TJSONObject.ParseJSONValue(SchemaJSON);
+    end;
     if not (Value is TJSONObject) then begin Value.Free; raise EInvalidOpException.Create('Local AI schema is invalid.') end;
     SchemaObject.AddPair('schema', Value);
     Request.AddPair('temperature', TJSONNumber.Create(0));
@@ -84,7 +96,21 @@ begin
         if not (Value is TJSONString) then raise EInOutError.Create('Local AI returned no plan.');
         Plan := TJSONObject.ParseJSONValue(Value.Value);
         try
-          if not (Plan is TJSONObject) or (TJSONObject(Plan).Count <> 1) then raise EInOutError.Create('Local AI returned an invalid plan.');
+          if not (Plan is TJSONObject) then raise EInOutError.Create('Local AI returned an invalid proposal.');
+          if ProposalKind = 'theme' then begin
+            if TJSONObject(Plan).Count <> 3 then raise EInOutError.Create('Local AI returned invalid colors.');
+            for Text in ThemeKeys do begin
+              Value := TJSONObject(Plan).GetValue(Text);
+              if not (Value is TJSONString) or (Length(Value.Value) <> 7) or (Value.Value[1] <> '#') then
+                raise EInOutError.Create('Local AI returned invalid colors.');
+              for CharacterIndex := 2 to 7 do
+                if not CharInSet(Value.Value[CharacterIndex], ['0'..'9', 'A'..'F', 'a'..'f']) then
+                  raise EInOutError.Create('Local AI returned invalid colors.');
+            end;
+            Result := Plan.ToJSON;
+            Exit;
+          end;
+          if TJSONObject(Plan).Count <> 1 then raise EInOutError.Create('Local AI returned an invalid plan.');
           Value := TJSONObject(Plan).GetValue('pages');
           if not (Value is TJSONArray) or (TJSONArray(Value).Count <> 5) then raise EInOutError.Create('Local AI must return five pages.');
           Pages := TJSONArray(Value);

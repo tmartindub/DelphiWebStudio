@@ -5,7 +5,8 @@ interface
 
 { Runs the pinned CPU runtime and model once, returning a proposed plan.
   This must run on a worker thread: model verification and inference are slow. }
-function RunLocalSitePlan(const RuntimeArchive, ModelFile, Brief: string): string;
+function RunLocalSitePlan(const RuntimeArchive, ModelFile, Brief: string;
+  const ProposalKind: string = 'pages'): string;
 
 implementation
 
@@ -120,7 +121,7 @@ begin
   end;
 end;
 
-function RunLocalSitePlan(const RuntimeArchive, ModelFile, Brief: string): string;
+function RunLocalSitePlan(const RuntimeArchive, ModelFile, Brief, ProposalKind: string): string;
 var
   Directory, Key, KeyFile, ServerFile: string;
   Port: Word;
@@ -167,7 +168,7 @@ begin
         if not Ready then raise EInvalidOpException.Create('The local AI model did not become ready.');
         if not Process.IsRunning or not OwnsLoopbackPort(Port, Process.ProcessId) then
           raise EInvalidOpException.Create('The local AI process no longer owns its port.');
-        Result := GenerateLocalSitePlan(Port, Key, Brief);
+        Result := GenerateLocalSitePlan(Port, Key, Brief, ProposalKind);
       finally
         Http.Free;
       end;

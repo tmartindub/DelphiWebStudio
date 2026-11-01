@@ -25,5 +25,14 @@ begin
   Rejected := False;
   try GenerateLocalSitePlan(Word(Port), Key, 'A community site') except on E: EInOutError do Rejected := True end;
   if not Rejected then raise Exception.Create('An invalid model response was accepted.');
-  Writeln('Local AI client accepted a valid plan and rejected invalid input and response.');
+  Plan := GenerateLocalSitePlan(Word(Port), Key, 'A community site', 'theme');
+  Parsed := TJSONObject.ParseJSONValue(Plan);
+  try
+    if not (Parsed is TJSONObject) or (TJSONObject(Parsed).GetValue<string>('bg0') <> '#ffffff') then
+      raise Exception.Create('Valid theme colors were not returned.');
+  finally Parsed.Free end;
+  Rejected := False;
+  try GenerateLocalSitePlan(Word(Port), Key, 'A community site', 'theme') except on E: EInOutError do Rejected := True end;
+  if not Rejected then raise Exception.Create('Invalid theme colors were accepted.');
+  Writeln('Local AI client accepted valid pages and colors and rejected invalid input and responses.');
 end.

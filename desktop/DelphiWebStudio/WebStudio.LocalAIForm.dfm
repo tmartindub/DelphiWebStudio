@@ -2,7 +2,7 @@ object LocalAIForm: TLocalAIForm
   Left = 0
   Top = 0
   Caption = 'Plan a website with local AI'
-  ClientHeight = 354
+  ClientHeight = 410
   ClientWidth = 580
   BorderStyle = bsDialog
   Position = poOwnerFormCenter
@@ -12,7 +12,7 @@ object LocalAIForm: TLocalAIForm
     Width = 548
     Height = 34
     AutoSize = False
-    Caption = 'Open a blank project first. Download the files if needed, then browse to them. The model is about 1.8 GB. Review pages before applying them.'
+    Caption = 'Open a project first. Page planning needs a blank project; colors work on any project. Download files if needed (model: about 1.8 GB).'
     WordWrap = True
   end
   object RuntimeLabel: TLabel
@@ -77,48 +77,66 @@ object LocalAIForm: TLocalAIForm
   end
   object BriefLabel: TLabel
     Left = 16
+    Top = 219
+    Caption = 'Describe your website or requested colors'
+  end
+  object ProposalLabel: TLabel
+    Left = 16
     Top = 163
-    Caption = 'What is your website for?'
+    Caption = 'What would you like to do?'
+  end
+  object ProposalKind: TComboBox
+    Left = 16
+    Top = 182
+    Width = 548
+    Height = 23
+    Style = csDropDownList
+    ItemIndex = 0
+    TabOrder = 6
+    Text = 'Plan five pages'
+    Items.Strings = (
+      'Plan five pages'
+      'Suggest website colors')
   end
   object BriefMemo: TMemo
     Left = 16
-    Top = 182
+    Top = 238
     Width = 548
     Height = 112
     MaxLength = 4000
     ScrollBars = ssVertical
-    TabOrder = 6
+    TabOrder = 7
   end
   object GenerateButton: TButton
     Left = 382
-    Top = 312
+    Top = 368
     Width = 88
     Height = 27
     Caption = 'Generate'
     Default = True
-    TabOrder = 7
+    TabOrder = 8
     OnClick = GenerateButtonClick
   end
   object CancelButton: TButton
     Left = 476
-    Top = 312
+    Top = 368
     Width = 88
     Height = 27
     Cancel = True
     Caption = 'Cancel'
     ModalResult = 2
-    TabOrder = 8
+    TabOrder = 9
   end
   object RuntimeDialog: TOpenDialog
     Filter = 'Runtime ZIP|*.zip'
     Options = [ofHideReadOnly, ofNoChangeDir, ofFileMustExist, ofPathMustExist, ofEnableSizing]
     Left = 32
-    Top = 304
+    Top = 360
   end
   object ModelDialog: TOpenDialog
     Filter = 'GGUF model|*.gguf'
     Options = [ofHideReadOnly, ofNoChangeDir, ofFileMustExist, ofPathMustExist, ofEnableSizing]
     Left = 80
-    Top = 304
+    Top = 360
   end
 end

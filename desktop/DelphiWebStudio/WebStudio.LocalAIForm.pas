@@ -16,6 +16,8 @@ type
     ModelEdit: TEdit;
     ModelBrowseButton: TButton;
     ModelDownloadButton: TButton;
+    ProposalLabel: TLabel;
+    ProposalKind: TComboBox;
     BriefLabel: TLabel;
     BriefMemo: TMemo;
     GenerateButton: TButton;

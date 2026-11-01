@@ -233,7 +233,7 @@ end;
 procedure TMainForm.LocalAIItemClick(Sender: TObject);
 var
   Dialog: TLocalAIForm;
-  RuntimeArchive, ModelFile, Brief, RequestId: string;
+  RuntimeArchive, ModelFile, Brief, RequestId, ProposalKind: string;
   Guid: TGUID;
   JsonId: TJSONString;
 begin
@@ -243,7 +243,7 @@ begin
     Exit;
   end;
   if not EditorBrowser.LocationURL.StartsWith('https://webstudio.local/index.html#/editor') then begin
-    MessageDlg('Open a blank project in the editor before using Local AI.', mtInformation, [mbOK], 0);
+    MessageDlg('Open a project in the editor before using Local AI.', mtInformation, [mbOK], 0);
     Exit;
   end;
   Dialog := TLocalAIForm.Create(Self);
@@ -252,6 +252,8 @@ begin
     RuntimeArchive := Dialog.RuntimeEdit.Text;
     ModelFile := Dialog.ModelEdit.Text;
     Brief := Dialog.BriefMemo.Text;
+    if Dialog.ProposalKind.ItemIndex = 1 then ProposalKind := 'theme'
+    else ProposalKind := 'pages';
   finally
     Dialog.Free;
   end;
@@ -271,7 +273,7 @@ begin
     var Plan, Failure: string;
     begin
       try
-        Plan := RunLocalSitePlan(RuntimeArchive, ModelFile, Brief);
+        Plan := RunLocalSitePlan(RuntimeArchive, ModelFile, Brief, ProposalKind);
       except
         on E: Exception do Failure := E.Message;
       end;
@@ -284,8 +286,8 @@ begin
           Id := TJSONString.Create(RequestId);
           try
             if Failure = '' then begin
-              EditorBrowser.ExecuteScript('window.dispatchEvent(new CustomEvent("webstudio-local-plan-completed",{detail:{requestId:' + Id.ToJSON + ',plan:' + Plan + '}}));');
-              StatusLabel.Caption := 'Local AI finished. Review the proposed pages.';
+              EditorBrowser.ExecuteScript('window.dispatchEvent(new CustomEvent("webstudio-local-plan-completed",{detail:{requestId:' + Id.ToJSON + ',kind:"' + ProposalKind + '",plan:' + Plan + '}}));');
+              StatusLabel.Caption := 'Local AI finished. Review the proposed changes.';
             end else begin
               EditorBrowser.ExecuteScript('window.dispatchEvent(new CustomEvent("webstudio-local-plan-cancelled",{detail:' + Id.ToJSON + '}));');
               StatusLabel.Caption := 'Local AI could not create a plan.';
