@@ -33,3 +33,19 @@ Source: "..\..\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Delphi Web Studio (Experimental)"; Filename: "{app}\DelphiWebStudio.exe"
+
+[Code]
+function InitializeSetup: Boolean;
+var
+  Version: String;
+begin
+  Result := RegQueryStringValue(HKLM32,
+    'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version)
+    and (Trim(Version) <> '') and (Trim(Version) <> '0.0.0.0');
+  if not Result then
+    Result := RegQueryStringValue(HKCU,
+      'Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version)
+      and (Trim(Version) <> '') and (Trim(Version) <> '0.0.0.0');
+  if not Result then
+    SuppressibleMsgBox('Microsoft Edge WebView2 Runtime is required. Install it separately from Microsoft, then run this installer again.', mbError, MB_OK, IDOK);
+end;
