@@ -2,7 +2,7 @@ import type { BlockConfig, PageConfig, SiteConfig } from '@/blocks/types'
 import { createProjectFile, type SiteProjectFile } from './project-file'
 
 /** Import text without parsing or executing the selected site's HTML in the editor. */
-export function importStaticHtml(files: { path: string; text: string }[], skipped: number, images: { sourcePath: string; assetId: string; assetPath: string }[] = []): { project: SiteProjectFile; pages: number; stylesheets: number; skipped: number } {
+export function importStaticHtml(files: { path: string; text: string }[], skipped: number, images: { sourcePath: string; assetId: string; assetPath: string }[] = []): { project: SiteProjectFile; pages: number; stylesheets: number; skipped: number; issueCount: number; issues: { source: string; reference: string; reason: string }[] } {
   const htmlFiles = files.filter(file => /\.html?$/i.test(file.path)).sort((a, b) => a.path.localeCompare(b.path))
   if (!htmlFiles.length) throw new Error('No HTML pages were found in the selected folder.')
   if (htmlFiles.length > 100) throw new Error('This folder has more than 100 HTML pages. Select a smaller site.')
@@ -10,6 +10,12 @@ export function importStaticHtml(files: { path: string; text: string }[], skippe
   if (homeIndex > 0) htmlFiles.unshift(htmlFiles.splice(homeIndex, 1)[0])
   const pagePaths = new Map(htmlFiles.map((file, index) => [file.path, index === 0 ? '/' : `/imported-page-${index + 1}`]))
   const imagePaths = new Map(images.map(image => [image.sourcePath, image]))
+  const issues: { source: string; reference: string; reason: string }[] = []
+  let issueCount = 0
+  function report(source: string, reference: string, reason: string) {
+    issueCount++
+    if (issues.length < 100) issues.push({ source, reference: reference.slice(0, 200), reason })
+  }
   const allPaths = [...files.map(file => file.path), ...images.map(image => image.sourcePath)]
   const firstPart = allPaths[0]?.split('/')[0]
   const root = firstPart && allPaths.every(path => path.startsWith(`${firstPart}/`)) ? `${firstPart}/` : ''
@@ -36,15 +42,20 @@ export function importStaticHtml(files: { path: string; text: string }[], skippe
     const parts = safeSource.split(/(<img\b[^>]*>)/gi)
     for (const part of parts) {
       if (/^<img\b/i.test(part)) {
-        const path = resolve(file.path, attribute(part, 'src'))
+        const src = attribute(part, 'src')
+        const path = resolve(file.path, src)
         const image = path ? imagePaths.get(path) : undefined
         if (image) blocks.push({ id: `block-${crypto.randomUUID()}`, type: 'image', variant: 'hero-image', props: { assetId: image.assetId, src: image.assetPath, alt: attribute(part, 'alt') } })
+        else report(file.path, src || '(no source)', 'Image was not placed')
         continue
       }
       const body = part.replace(/<a\b([^>]*)>([\s\S]*?)<\/a\s*>/gi, (whole, attributes: string, inner: string) => {
-        const path = resolve(file.path, attribute(attributes, 'href'))
+        const href = attribute(attributes, 'href')
+        const path = resolve(file.path, href)
         const destination = path ? pagePaths.get(path) : undefined
         const label = inner.replace(/<[^>]*>/g, '').replaceAll('[', '').replaceAll(']', '').trim()
+        if (!destination || !label) report(file.path, href || '(no destination)', 'Link was not converted')
+        else if (/[?#]/.test(href)) report(file.path, href, 'Link query or fragment was omitted')
         return destination && label ? `[${label}](${destination})` : whole
       }).replace(/<h[12]\b[^>]*>/gi, '\n## ').replace(/<h[3-6]\b[^>]*>/gi, '\n### ').replace(/<\/h[1-6]\s*>/gi, '\n')
         .replace(/<li\b[^>]*>/gi, '\n- ').replace(/<\/li\s*>/gi, '\n')
@@ -57,5 +68,5 @@ export function importStaticHtml(files: { path: string; text: string }[], skippe
   const config: SiteConfig = { name: pages[0].name, pages, blocks: pages[0].blocks }
   const project = createProjectFile(config, crypto.randomUUID())
   project.webstudioStaticSource = files
-  return { project, pages: pages.length, stylesheets: files.length - htmlFiles.length, skipped }
+  return { project, pages: pages.length, stylesheets: files.length - htmlFiles.length, skipped, issueCount, issues }
 }

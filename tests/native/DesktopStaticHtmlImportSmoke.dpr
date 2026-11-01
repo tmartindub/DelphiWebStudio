@@ -51,13 +51,15 @@ begin
     if Value <> 'true' then raise Exception.Create('HTML input missing.');
     Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("input[aria-label=\"Choose static website folder\"]").webkitdirectory === true', '');
     if Value <> 'true' then raise Exception.Create('Folder selection is not enabled.');
-    MainForm.EditorBrowser.ExecuteScript('Promise.all([fetch("/index.html.fixture").then(r=>r.blob()),fetch("/about.html.fixture").then(r=>r.blob()),fetch("/site.css.fixture").then(r=>r.blob())]).then(f=>{const i=document.querySelector("input[aria-label=\"Choose static website folder\"]"),d=new DataTransfer();d.items.add(new File([f[0]],"index.html"));d.items.add(new File([f[1]],"about.html"));d.items.add(new File([f[2]],"site.css"));d.items.add(new File(["<svg xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"1\" height=\"1\"/></svg>"],"image.svg",{type:"image/svg+xml"}));i.files=d.files;i.dispatchEvent(new Event("change",{bubbles:true}));})');
+    MainForm.EditorBrowser.ExecuteScript('Promise.all([fetch("/index.html.fixture").then(r=>r.blob()),fetch("/about.html.fixture").then(r=>r.blob()),fetch("/site.css.fixture").then(r=>r.blob())]).then(f=>{const i=document.querySelector("input[aria-label=\"Choose static website folder\"]"),d=new DataTransfer();d.items.add(new File([f[0]],"index.html"));d.items.add(new File([f[1]],"about.html"));d.items.add(new File([f[2]],"site.css"));d.items.add(new File(["<svg xmlns=\"http://www.w3.org/2000/svg\"><rect width=\"1\" height=\"1\"/></svg>"],"image.svg",{type:"image/svg+xml"}));d.items.add(new File(["other"],"notes.bin"));i.files=d.files;i.dispatchEvent(new Event("change",{bubbles:true}));})');
     Deadline := GetTickCount64 + 15000;
     repeat
       CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
       Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("[aria-label=\"HTML import report\"]")?.innerText.includes("2 HTML pages, 1 stylesheets and 1 images") === true', '');
     until (Value = 'true') or (GetTickCount64 >= Deadline);
     if Value <> 'true' then raise Exception.Create('Import report missing: ' + MainForm.EditorBrowser.ExecuteScript('document.body.innerText', ''));
+    Value := MainForm.EditorBrowser.ExecuteScript('(()=>{const r=document.querySelector("[aria-label=\"HTML import report\"]");return r.innerText.includes("1 reference issue and 1 skipped file") && r.textContent.includes("missing.png") && r.textContent.includes("notes.bin") && !r.textContent.includes("Image was not placed: image.svg")})()', '');
+    if Value <> 'true' then raise Exception.Create('Import gap report was incorrect.');
     MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Create HTML project").click()');
     Deadline := GetTickCount64 + 15000;
     repeat
@@ -78,6 +80,8 @@ begin
       Project := TJSONObject.ParseJSONValue(TEncoding.UTF8.GetString(Bytes));
       try
         if not Assigned(Project) or (Project.GetValue<TJSONArray>('webstudioStaticSource').Count <> 3) then raise Exception.Create('Original HTML and CSS were not retained.');
+        if Project.GetValue<TJSONObject>('webstudioStaticImportReport').GetValue<TJSONArray>('issues').Count <> 1 then raise Exception.Create('Import issues were not retained.');
+        if Project.GetValue<TJSONObject>('webstudioStaticImportReport').GetValue<TJSONArray>('skippedFiles').Count <> 1 then raise Exception.Create('Skipped-file report was not retained.');
         if Project.GetValue<TJSONObject>('config').GetValue<TJSONArray>('pages').Count <> 2 then raise Exception.Create('Imported page count differs.');
         if not Project.GetValue<TJSONObject>('config').ToJSON.Contains('Welcome from HTML') then raise Exception.Create('Editable content missing.');
         if not Project.GetValue<TJSONObject>('config').ToJSON.Contains('## Welcome from HTML') then raise Exception.Create('Imported heading missing.');
@@ -130,6 +134,13 @@ begin
       Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("textarea[aria-label=\"Imported source text\"]")?.value.includes("color: blue")', '');
     until (Value = 'true') or (GetTickCount64 >= Deadline);
     if Value <> 'true' then raise Exception.Create('Original CSS is not visible.');
+    MainForm.EditorBrowser.ExecuteScript('(()=>{const s=document.querySelector("select[aria-label=\"Imported source file\"]");s.value="3";s.dispatchEvent(new Event("change",{bubbles:true}))})()');
+    Deadline := GetTickCount64 + 5000;
+    repeat
+      CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+      Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("textarea[aria-label=\"Imported source text\"]")?.value.includes("missing.png") && document.querySelector("textarea[aria-label=\"Imported source text\"]")?.value.includes("notes.bin")', '');
+    until (Value = 'true') or (GetTickCount64 >= Deadline);
+    if Value <> 'true' then raise Exception.Create('Retained import report is not visible.');
     Writeln('HTML and image import, save, export, reopen and read-only source review passed.');
   finally Driver.Free; MainForm.Free end;
 end.

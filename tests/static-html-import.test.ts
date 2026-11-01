@@ -32,6 +32,18 @@ describe('static HTML import', () => {
     expect(blocks[0].props.body).toContain('[About](/imported-page-2)')
     expect(blocks[1]).toMatchObject({ type: 'image', props: { assetId: 'image-id', src: 'assets/image-id-logo.svg', alt: 'Logo' } })
     expect(blocks.filter(block => block.type === 'image')).toHaveLength(1)
+    expect(result.issueCount).toBe(1)
+    expect(result.issues[0]).toMatchObject({ source: 'site/index.html', reference: 'https://outside.invalid/a.svg', reason: 'Image was not placed' })
+  })
+
+  it('reports missing links and omitted fragments before conversion', () => {
+    const result = importStaticHtml([
+      { path: 'site/index.html', text: '<body><a href="missing.html">Missing</a><a href="about.html#team">Team</a><img src="missing.png"></body>' },
+      { path: 'site/about.html', text: '<body>About</body>' },
+    ], 0)
+    expect(result.issueCount).toBe(3)
+    expect(result.issues.map(issue => issue.reason)).toEqual(['Link was not converted', 'Link query or fragment was omitted', 'Image was not placed'])
+    expect(result.project.config.pages![0].blocks[0].props.body).toContain('[Team](/imported-page-2)')
   })
 
   it('converts basic headings, lists and emphasis into editable content', () => {

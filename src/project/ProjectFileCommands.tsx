@@ -19,7 +19,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
   const wordpressInputRef = useRef<HTMLInputElement>(null)
   const staticInputRef = useRef<HTMLInputElement>(null)
   const [wordpressPreview, setWordpressPreview] = useState<(ReturnType<typeof importWordPressXml> & { originalProjectId: string | null; originalConfig: typeof config }) | null>(null)
-  const [staticPreview, setStaticPreview] = useState<(ReturnType<typeof importStaticHtml> & { source: { path: string; text: string }[]; images: File[]; originalProjectId: string | null; originalConfig: typeof config }) | null>(null)
+  const [staticPreview, setStaticPreview] = useState<(ReturnType<typeof importStaticHtml> & { source: { path: string; text: string }[]; images: File[]; skippedFiles: string[]; originalProjectId: string | null; originalConfig: typeof config }) | null>(null)
   const [opening, setOpening] = useState(false)
   const [saving, setSaving] = useState(false)
   const [savingRawDraft, setSavingRawDraft] = useState(false)
@@ -60,14 +60,15 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       if (files.length > 1000) throw new Error('This folder contains more than 1,000 files. Select a smaller site.')
       const selected = files.filter(file => /\.(html?|css)$/i.test(file.name))
       const images = files.filter(file => /\.(png|jpe?g|gif|webp|avif|svg)$/i.test(file.name))
+      const skippedFiles = files.filter(file => !/\.(html?|css|png|jpe?g|gif|webp|avif|svg)$/i.test(file.name)).map(file => file.webkitRelativePath || file.name)
       if (selected.reduce((total, file) => total + file.size, 0) > 1024 * 1024) throw new Error('HTML and CSS files must total at most 1 MiB in this initial importer.')
       if (images.length > 200 || images.reduce((total, file) => total + file.size, 0) > 100 * 1024 * 1024) throw new Error('Select at most 200 images totaling 100 MiB or less.')
       await requestDesktopAction('project.open', originalProjectId)
       const source = []
       for (const file of selected) source.push({ path: file.webkitRelativePath || file.name, text: decodeProjectFile(new Uint8Array(await file.arrayBuffer())) })
-      const preview = importStaticHtml(source, files.length - selected.length - images.length)
+      const preview = importStaticHtml(source, skippedFiles.length, images.map(image => ({ sourcePath: image.webkitRelativePath || image.name, assetId: 'preview', assetPath: 'assets/preview' })))
       if (useEditorStore.getState().activeProjectId !== originalProjectId || useConfigStore.getState().config !== originalConfig) throw new Error('The current project changed. Select the folder again.')
-      setStaticPreview({ ...preview, source, images, originalProjectId, originalConfig })
+      setStaticPreview({ ...preview, source, images, skippedFiles, originalProjectId, originalConfig })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'The HTML folder could not be read.')
     } finally {
@@ -98,7 +99,9 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
         }
       }
       if (useEditorStore.getState().activeProjectId !== preview.originalProjectId || useConfigStore.getState().config !== preview.originalConfig) throw new Error('The current project changed. Select the folder again.')
-      const project = importStaticHtml(preview.source, preview.skipped, importedImages).project
+      const conversion = importStaticHtml(preview.source, preview.skipped, importedImages)
+      const project = conversion.project
+      project.webstudioStaticImportReport = { issueCount: conversion.issueCount, issues: conversion.issues, skippedFiles: preview.skippedFiles }
       const id = useProjectsStore.getState().addProject(project.config.name, project, stagedId)
       created = true
       if (stagedAssets.length) useProjectsStore.getState().mediaChanged(id)
@@ -383,6 +386,14 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       {staticPreview && <div role="region" aria-label="HTML import report" className="basis-full rounded border border-border-default bg-bg-1 p-3 text-xs text-text-1">
         <p>Found {staticPreview.pages} HTML pages, {staticPreview.stylesheets} stylesheets and {staticPreview.images.length} images; {staticPreview.skipped} other files will not be copied. A separate project will be created.</p>
         <p>Text, recognized headings, lists and emphasis become editable. Supported local images and links to selected HTML pages are placed where recognized. Original HTML and CSS are retained as inactive project data and may contain private information. Layout, styling, scripts, unmatched links and other assets require manual review. Original files are not changed.</p>
+        {(staticPreview.issueCount > 0 || staticPreview.skippedFiles.length > 0) && <details className="mt-2">
+          <summary className="cursor-pointer">Review {staticPreview.issueCount} reference {staticPreview.issueCount === 1 ? 'issue' : 'issues'} and {staticPreview.skippedFiles.length} skipped {staticPreview.skippedFiles.length === 1 ? 'file' : 'files'}</summary>
+          <ul className="mt-1 max-h-40 overflow-y-auto break-all">
+            {staticPreview.issues.map((issue, index) => <li key={`issue-${index}`}>{issue.source}: {issue.reason}: {issue.reference}</li>)}
+            {staticPreview.skippedFiles.slice(0, 100).map((path, index) => <li key={`skipped-${index}`}>Not copied: {path}</li>)}
+          </ul>
+          {(staticPreview.issueCount > staticPreview.issues.length || staticPreview.skippedFiles.length > 100) && <p>Additional entries are not shown; review the retained source and original folder.</p>}
+        </details>}
         <button type="button" disabled={mediaImporting} className="rounded px-2 py-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => void createStaticProject()}>Create HTML project</button>
         <button type="button" disabled={mediaImporting} className="rounded px-2 py-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => setStaticPreview(null)}>Cancel</button>
       </div>}

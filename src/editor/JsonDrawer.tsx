@@ -57,6 +57,7 @@ export function JsonDrawer() {
     ? projectFile.webstudioStaticSource.filter((item): item is { path: string; text: string } => !!item && typeof item === 'object' && typeof item.path === 'string' && typeof item.text === 'string')
     : []
   if (typeof projectFile?.webstudioWordPressSource === 'string') importedFiles.push({ path: 'WordPress export.xml', text: projectFile.webstudioWordPressSource })
+  if (projectFile?.webstudioStaticImportReport && typeof projectFile.webstudioStaticImportReport === 'object') importedFiles.push({ path: 'HTML import report.json', text: JSON.stringify(projectFile.webstudioStaticImportReport, null, 2) })
   const importedView = importedSelection?.projectId === activeProjectId ? importedSelection : null
 
   function startEditing() {
@@ -193,7 +194,7 @@ export function JsonDrawer() {
           </div>
         ) : importedView ? (
           <div className="h-full flex flex-col gap-1">
-            <p className="text-text-2">Read-only original source. It is not executed here and may contain private information.</p>
+            <p className="text-text-2">Read-only retained source and import report. They are not executed here and may contain private information.</p>
             <label>Imported source file <select aria-label="Imported source file" value={importedView.index} onChange={event => setImportedSelection({ projectId: activeProjectId, index: Number(event.target.value) })} className="bg-bg-2 text-text-1">{importedFiles.map((file, index) => <option key={index} value={index}>{file.path}</option>)}</select></label>
             <textarea aria-label="Imported source text" readOnly value={importedFiles[importedView.index]?.text ?? ''} className="flex-1 w-full bg-transparent text-text-1 outline-none resize-none font-mono" spellCheck={false} />
           </div>
