@@ -1,7 +1,7 @@
 object DeploymentReviewForm: TDeploymentReviewForm
   BorderStyle = bsDialog
   Caption = 'Review website files'
-  ClientHeight = 500
+  ClientHeight = 540
   ClientWidth = 700
   Position = poScreenCenter
   OnCloseQuery = FormCloseQuery
@@ -29,9 +29,14 @@ object DeploymentReviewForm: TDeploymentReviewForm
     Top = 135
     Caption = 'Backup ZIP'
   end
+  object RecoveryLabel: TLabel
+    Left = 16
+    Top = 172
+    Caption = 'Private recovery folder'
+  end
   object StatusLabel: TLabel
     Left = 16
-    Top = 435
+    Top = 475
     Width = 665
     Height = 30
     AutoSize = False
@@ -84,38 +89,54 @@ object DeploymentReviewForm: TDeploymentReviewForm
   end
   object ResultsMemo: TMemo
     Left = 16
-    Top = 172
+    Top = 212
     Width = 664
     Height = 250
     ReadOnly = True
     ScrollBars = ssBoth
-    TabOrder = 6
+    TabOrder = 7
     WordWrap = False
+  end
+  object RecoveryEdit: TEdit
+    Left = 135
+    Top = 168
+    Width = 545
+    TabOrder = 6
+    OnChange = InputChanged
   end
   object ReviewButton: TButton
     Left = 490
-    Top = 467
+    Top = 507
     Width = 100
     Caption = 'Review files'
-    TabOrder = 7
+    TabOrder = 9
     OnClick = ReviewButtonClick
   end
   object CheckButton: TButton
     Left = 355
-    Top = 467
+    Top = 507
     Width = 120
     Caption = 'Check destination'
     Enabled = False
     TabOrder = 8
     OnClick = CheckButtonClick
   end
+  object PublishButton: TButton
+    Left = 245
+    Top = 507
+    Width = 95
+    Caption = 'Publish...'
+    Enabled = False
+    TabOrder = 10
+    OnClick = PublishButtonClick
+  end
   object CloseButton: TButton
     Left = 605
-    Top = 467
+    Top = 507
     Width = 75
     Caption = 'Close'
     ModalResult = 2
-    TabOrder = 9
+    TabOrder = 11
   end
   object WebsiteDialog: TOpenDialog
     Filter = 'Website ZIP|*.zip'
@@ -137,5 +158,14 @@ object DeploymentReviewForm: TDeploymentReviewForm
     Title = 'Select the matching backup ZIP'
     Left = 120
     Top = 452
+  end
+  object JournalDialog: TSaveDialog
+    DefaultExt = 'jsonl'
+    FileName = 'deployment-receipt.jsonl'
+    Filter = 'Deployment receipt|*.jsonl'
+    Options = [ofHideReadOnly, ofNoChangeDir, ofPathMustExist, ofEnableSizing]
+    Title = 'Choose a new deployment receipt file'
+    Left = 168
+    Top = 492
   end
 end

@@ -11,8 +11,7 @@ type
     PreservedFiles: Integer;
   end;
 
-{ Internal executor, not connected to any user interface. A future caller must
-  show the destination and complete reviewed diff, obtain explicit confirmation,
+{ The caller must show the destination and complete reviewed diff, obtain explicit confirmation,
   and then call this function. The caller must ensure the recovery folder is
   not served by the host. Destination-only files are never deleted. }
 function ExecuteReviewedDeployment(const WebsiteZip, ScanFile, BackupZip, JournalFile: string;

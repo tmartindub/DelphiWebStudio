@@ -114,6 +114,7 @@ begin
       Application.Initialize;
       ReviewDialog := TDeploymentReviewForm.Create(nil);
       try
+        if ReviewDialog.PublishButton.Enabled then raise Exception.Create('Publish enabled before review.');
         ReviewDialog.SetConnection('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), ParamStr(1), ParamStr(4));
         ReviewDialog.WebsiteEdit.Text := ParamStr(5);
         ReviewDialog.ScanEdit.Text := ParamStr(6);
@@ -124,6 +125,7 @@ begin
           Application.ProcessMessages; CheckSynchronize(0); Sleep(10);
         end;
         if not ReviewDialog.CheckButton.Enabled then raise Exception.Create('Review did not enable the live check.');
+        if ReviewDialog.PublishButton.Enabled then raise Exception.Create('Publish enabled before destination check.');
         ReviewDialog.CheckButton.Click;
         Deadline := GetTickCount64 + 70000;
         while not ReviewDialog.ReviewButton.Enabled and (GetTickCount64 < Deadline) do begin
@@ -132,6 +134,9 @@ begin
         if not ReviewDialog.ReviewButton.Enabled or
            (Pos('Destination matched', ReviewDialog.StatusLabel.Caption) = 0) then
           raise Exception.Create('Native live check did not pass.');
+        if not ReviewDialog.PublishButton.Enabled then raise Exception.Create('Destination check did not enable publishing.');
+        ReviewDialog.RecoveryEdit.Text := '/private';
+        if ReviewDialog.PublishButton.Enabled then raise Exception.Create('Changing the recovery folder did not clear approval.');
         Writeln('Native live check passed.');
       finally ReviewDialog.Free end;
       Exit;

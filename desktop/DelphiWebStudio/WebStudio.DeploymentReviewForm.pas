@@ -24,16 +24,22 @@ type
     ScanDialog: TOpenDialog;
     BackupDialog: TOpenDialog;
     CheckButton: TButton;
+    RecoveryLabel: TLabel;
+    RecoveryEdit: TEdit;
+    PublishButton: TButton;
+    JournalDialog: TSaveDialog;
     procedure WebsiteBrowseClick(Sender: TObject);
     procedure ScanBrowseClick(Sender: TObject);
     procedure BackupBrowseClick(Sender: TObject);
     procedure ReviewButtonClick(Sender: TObject);
     procedure InputChanged(Sender: TObject);
     procedure CheckButtonClick(Sender: TObject);
+    procedure PublishButtonClick(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
   private
     FWorking: Boolean;
     FHasReview: Boolean;
+    FHasPreflight: Boolean;
     FReview: TDeploymentReview;
     FHost, FUserName, FKeyFile, FKnownHostsFile, FPortText, FRemoteDirectory: string;
   public
@@ -42,7 +48,7 @@ type
 
 implementation
 
-uses System.SysUtils, WebStudio.DeploymentPreflight;
+uses System.SysUtils, WebStudio.DeploymentPreflight, WebStudio.DeploymentExecutor;
 
 {$R *.dfm}
 
@@ -77,7 +83,9 @@ procedure TDeploymentReviewForm.InputChanged(Sender: TObject);
 begin
   if not FWorking then begin
     FHasReview := False;
+    FHasPreflight := False;
     if Assigned(CheckButton) then CheckButton.Enabled := False;
+    if Assigned(PublishButton) then PublishButton.Enabled := False;
     if Assigned(ResultsMemo) then ResultsMemo.Clear;
     if Assigned(StatusLabel) then StatusLabel.Caption := '';
   end;
@@ -95,6 +103,8 @@ begin
   end;
   FWorking := True;
   FHasReview := False;
+  FHasPreflight := False;
+  PublishButton.Enabled := False;
   CheckButton.Enabled := False;
   ReviewButton.Enabled := False;
   CloseButton.Enabled := False;
@@ -129,7 +139,7 @@ begin
         for Path in Review.OnlyAtDestination do Lines.Add('  ' + Path);
         Summary := Lines.Text;
       finally Lines.Free end;
-      MessageText := 'Review complete. Publishing remains unavailable.';
+      MessageText := 'Review complete. Check the destination before publishing.';
       Success := True;
     except
       on E: Exception do MessageText := E.Message;
@@ -161,6 +171,8 @@ begin
   end;
   Website := WebsiteEdit.Text; Scan := ScanEdit.Text; Backup := BackupEdit.Text; Reviewed := FReview;
   FWorking := True;
+  FHasPreflight := False;
+  PublishButton.Enabled := False;
   ReviewButton.Enabled := False; CheckButton.Enabled := False; CloseButton.Enabled := False;
   WebsiteEdit.Enabled := False; WebsiteBrowse.Enabled := False;
   ScanEdit.Enabled := False; ScanBrowse.Enabled := False;
@@ -182,10 +194,59 @@ begin
       StatusLabel.Caption := MessageText;
       FWorking := False;
       if not Success then FHasReview := False;
+      FHasPreflight := Success;
       ReviewButton.Enabled := True; CheckButton.Enabled := FHasReview; CloseButton.Enabled := True;
+      PublishButton.Enabled := FHasPreflight;
       WebsiteEdit.Enabled := True; WebsiteBrowse.Enabled := True;
       ScanEdit.Enabled := True; ScanBrowse.Enabled := True;
       BackupEdit.Enabled := True; BackupBrowse.Enabled := True;
+    end);
+  end).Start;
+end;
+
+procedure TDeploymentReviewForm.PublishButtonClick(Sender: TObject);
+var Website, Scan, Backup, Journal, Recovery: string; Port: Integer; Reviewed: TDeploymentReview;
+begin
+  if not FHasReview or not FHasPreflight then Exit;
+  if not TryStrToInt(FPortText, Port) or (Port < 1) or (Port > 65535) then Exit;
+  Recovery := Trim(RecoveryEdit.Text);
+  if (Length(FReview.Changed) > 0) and (Recovery = '') then begin
+    StatusLabel.Caption := 'Enter a private recovery folder outside the website before continuing.';
+    Exit;
+  end;
+  if not JournalDialog.Execute then Exit;
+  Journal := JournalDialog.FileName;
+  if MessageDlg('Publish the reviewed files to ' + FHost + ':' + FPortText + ' ' + FRemoteDirectory + '?' + sLineBreak + sLineBreak +
+    IntToStr(Length(FReview.Added)) + ' new files; ' + IntToStr(Length(FReview.Changed)) + ' changed files. ' +
+    IntToStr(Length(FReview.OnlyAtDestination)) + ' destination-only files will be kept.' + sLineBreak + sLineBreak +
+    'Review the full file list before confirming. For changed files, you must ensure the recovery folder is not served by the host: ' + Recovery + sLineBreak +
+    'Receipt: ' + Journal, mtWarning, [mbYes, mbNo], 0, mbNo) <> mrYes then Exit;
+  Website := WebsiteEdit.Text; Scan := ScanEdit.Text; Backup := BackupEdit.Text; Reviewed := FReview;
+  FWorking := True;
+  FHasPreflight := False;
+  PublishButton.Enabled := False; ReviewButton.Enabled := False; CheckButton.Enabled := False; CloseButton.Enabled := False;
+  WebsiteEdit.Enabled := False; WebsiteBrowse.Enabled := False;
+  ScanEdit.Enabled := False; ScanBrowse.Enabled := False;
+  BackupEdit.Enabled := False; BackupBrowse.Enabled := False; RecoveryEdit.Enabled := False;
+  StatusLabel.Caption := 'Checking and transferring reviewed files...';
+  TThread.CreateAnonymousThread(procedure
+  var Outcome: TDeploymentExecution; MessageText: string;
+  begin
+    try
+      Outcome := ExecuteReviewedDeployment(Website, Scan, Backup, Journal, Reviewed,
+        FHost, FUserName, FKeyFile, FKnownHostsFile, Port, FRemoteDirectory, Recovery, True);
+      MessageText := 'Verified ' + IntToStr(Outcome.VerifiedTransfers) + ' transfers. Receipt: ' + Outcome.JournalPath;
+    except
+      on E: Exception do MessageText := E.Message;
+    end;
+    TThread.Queue(nil, procedure
+    begin
+      StatusLabel.Caption := MessageText;
+      FHasReview := False; FHasPreflight := False; FWorking := False;
+      ReviewButton.Enabled := True; CheckButton.Enabled := False; PublishButton.Enabled := False; CloseButton.Enabled := True;
+      WebsiteEdit.Enabled := True; WebsiteBrowse.Enabled := True;
+      ScanEdit.Enabled := True; ScanBrowse.Enabled := True;
+      BackupEdit.Enabled := True; BackupBrowse.Enabled := True; RecoveryEdit.Enabled := True;
     end);
   end).Start;
 end;
