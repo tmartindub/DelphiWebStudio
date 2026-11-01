@@ -4,7 +4,7 @@ program SftpConnectionSmoke;
 
 uses
   Winapi.Windows, Winapi.Messages, Winapi.CommDlg, Winapi.Dlgs, System.SysUtils, System.Classes, System.IOUtils, System.UITypes, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, WebStudio.SftpConnection,
-  WebStudio.SftpForm, WebStudio.SftpInventory, WebStudio.DeploymentReview, WebStudio.DeploymentPreflight, WebStudio.DeploymentReviewForm, WebStudio.DeploymentJournal, WebStudio.DeploymentExecutor;
+  WebStudio.SftpForm, WebStudio.SftpInventory, WebStudio.DeploymentReview, WebStudio.DeploymentPreflight, WebStudio.DeploymentReviewForm, WebStudio.DeploymentJournal, WebStudio.DeploymentExecutor, WebStudio.RollbackReview;
 
 type
   TDialogDriver = class
@@ -51,6 +51,12 @@ var
   ConfirmTimer: TTimer;
 begin
   try
+    if ParamCount = 24 then begin
+      Review := ReviewDeployment(ParamStr(1), ParamStr(2), ParamStr(3));
+      for Entry in ReviewAddedRollback(ParamStr(4), ParamStr(5), ParamStr(6), StrToInt(ParamStr(7)), Review) do
+        Writeln('R:', Entry.Path, '|', Entry.Size, '|', Entry.Sha256);
+      Exit;
+    end;
     if ParamCount = 23 then begin
       Receipt := RetainAddedSftpFile('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3),
         StrToInt(ParamStr(1)), ParamStr(4), '/private', ParamStr(5), StrToUInt64(ParamStr(6)), ParamStr(7));

@@ -182,6 +182,14 @@ current_backup = work / 'restore-current.zip'
 with zipfile.ZipFile(current_backup, 'w') as archive:
     for name, content in current.items():
         archive.writestr(name, content)
+rollback_plan = subprocess.run([str(exe), str(backup), str(current_scan), str(current_backup), str(success_path), '127.0.0.1', '/success', str(port)] + ['test'] * 17, capture_output=True, text=True, timeout=30)
+assert rollback_plan.returncode == 0, (rollback_plan.stdout, rollback_plan.stderr)
+assert [line.split('|')[0] for line in rollback_plan.stdout.splitlines()] == ['R:newfolder/new.txt', 'R:secondfolder/second.txt']
+incomplete = work / 'incomplete.jsonl'
+incomplete.write_text('\n'.join(success_path.read_text(encoding='utf8').splitlines()[:-1]) + '\n', encoding='utf8')
+for receipt, host, original in [(incomplete, '127.0.0.1', backup), (success_path, 'wrong.example', backup), (success_path, '127.0.0.1', current_backup)]:
+    rejected = subprocess.run([str(exe), str(original), str(current_scan), str(current_backup), str(receipt), host, '/success', str(port)] + ['test'] * 17, capture_output=True, text=True, timeout=30)
+    assert rejected.returncode != 0
 restore_journal = work / 'restore.jsonl'
 restore = execute('/success', restore_journal, source=backup, current_scan=current_scan, current_backup=current_backup)
 assert restore.returncode == 0, (restore.stdout, restore.stderr)
