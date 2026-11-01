@@ -12,7 +12,7 @@ object LocalAIForm: TLocalAIForm
     Width = 548
     Height = 34
     AutoSize = False
-    Caption = 'Open a blank project in the editor first. Choose the offline runtime and model, then describe your site. Review the pages before applying them.'
+    Caption = 'Open a blank project first. Download the files if needed, then browse to them. The model is about 1.8 GB. Review pages before applying them.'
     WordWrap = True
   end
   object RuntimeLabel: TLabel
@@ -25,7 +25,16 @@ object LocalAIForm: TLocalAIForm
     Top = 74
     Width = 452
     Height = 23
+    TabOrder = 1
+  end
+  object RuntimeDownloadButton: TButton
+    Left = 435
+    Top = 48
+    Width = 129
+    Height = 23
+    Caption = 'Download runtime'
     TabOrder = 0
+    OnClick = RuntimeDownloadButtonClick
   end
   object RuntimeBrowseButton: TButton
     Left = 480
@@ -33,7 +42,7 @@ object LocalAIForm: TLocalAIForm
     Width = 84
     Height = 25
     Caption = 'Browse...'
-    TabOrder = 1
+    TabOrder = 2
     OnClick = RuntimeBrowseButtonClick
   end
   object ModelLabel: TLabel
@@ -46,7 +55,16 @@ object LocalAIForm: TLocalAIForm
     Top = 127
     Width = 452
     Height = 23
-    TabOrder = 2
+    TabOrder = 4
+  end
+  object ModelDownloadButton: TButton
+    Left = 435
+    Top = 101
+    Width = 129
+    Height = 23
+    Caption = 'Download model'
+    TabOrder = 3
+    OnClick = ModelDownloadButtonClick
   end
   object ModelBrowseButton: TButton
     Left = 480
@@ -54,7 +72,7 @@ object LocalAIForm: TLocalAIForm
     Width = 84
     Height = 25
     Caption = 'Browse...'
-    TabOrder = 3
+    TabOrder = 5
     OnClick = ModelBrowseButtonClick
   end
   object BriefLabel: TLabel
@@ -69,7 +87,7 @@ object LocalAIForm: TLocalAIForm
     Height = 112
     MaxLength = 4000
     ScrollBars = ssVertical
-    TabOrder = 4
+    TabOrder = 6
   end
   object GenerateButton: TButton
     Left = 382
@@ -78,7 +96,7 @@ object LocalAIForm: TLocalAIForm
     Height = 27
     Caption = 'Generate'
     Default = True
-    TabOrder = 5
+    TabOrder = 7
     OnClick = GenerateButtonClick
   end
   object CancelButton: TButton
@@ -89,7 +107,7 @@ object LocalAIForm: TLocalAIForm
     Cancel = True
     Caption = 'Cancel'
     ModalResult = 2
-    TabOrder = 6
+    TabOrder = 8
   end
   object RuntimeDialog: TOpenDialog
     Filter = 'Runtime ZIP|*.zip'
