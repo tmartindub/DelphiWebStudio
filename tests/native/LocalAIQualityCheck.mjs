@@ -9,12 +9,13 @@ import JSZip from '../../node_modules/jszip/lib/index.js'
 const base = process.argv[2]
 if (!base) throw new Error('Supply the directory containing the verified runtime and model.')
 const runtime = join(base, 'runtime')
-const model = join(base, 'Qwen3-1.7B-Q8_0.gguf')
+const model = process.argv[3] || join(base, 'Qwen3-1.7B-Q8_0.gguf')
+const modelSHA256 = process.argv[4] || '061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a'
 const hashFile = path => new Promise((resolve, reject) => {
   const hash = createHash('sha256'); const stream = createReadStream(path)
   stream.on('data', chunk => hash.update(chunk)); stream.on('end', () => resolve(hash.digest('hex'))); stream.on('error', reject)
 })
-if (await hashFile(model) !== '061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a') throw new Error('Model checksum mismatch')
+if (await hashFile(model) !== modelSHA256.toLowerCase()) throw new Error('Model checksum mismatch')
 const archivePath = join(base, 'llama-b12012-win-cpu-x64.zip')
 if (await hashFile(archivePath) !== '7605ee19d22ff58053d0df045f972367f6e6fd36bbcd02e7c0633ca639603a85') throw new Error('Runtime checksum mismatch')
 const archive = await JSZip.loadAsync(await readFile(archivePath))

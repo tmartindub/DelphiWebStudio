@@ -242,6 +242,10 @@ begin
     MessageDlg('Wait for the local editor to finish loading.', mtInformation, [mbOK], 0);
     Exit;
   end;
+  if not EditorBrowser.LocationURL.StartsWith('https://webstudio.local/index.html#/editor') then begin
+    MessageDlg('Open a blank project in the editor before using Local AI.', mtInformation, [mbOK], 0);
+    Exit;
+  end;
   Dialog := TLocalAIForm.Create(Self);
   try
     if Dialog.ShowModal <> mrOk then Exit;
