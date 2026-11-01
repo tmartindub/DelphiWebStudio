@@ -20,6 +20,11 @@ var
   Deadline: UInt64;
 begin
   try
+    if ParamCount = 9 then begin
+      for Path in EnsureSftpDirectories('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(5)) do
+        Writeln('D:', Path);
+      Exit;
+    end;
     if ParamCount = 17 then begin
       Review := ReviewDeployment(ParamStr(5), ParamStr(6), ParamStr(7));
       TFile.AppendAllText(ParamStr(5), 'changed after review');

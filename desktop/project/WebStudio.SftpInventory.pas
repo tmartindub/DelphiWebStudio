@@ -40,6 +40,10 @@ function RestoreSftpOriginal(const Host, UserName, KeyFile, KnownHostsFile: stri
   Port: Word; const RemoteDirectory, RemoteName, PreviousName: string;
   CurrentSize: UInt64; const CurrentSha256: string; OriginalSize: UInt64;
   const OriginalSha256: string): TSftpTransferReceipt;
+{ Internal transfer primitive, not connected to the UI. Creates missing
+  directories only; it never follows links or removes existing entries. }
+function EnsureSftpDirectories(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RelativeDirectory: string): TArray<string>;
 
 implementation
 
@@ -70,6 +74,7 @@ type
     function RestoreOriginal(const RemoteDirectory, RemoteName, PreviousName: string;
       CurrentSize: UInt64; const CurrentSha256: string; OriginalSize: UInt64;
       const OriginalSha256: string): TSftpTransferReceipt;
+    function EnsureDirectories(const RemoteDirectory, RelativeDirectory: string): TArray<string>;
     procedure ScanDirectory(const Root, Relative: string; Depth: Integer);
   public
     constructor Create(const Host, UserName, KeyFile, KnownHostsFile: string; Port: Word);
@@ -673,6 +678,99 @@ begin
   end;
 end;
 
+function TSftpScanner.EnsureDirectories(const RemoteDirectory, RelativeDirectory: string): TArray<string>;
+var
+  Root, Part, Current: string;
+  Parts: TArray<string>;
+  Index: Integer;
+  Created: TStringList;
+  MutationAttempted: Boolean;
+
+  function DirectoryExists(const Path: string): Boolean;
+  var Packet: TBytesStream; Kind: Byte; Status, Flags, Mode: Cardinal;
+  begin
+    Packet := Request(7, TEncoding.UTF8.GetBytes(Path));
+    try
+      Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
+      if Kind = 101 then begin
+        Status := GetUInt32(Packet);
+        if Status = 2 then Exit(False);
+        raise EInvalidOpException.Create('Cannot inspect destination folder ' + Path + '.');
+      end;
+      if Kind <> 105 then raise EInvalidOpException.Create('Unexpected destination folder response.');
+      Flags := GetUInt32(Packet);
+      if Flags and 1 <> 0 then begin GetUInt32(Packet); GetUInt32(Packet) end;
+      if Flags and 2 <> 0 then begin GetUInt32(Packet); GetUInt32(Packet) end;
+      if Flags and 4 = 0 then raise EInvalidOpException.Create('The server did not provide the destination folder type.');
+      Mode := GetUInt32(Packet);
+      if Mode and $F000 <> $4000 then raise EInvalidOpException.Create('A destination path is not a regular directory: ' + Path + '.');
+      Result := True;
+    finally Packet.Free end;
+  end;
+
+  procedure EnsureDirectory(const Path: string; MayCreate: Boolean);
+  var Packet: TBytesStream; Kind: Byte; Status: Cardinal; Attributes: TBytes;
+  begin
+    if DirectoryExists(Path) then Exit;
+    if not MayCreate then raise EInvalidOpException.Create('The destination root does not exist.');
+    SetLength(Attributes, 4); FillChar(Attributes[0], 4, 0);
+    MutationAttempted := True;
+    Packet := Request(14, TEncoding.UTF8.GetBytes(Path), Attributes);
+    try
+      Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
+      if Kind <> 101 then raise EInvalidOpException.Create('Unexpected response while creating a destination folder.');
+      Status := GetUInt32(Packet);
+      if Status = 0 then Created.Add(Path)
+      else raise EInvalidOpException.Create('Cannot create destination folder ' + Path + '.');
+    finally Packet.Free end;
+    if not DirectoryExists(Path) then raise EInvalidOpException.Create('The destination folder was not created.');
+  end;
+
+begin
+  if (RemoteDirectory = '') or (Length(RemoteDirectory) > 1024) or
+     (RemoteDirectory[1] <> '/') or (Pos('\', RemoteDirectory) > 0) then
+    raise EArgumentException.Create('Enter an absolute SFTP destination folder.');
+  for Part in RemoteDirectory.Split(['/']) do
+    if (Part = '.') or (Part = '..') then raise EArgumentException.Create('Invalid destination folder.');
+  for Index := 1 to Length(RemoteDirectory) do
+    if RemoteDirectory[Index] < #32 then raise EArgumentException.Create('Invalid destination folder.');
+  if (Pos('\', RelativeDirectory) > 0) or (Pos(':', RelativeDirectory) > 0) then
+    raise EArgumentException.Create('Invalid relative destination folder.');
+  if RelativeDirectory = '' then SetLength(Parts, 0)
+  else begin
+    Parts := RelativeDirectory.Split(['/']);
+    if Length(Parts) > 32 then raise EArgumentException.Create('Too many destination folders.');
+    for Part in Parts do begin
+      if (Part = '') or (Part = '.') or (Part = '..') then raise EArgumentException.Create('Invalid relative destination folder.');
+      for Index := 1 to Length(Part) do
+        if Part[Index] < #32 then raise EArgumentException.Create('Invalid relative destination folder.');
+    end;
+  end;
+  Root := RemoteDirectory;
+  while (Length(Root) > 1) and Root.EndsWith('/') do Delete(Root, Length(Root), 1);
+  Current := Root;
+  Created := TStringList.Create;
+  try
+    MutationAttempted := False;
+    Initialize;
+    try
+      EnsureDirectory(Current, False);
+      for Part in Parts do begin
+        if Current.EndsWith('/') then Current := Current + Part else Current := Current + '/' + Part;
+        if Length(TEncoding.UTF8.GetBytes(Current)) > 2048 then raise EArgumentException.Create('Destination folder path is too long.');
+        EnsureDirectory(Current, True);
+      end;
+      Result := Created.ToStringArray;
+    except
+      on E: Exception do begin
+        if Created.Count > 0 then raise EInvalidOpException.Create(E.Message + ' Created folders remain: ' + StringReplace(Trim(Created.Text), sLineBreak, ', ', [rfReplaceAll]) + '. Inspect the requested folder ' + Current + ' before retrying.');
+        if MutationAttempted then raise EInvalidOpException.Create(E.Message + ' The requested folder may exist at ' + Current + '; inspect it before retrying.');
+        raise;
+      end;
+    end;
+  finally Created.Free end;
+end;
+
 function ScanSftpInventory(const Host, UserName, KeyFile, KnownHostsFile: string;
   Port: Word; const RemoteDirectory: string): TArray<TSftpInventoryEntry>;
 var Scanner: TSftpScanner;
@@ -784,6 +882,14 @@ begin
     Result := Scanner.RestoreOriginal(RemoteDirectory, RemoteName, PreviousName,
       CurrentSize, CurrentSha256, OriginalSize, OriginalSha256);
   finally Scanner.Free end;
+end;
+
+function EnsureSftpDirectories(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RelativeDirectory: string): TArray<string>;
+var Scanner: TSftpScanner;
+begin
+  Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
+  try Result := Scanner.EnsureDirectories(RemoteDirectory, RelativeDirectory) finally Scanner.Free end;
 end;
 
 end.

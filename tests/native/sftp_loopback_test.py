@@ -32,6 +32,7 @@ snapshot = b'{"format":"webstudio-website-manifest","version":1,"files":[]}'
 files = {'/snapshot.json': snapshot, '/large.json': b'x' * (2 * 1024 * 1024 + 1), '/site/index.html': b'Hello world!', '/site/assets/image.png': b'picture', '/site/empty.txt': b'', '/changed/file.txt': b'four', '/collisions/a.txt': b'x', '/collisions/A.txt': b'y', '/upload/existing.txt': b'existing user data'}
 files.update({'/upload/update.txt': b'original update', '/upload/stale.txt': b'original stale', '/upload/race.txt': b'original race', '/upload/changed-original.txt': b'original change', '/upload/postverify-replace.txt': b'original postverify'})
 files.update({'/upload/rollback-stale.txt': b'current stale', '/upload/.webstudio-original-stale.bak': b'original rollback stale', '/upload/rollback-race.txt': b'current race', '/upload/.webstudio-original-race.bak': b'original rollback race', '/upload/rollback-changed.txt': b'current changed', '/upload/.webstudio-original-changed.bak': b'original rollback changed', '/upload/rollback-postverify.txt': b'current postverify', '/upload/.webstudio-original-postverify.bak': b'original rollback postverify'})
+directories = {'/upload', '/site', '/site/assets', '/site/emptydir'}
 corrupt_next_upload = False
 class Writer(paramiko.SFTPHandle):
     def __init__(self, path, flags):
@@ -58,6 +59,11 @@ class Files(paramiko.SFTPServerInterface):
             result.append(entry)
         return result
     def stat(self, path):
+        if path.rstrip('/') in directories or path == '/upload/link':
+            result = paramiko.SFTPAttributes()
+            result.st_mode = (stat.S_IFLNK if path == '/upload/link' else stat.S_IFDIR) | 0o755
+            result.st_size = 0
+            return result
         if path not in files:
             return paramiko.SFTP_NO_SUCH_FILE
         result = paramiko.SFTPAttributes()
@@ -66,6 +72,14 @@ class Files(paramiko.SFTPServerInterface):
         return result
     def lstat(self, path):
         return self.stat(path)
+    def mkdir(self, path, attr):
+        if path == '/upload/racedir':
+            directories.add(path)
+            return paramiko.SFTP_FAILURE
+        if not path.startswith('/upload/') or path.endswith('/deny') or path in directories or path in files or path.rsplit('/', 1)[0] not in directories:
+            return paramiko.SFTP_PERMISSION_DENIED
+        directories.add(path)
+        return paramiko.SFTP_OK
     def open(self, path, flags, attr):
         if path.startswith('/upload/.webstudio-upload-') and flags & os.O_CREAT:
             if path in files:
@@ -102,7 +116,7 @@ class Files(paramiko.SFTPServerInterface):
 
 def serve():
     try:
-        for _ in range(31):
+        for _ in range(36):
             connection, _ = listener.accept()
             transport = paramiko.Transport(connection)
             try:
@@ -191,6 +205,13 @@ preflight_dialog = subprocess.run([str(exe), str(port), str(key_path), str(hosts
 changed_input_zip = work / 'changed input website.zip'
 changed_input_zip.write_bytes(website_zip.read_bytes())
 preflight_changed_input = subprocess.run([str(exe), str(port), str(key_path), str(hosts_path), '/site', str(changed_input_zip), str(scan_path), str(backup_path)] + ['test'] * 10, capture_output=True, text=True, timeout=30)
+def ensure_folders(relative):
+    return subprocess.run([str(exe), str(port), str(key_path), str(hosts_path), '/upload', relative] + ['test'] * 4, capture_output=True, text=True, timeout=75)
+folders = ensure_folders('projects/site')
+folders_existing = ensure_folders('projects/site')
+folder_link = ensure_folders('link/child')
+folder_partial = ensure_folders('partial/deny')
+folder_race = ensure_folders('racedir')
 thread.join(timeout=5)
 print(result.stdout, result.stderr)
 expected_inventory = {f'index.html:12:{hashlib.sha256(files["/site/index.html"]).hexdigest()}', f'assets/image.png:7:{hashlib.sha256(files["/site/assets/image.png"]).hexdigest()}', f'empty.txt:0:{hashlib.sha256(b"").hexdigest()}'}
@@ -200,8 +221,8 @@ replacement_failures_ok = stale.returncode != 0 and files.get('/upload/stale.txt
 rollback_parts = rollback_ok.stdout.strip().split('|')
 rollback_success = len(rollback_parts) == 4 and rollback_parts[:3] == ['/upload/update.txt', str(len(b'original update')), hashlib.sha256(b'original update').hexdigest()] and files.get('/upload/update.txt') == b'original update' and files.get(rollback_parts[3]) == local_data
 rollback_failures_ok = rollback_stale.returncode != 0 and files.get('/upload/rollback-stale.txt') == b'current stale' and rollback_race.returncode != 0 and files.get('/upload/rollback-race.txt') == b'concurrent rollback' and files.get('/upload/.webstudio-original-race.bak') == b'original rollback race' and b'current race' in files.values() and rollback_changed.returncode != 0 and files.get('/upload/rollback-changed.txt') == b'Xurrent changed' and files.get('/upload/.webstudio-original-changed.bak') == b'original rollback changed' and rollback_postverify.returncode != 0 and b'current postverify' in files.values()
-if result.returncode or rejected.returncode == 0 or download.returncode or existing.returncode == 0 or oversize.returncode == 0 or unsafe.returncode == 0 or inventory.returncode or links.returncode == 0 or changed.returncode == 0 or scan.returncode or scan_existing.returncode == 0 or backup.returncode or backup_existing.returncode == 0 or links_backup.returncode == 0 or collision_backup.returncode == 0 or reserved_backup.returncode == 0 or transfer.returncode or transfer.stdout.strip() != expected_receipt or collision.returncode == 0 or 'staging file may remain' not in collision.stdout or corrupt.returncode == 0 or postverify.returncode == 0 or 'inspect it before retrying' not in postverify.stdout or empty_transfer.returncode or empty_transfer.stdout.strip() != empty_receipt or replacement.returncode or not replacement_ok or not replacement_failures_ok or rollback_ok.returncode or not rollback_success or not rollback_failures_ok or preflight_ok.returncode or preflight_changed.returncode == 0 or 'destination changed' not in preflight_changed.stdout.lower() or preflight_dialog.returncode or 'Native live check passed.' not in preflight_dialog.stdout or preflight_changed_input.returncode == 0 or 'reviewed files changed' not in preflight_changed_input.stdout.lower() or files.get('/upload/new.txt') != local_data or files.get('/upload/empty.txt') != b'' or files.get('/upload/existing.txt') != b'existing user data' or '/upload/corrupt.txt' in files or links_backup_path.exists() or collision_path.exists() or reserved_path.exists() or list(work.glob('.webstudio-backup-*')) or not backup_path.exists() or backup_path.read_bytes() != backup_contents or not scan_path.exists() or scan_path.read_bytes() != scan_contents or set(inventory.stdout.splitlines()) != expected_inventory or oversize_path.exists() or unsafe_path.exists() or not destination.exists() or destination.read_bytes() != snapshot or thread.is_alive():
-    print(download.stdout, download.stderr, existing.stdout, existing.stderr, inventory.stdout, inventory.stderr, scan.stdout, scan.stderr, scan_existing.stdout, scan_existing.stderr, backup.stdout, backup.stderr, links_backup.stdout, links_backup.stderr, transfer.stdout, transfer.stderr, collision.stdout, collision.stderr, corrupt.stdout, corrupt.stderr, replacement.stdout, stale.stdout, race.stdout, changed_original.stdout, postverify_replacement.stdout, rollback_ok.stdout, rollback_stale.stdout, rollback_race.stdout, rollback_changed.stdout, rollback_postverify.stdout, preflight_ok.stdout, preflight_changed.stdout, preflight_dialog.stdout, preflight_dialog.stderr, preflight_changed_input.stdout)
+if result.returncode or rejected.returncode == 0 or download.returncode or existing.returncode == 0 or oversize.returncode == 0 or unsafe.returncode == 0 or inventory.returncode or links.returncode == 0 or changed.returncode == 0 or scan.returncode or scan_existing.returncode == 0 or backup.returncode or backup_existing.returncode == 0 or links_backup.returncode == 0 or collision_backup.returncode == 0 or reserved_backup.returncode == 0 or transfer.returncode or transfer.stdout.strip() != expected_receipt or collision.returncode == 0 or 'staging file may remain' not in collision.stdout or corrupt.returncode == 0 or postverify.returncode == 0 or 'inspect it before retrying' not in postverify.stdout or empty_transfer.returncode or empty_transfer.stdout.strip() != empty_receipt or replacement.returncode or not replacement_ok or not replacement_failures_ok or rollback_ok.returncode or not rollback_success or not rollback_failures_ok or preflight_ok.returncode or preflight_changed.returncode == 0 or 'destination changed' not in preflight_changed.stdout.lower() or preflight_dialog.returncode or 'Native live check passed.' not in preflight_dialog.stdout or preflight_changed_input.returncode == 0 or 'reviewed files changed' not in preflight_changed_input.stdout.lower() or folders.returncode or folders.stdout.splitlines() != ['D:/upload/projects', 'D:/upload/projects/site'] or folders_existing.returncode or folders_existing.stdout.strip() or folder_link.returncode == 0 or folder_partial.returncode == 0 or '/upload/partial' not in folder_partial.stdout or folder_race.returncode == 0 or '/upload/racedir' not in folder_race.stdout or '/upload/racedir' not in directories or '/upload/link/child' in directories or '/upload/partial/deny' in directories or files.get('/upload/new.txt') != local_data or files.get('/upload/empty.txt') != b'' or files.get('/upload/existing.txt') != b'existing user data' or '/upload/corrupt.txt' in files or links_backup_path.exists() or collision_path.exists() or reserved_path.exists() or list(work.glob('.webstudio-backup-*')) or not backup_path.exists() or backup_path.read_bytes() != backup_contents or not scan_path.exists() or scan_path.read_bytes() != scan_contents or set(inventory.stdout.splitlines()) != expected_inventory or oversize_path.exists() or unsafe_path.exists() or not destination.exists() or destination.read_bytes() != snapshot or thread.is_alive():
+    print(download.stdout, download.stderr, existing.stdout, existing.stderr, inventory.stdout, inventory.stderr, scan.stdout, scan.stderr, scan_existing.stdout, scan_existing.stderr, backup.stdout, backup.stderr, links_backup.stdout, links_backup.stderr, transfer.stdout, transfer.stderr, collision.stdout, collision.stderr, corrupt.stdout, corrupt.stderr, replacement.stdout, stale.stdout, race.stdout, changed_original.stdout, postverify_replacement.stdout, rollback_ok.stdout, rollback_stale.stdout, rollback_race.stdout, rollback_changed.stdout, rollback_postverify.stdout, preflight_ok.stdout, preflight_changed.stdout, preflight_dialog.stdout, preflight_dialog.stderr, preflight_changed_input.stdout, folders.stdout, folders_existing.stdout, folder_link.stdout, folder_partial.stdout, folder_race.stdout)
     raise SystemExit('Local SFTP connection test failed')
 manifest = json.loads(scan_contents)
 assert manifest['format'] == 'webstudio-website-manifest' and manifest['version'] == 1
