@@ -2,11 +2,11 @@
 
 Date: 2026-10-29. Status: owner approved resolution; binding feasibility pending.
 
-## Current narrow export bridge
+## Current typed action bridge
 
-The current desktop source enables WebView messages for a narrow `site.export` request from the editor toolbar. The page opens a session for its current project ID; native code checks the actual event source, creates a random session, and grants only that capability. A validated, single-use request receives an acknowledgement. The existing editor then creates the ZIP and the native download flow asks the user where to save it. No file path, file contents, shell command or publishing action crosses this bridge. Browser-only exports continue without it.
+The current desktop source enables typed WebView requests for `project.open`, `project.save`, `media.import` and `site.export` from the corresponding project commands, media panel and editor toolbar. Native code checks the event source, creates a random session and grants only the requested capability. A validated, single-use request receives an acknowledgement. Existing editor and file-dialog code still performs the file operations. No file path, file contents, shell command or publishing action crosses this bridge. Browser-only actions continue without it.
 
-The project ID is supplied by the editor and is not independently verified by native code. This is a limited export authorization, not the complete native file-operation bridge: project open/save and media import are not connected through it. Earlier statements below that production WebView messages are disabled describe earlier builds. An isolated WebView test exercised the connected request and rejected replayed, wrong-project and ungranted requests; a separate five-page desktop test saved, reopened and exported through the current path. This does not establish complete bridge security or clean-machine acceptance.
+The project ID is supplied by the editor and is not independently verified by native code. The bridge acknowledges actions; it does not yet implement native file operations or cover every possible entry point. Earlier statements below that production WebView messages are disabled describe earlier builds. An isolated WebView test exercised requests and rejected replayed, wrong-project and ungranted requests; a separate five-page desktop test opened, saved, reopened and exported through the current path. This does not establish complete bridge security or clean-machine acceptance.
 
 Native Delphi forms use design-time components with settings in the Object Inspector. Embedded React editor is the approved runtime UI exception. Prefer FMX Windows x64 with a tested WebView2 binding; document any fallback. Native code owns safe saves/dialogs/credentials/local processes. Versioned origin-checked bridge exposes allowlisted capabilities only to the trusted editor. Desktop delivery is required.
 

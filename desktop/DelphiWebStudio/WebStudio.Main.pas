@@ -382,10 +382,11 @@ end;
 procedure TMainForm.EditorBrowserWebMessageReceived(Sender: TCustomEdgeBrowser; Args: TWebMessageReceivedEventArgs);
 var
   Source, Raw: PWideChar;
-  SourceText, RequestId, ProjectId, Kind: string;
+  SourceText, RequestId, ProjectId, Kind, CapabilityName: string;
   Parsed: TJSONValue;
   Obj, Reply: TJSONObject;
   Request: TDesktopRequest;
+  Capability: TDesktopCapability;
   Index: Integer;
 begin
   Source := nil; Raw := nil;
@@ -401,30 +402,44 @@ begin
       if not (Parsed is TJSONObject) then Exit;
       Obj := TJSONObject(Parsed);
       if Obj.TryGetValue<string>('kind', Kind) then begin
-        if (Obj.Count <> 4) or (Kind <> 'session.open') or
+        if (Obj.Count <> 5) or (Kind <> 'session.open') or
            not (Obj.GetValue('version') is TJSONNumber) or (Obj.GetValue('version').Value <> '1') or
            not (Obj.GetValue('requestId') is TJSONString) or not Obj.TryGetValue<string>('requestId', RequestId) or
-           not (Obj.GetValue('projectId') is TJSONString) or not Obj.TryGetValue<string>('projectId', ProjectId) or
-           not TRegEx.IsMatch(RequestId, '^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$') or
-           not TRegEx.IsMatch(ProjectId, '^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$') then Exit;
+           not (Obj.GetValue('capability') is TJSONString) or not Obj.TryGetValue<string>('capability', CapabilityName) or
+           not TRegEx.IsMatch(RequestId, '^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$') then Exit;
+        if CapabilityName = 'project.open' then Capability := dcProjectOpen
+        else if CapabilityName = 'project.save' then Capability := dcProjectSave
+        else if CapabilityName = 'media.import' then Capability := dcMediaImport
+        else if CapabilityName = 'site.export' then Capability := dcSiteExport
+        else Exit;
+        if Obj.GetValue('projectId') is TJSONNull then ProjectId := ''
+        else if not (Obj.GetValue('projectId') is TJSONString) or not Obj.TryGetValue<string>('projectId', ProjectId) or
+                not TRegEx.IsMatch(ProjectId, '^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$') then Exit;
+        if (ProjectId = '') and (Capability <> dcProjectOpen) then Exit;
         if Assigned(FBridgeSession) then FBridgeSession.Revoke;
         FreeAndNil(FBridgeSession);
-        FBridgeSession := TDesktopSession.Create(ProjectId, [dcSiteExport]);
+        FBridgeSession := TDesktopSession.Create(ProjectId, [Capability]);
         Reply := TJSONObject.Create;
         try
           Reply.AddPair('version', TJSONNumber.Create(1)); Reply.AddPair('kind', 'session.open');
           Reply.AddPair('requestId', RequestId); Reply.AddPair('sessionId', FBridgeSession.SessionId);
-          Reply.AddPair('projectId', ProjectId);
+          if ProjectId = '' then Reply.AddPair('projectId', TJSONNull.Create) else Reply.AddPair('projectId', ProjectId);
+          Reply.AddPair('capability', CapabilityName);
           Sender.DefaultInterface.PostWebMessageAsJson(PWideChar(Reply.ToJSON));
         finally Reply.Free end;
       end else begin
         if not Assigned(FBridgeSession) then Exit;
         Request := FBridgeSession.ValidateAndClaim(string(Raw), SourceText);
-        if Request.Capability <> dcSiteExport then Exit;
+        case Request.Capability of
+          dcProjectOpen: CapabilityName := 'project.open';
+          dcProjectSave: CapabilityName := 'project.save';
+          dcMediaImport: CapabilityName := 'media.import';
+          dcSiteExport: CapabilityName := 'site.export';
+        end;
         Reply := TJSONObject.Create;
         try
           Reply.AddPair('version', TJSONNumber.Create(1)); Reply.AddPair('requestId', Request.RequestId);
-          Reply.AddPair('capability', 'site.export'); Reply.AddPair('ok', TJSONBool.Create(True));
+          Reply.AddPair('capability', CapabilityName); Reply.AddPair('ok', TJSONBool.Create(True));
           Sender.DefaultInterface.PostWebMessageAsJson(PWideChar(Reply.ToJSON));
         finally Reply.Free end;
       end;

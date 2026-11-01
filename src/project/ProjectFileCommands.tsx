@@ -9,6 +9,7 @@ import { createProjectFile, decodeProjectFile, parseProjectFile, portableProject
 import { ProjectMediaLibrary } from '@/media/media-library'
 import JSZip from 'jszip'
 import { ProjectRevisions, type ProjectRevision } from './project-revisions'
+import { requestDesktopAction } from '@/desktop/native-bridge'
 
 /** Explicit portable-file commands; browser draft recovery remains separate. */
 export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: boolean }) {
@@ -60,6 +61,8 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
     const restoredIds: string[] = []
     let library: ProjectMediaLibrary | undefined
     try {
+      await requestDesktopAction('project.open', originalProjectId)
+      if (useEditorStore.getState().activeProjectId !== originalProjectId || useConfigStore.getState().config !== originalConfig) throw new Error('The current project changed. Open the file again.')
       if (!file.name.toLowerCase().endsWith('.zip') && file.size > 100 * 1024 * 1024) throw new Error('The project file is too large to open safely (maximum 100 MiB).')
       const zip = file.name.toLowerCase().endsWith('.zip') ? await JSZip.loadAsync(await file.arrayBuffer()) : undefined
       if (zip && Object.values(zip.files).some(entry => !entry.dir && entry.unsafeOriginalName !== entry.name)) {
@@ -200,6 +203,10 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
     useEditorStore.getState().setMediaImporting(true)
     const preparationToast = toast.loading('Preparing project. Keep this window open until the save finishes.')
     try {
+      if (!checkpoint) {
+        await requestDesktopAction('project.save', project.id)
+        if (useEditorStore.getState().activeProjectId !== project.id || useConfigStore.getState().config !== config) throw new Error('The current project changed. Save it again.')
+      }
       const portableSettings = { ...project.projectFile?.settings, ...project.settings }
       delete portableSettings.deployAccessKey
       const assets = await new ProjectMediaLibrary().list(project.id)

@@ -6,6 +6,7 @@ import { ProjectMediaLibrary, type MediaAsset } from './media-library'
 import { PdfPreview } from './PdfPreview'
 import { useConfigStore } from '@/store/configStore'
 import { getDocument } from 'pdfjs-dist'
+import { requestDesktopAction } from '@/desktop/native-bridge'
 
 function MediaThumbnail({ asset }: { asset: MediaAsset }) {
   const imageRef = useRef<HTMLImageElement>(null)
@@ -80,8 +81,16 @@ export function MediaPanel() {
     if (resume && (!previous || previous.projectId !== projectId)) { toast.error('Open the original project to resume this import.'); return }
     if (!resume && previous && !window.confirm('Starting a new import will discard the unfinished import list. The original files will not be changed. Continue?')) return
     const settings = resume && previous ? previous : { projectId, files, allowZip, duplicateMode }
-    useEditorStore.getState().setPendingMediaImport(null)
     useEditorStore.getState().setMediaImporting(true)
+    try {
+      await requestDesktopAction('media.import', projectId)
+      if (useEditorStore.getState().activeProjectId !== projectId) throw new Error('The active project changed. Import the files again.')
+    } catch (error) {
+      useEditorStore.getState().setMediaImporting(false)
+      toast.error(error instanceof Error ? error.message : 'Media import could not start.')
+      return
+    }
+    useEditorStore.getState().setPendingMediaImport(null)
     cancel.current = false
     let imported = 0
     let duplicates = 0

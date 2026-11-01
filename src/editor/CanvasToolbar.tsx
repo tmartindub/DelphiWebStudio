@@ -28,7 +28,7 @@ import { exportToHTML, downloadHTML, exportSiteZip } from '@/lib/export-html'
 import { ProjectFileCommands } from '@/project/ProjectFileCommands'
 import { portableProjectsEnabled } from '@/project/project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
-import { requestDesktopExport } from '@/desktop/native-export'
+import { requestDesktopAction } from '@/desktop/native-bridge'
 import { PlanPages } from './PlanPages'
 import { SiteChecks } from './SiteChecks'
 
@@ -283,7 +283,7 @@ export function CanvasToolbar() {
   async function handleExport() {
     setExporting(true)
     try {
-      await requestDesktopExport(activeProjectId)
+      await requestDesktopAction('site.export', activeProjectId)
       if (useEditorStore.getState().activeProjectId !== activeProjectId) throw new Error('The active project changed. Export it again.')
       let filename = (activeProject?.name || config.name || 'site').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'site'
       if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(filename)) filename = `_${filename}`
