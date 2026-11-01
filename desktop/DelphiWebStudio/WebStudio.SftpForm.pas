@@ -24,10 +24,15 @@ type
     CloseButton: TButton;
     KeyDialog: TOpenDialog;
     HostsDialog: TOpenDialog;
+    RemoteLabel: TLabel;
+    RemoteEdit: TEdit;
+    DownloadButton: TButton;
+    SnapshotSaveDialog: TSaveDialog;
     procedure KeyBrowseClick(Sender: TObject);
     procedure HostsBrowseClick(Sender: TObject);
     procedure TestButtonClick(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+    procedure DownloadButtonClick(Sender: TObject);
   private
     FChecking: Boolean;
   end;
@@ -68,6 +73,7 @@ begin
   KnownHosts := HostsEdit.Text;
   FChecking := True;
   TestButton.Enabled := False;
+  DownloadButton.Enabled := False;
   CloseButton.Enabled := False;
   StatusLabel.Caption := 'Testing connection...';
   TThread.CreateAnonymousThread(procedure
@@ -84,6 +90,48 @@ begin
       StatusLabel.Caption := MessageText;
       FChecking := False;
       TestButton.Enabled := True;
+      DownloadButton.Enabled := True;
+      CloseButton.Enabled := True;
+    end);
+  end).Start;
+end;
+
+procedure TSftpForm.DownloadButtonClick(Sender: TObject);
+var
+  Host, UserName, KeyFile, KnownHosts, RemotePath, Destination: string;
+  Port: Integer;
+begin
+  if not TryStrToInt(PortEdit.Text, Port) or (Port < 1) or (Port > 65535) then begin
+    StatusLabel.Caption := 'Enter a port from 1 to 65535.';
+    Exit;
+  end;
+  if not SnapshotSaveDialog.Execute then Exit;
+  Host := Trim(HostEdit.Text);
+  UserName := Trim(UserEdit.Text);
+  KeyFile := KeyEdit.Text;
+  KnownHosts := HostsEdit.Text;
+  RemotePath := Trim(RemoteEdit.Text);
+  Destination := SnapshotSaveDialog.FileName;
+  FChecking := True;
+  TestButton.Enabled := False;
+  DownloadButton.Enabled := False;
+  CloseButton.Enabled := False;
+  StatusLabel.Caption := 'Downloading saved snapshot...';
+  TThread.CreateAnonymousThread(procedure
+  var MessageText: string;
+  begin
+    try
+      DownloadSftpSnapshot(Host, UserName, KeyFile, KnownHosts, Port, RemotePath, Destination);
+      MessageText := 'Snapshot saved. Compare it in Export; it is not a live destination scan.';
+    except
+      on E: Exception do MessageText := E.Message;
+    end;
+    TThread.Queue(nil, procedure
+    begin
+      StatusLabel.Caption := MessageText;
+      FChecking := False;
+      TestButton.Enabled := True;
+      DownloadButton.Enabled := True;
       CloseButton.Enabled := True;
     end);
   end).Start;

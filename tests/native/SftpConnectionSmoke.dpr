@@ -12,6 +12,11 @@ var
   Dialog: TSftpForm;
 begin
   try
+    if ParamCount = 5 then begin
+      DownloadSftpSnapshot('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(5));
+      Writeln('Snapshot downloaded.');
+      Exit;
+    end;
     if ParamCount = 3 then begin
       TestSftpConnection('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)));
       Writeln('SFTP connection succeeded.');

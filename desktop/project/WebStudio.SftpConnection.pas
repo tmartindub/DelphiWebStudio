@@ -7,14 +7,17 @@ interface
   create, or modify remote files. Authentication uses an SSH key and a
   user-supplied trusted known_hosts file; no password is stored or passed. }
 procedure TestSftpConnection(const Host, UserName, KeyFile, KnownHostsFile: string; Port: Word);
+procedure DownloadSftpSnapshot(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemotePath, Destination: string);
 
 implementation
 
 uses Winapi.Windows, System.SysUtils, System.IOUtils;
 
-procedure TestSftpConnection(const Host, UserName, KeyFile, KnownHostsFile: string; Port: Word);
+procedure RunSftp(const Host, UserName, KeyFile, KnownHostsFile: string; Port: Word;
+  const Commands: UTF8String; const LimitedFile: string = '');
 var
-  Index: Integer;
+  Index, Attempt: Integer;
   SystemFolder: array[0..MAX_PATH] of Char;
   SftpPath, KeyPath, HostsPath, CommandLine: string;
   Security: TSecurityAttributes;
@@ -22,8 +25,8 @@ var
   ProcessInfo: TProcessInformation;
   Limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION;
   InputRead, InputWrite, NullOutput, Job: THandle;
-  Commands: AnsiString;
   Written, WaitResult, ExitCode, ErrorCode: Cardinal;
+  FileData: TWin32FileAttributeData;
 begin
   if (Host = '') or (UserName = '') or (Port = 0) then
     raise EArgumentException.Create('Enter a host, username and port from 1 to 65535.');
@@ -91,11 +94,19 @@ begin
       ErrorCode := GetLastError; TerminateJobObject(Job, 1); RaiseLastOSError(ErrorCode)
     end;
     CloseHandle(InputRead); InputRead := 0;
-    Commands := 'pwd'#10'quit'#10;
     if not WriteFile(InputWrite, Commands[1], Length(Commands), Written, nil) or
        (Written <> Cardinal(Length(Commands))) then RaiseLastOSError;
     CloseHandle(InputWrite); InputWrite := 0;
-    WaitResult := WaitForSingleObject(ProcessInfo.hProcess, 20000);
+    for Attempt := 1 to 200 do begin
+      WaitResult := WaitForSingleObject(ProcessInfo.hProcess, 100);
+      if (LimitedFile <> '') and GetFileAttributesEx(PChar(LimitedFile), GetFileExInfoStandard, @FileData) and
+         ((FileData.nFileSizeHigh <> 0) or (FileData.nFileSizeLow > 2 * 1024 * 1024)) then begin
+        TerminateJobObject(Job, 1);
+        WaitForSingleObject(ProcessInfo.hProcess, 5000);
+        raise EInvalidOpException.Create('The saved snapshot exceeds the 2 MiB limit.')
+      end;
+      if WaitResult <> WAIT_TIMEOUT then Break;
+    end;
     if WaitResult = WAIT_TIMEOUT then begin
       TerminateJobObject(Job, 1);
       WaitForSingleObject(ProcessInfo.hProcess, 5000);
@@ -103,7 +114,7 @@ begin
     end;
     if WaitResult <> WAIT_OBJECT_0 then RaiseLastOSError;
     if not GetExitCodeProcess(ProcessInfo.hProcess, ExitCode) then RaiseLastOSError;
-    if ExitCode <> 0 then raise EInvalidOpException.Create('SFTP connection failed. Check the host, port, key, and trusted host key.')
+    if ExitCode <> 0 then raise EInvalidOpException.Create('SFTP operation failed. Check the connection, trusted host key, and requested file.')
   finally
     if ProcessInfo.hThread <> 0 then CloseHandle(ProcessInfo.hThread);
     if ProcessInfo.hProcess <> 0 then CloseHandle(ProcessInfo.hProcess);
@@ -111,6 +122,56 @@ begin
     if InputWrite <> 0 then CloseHandle(InputWrite);
     if NullOutput <> 0 then CloseHandle(NullOutput);
     if Job <> 0 then CloseHandle(Job);
+  end;
+end;
+
+procedure TestSftpConnection(const Host, UserName, KeyFile, KnownHostsFile: string; Port: Word);
+begin
+  RunSftp(Host, UserName, KeyFile, KnownHostsFile, Port, 'pwd'#10'quit'#10);
+end;
+
+procedure DownloadSftpSnapshot(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemotePath, Destination: string);
+var
+  Index: Integer;
+  Part: string;
+  Parts: TArray<string>;
+  TempDirectory, TempFile, TargetFile: string;
+  UniqueId: TGUID;
+begin
+  if (Length(RemotePath) < 2) or (Length(RemotePath) > 1024) or (RemotePath[1] <> '/') then
+    raise EArgumentException.Create('Enter an absolute remote snapshot path.');
+  for Index := 1 to Length(RemotePath) do
+    if not CharInSet(RemotePath[Index], ['A'..'Z', 'a'..'z', '0'..'9', '/', '.', '_', '-']) then
+      raise EArgumentException.Create('The remote snapshot path contains unsupported characters.');
+  Parts := RemotePath.Split(['/']);
+  for Index := 1 to Length(Parts) - 1 do begin
+    Part := Parts[Index];
+    if (Part = '') or (Part = '.') or (Part = '..') then
+      raise EArgumentException.Create('The remote snapshot path contains an invalid folder or filename.');
+  end;
+  if Destination = '' then raise EArgumentException.Create('Choose a new local snapshot filename.');
+  TargetFile := ExpandFileName(Destination);
+  for Index := 1 to Length(TargetFile) do
+    if TargetFile[Index] < #32 then
+      raise EArgumentException.Create('The local snapshot filename contains an unsupported character.');
+  if (Pos('"', TargetFile) > 0) or not TDirectory.Exists(ExtractFileDir(TargetFile)) then
+    raise EArgumentException.Create('Choose a valid local snapshot filename.');
+  if TFile.Exists(TargetFile) or TDirectory.Exists(TargetFile) then
+    raise EArgumentException.Create('Choose a new local filename; existing files are not replaced.');
+  if CreateGUID(UniqueId) <> 0 then raise EInvalidOpException.Create('Could not create a temporary snapshot folder.');
+  TempDirectory := TPath.Combine(ExtractFileDir(TargetFile), '.webstudio-sftp-' + GUIDToString(UniqueId));
+  if TDirectory.Exists(TempDirectory) or not CreateDir(TempDirectory) then
+    raise EInvalidOpException.Create('Could not create a temporary snapshot folder.');
+  TempFile := TPath.Combine(TempDirectory, 'snapshot.json');
+  try
+    RunSftp(Host, UserName, KeyFile, KnownHostsFile, Port,
+      UTF8String('get "' + RemotePath + '" "' + StringReplace(TempFile, '\', '/', [rfReplaceAll]) + '"'#10'quit'#10), TempFile);
+    if not TFile.Exists(TempFile) then raise EInvalidOpException.Create('The snapshot was not downloaded.');
+    if not MoveFile(PChar(TempFile), PChar(TargetFile)) then RaiseLastOSError;
+  finally
+    if TFile.Exists(TempFile) then DeleteFile(PChar(TempFile));
+    RemoveDir(TempDirectory);
   end;
 end;
 
