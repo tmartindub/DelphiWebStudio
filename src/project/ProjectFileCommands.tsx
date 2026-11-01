@@ -10,10 +10,13 @@ import { ProjectMediaLibrary } from '@/media/media-library'
 import JSZip from 'jszip'
 import { ProjectRevisions, type ProjectRevision } from './project-revisions'
 import { requestDesktopAction } from '@/desktop/native-bridge'
+import { importWordPressXml } from './wordpress-import'
 
 /** Explicit portable-file commands; browser draft recovery remains separate. */
 export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const wordpressInputRef = useRef<HTMLInputElement>(null)
+  const [wordpressPreview, setWordpressPreview] = useState<(ReturnType<typeof importWordPressXml> & { originalProjectId: string | null; originalConfig: typeof config }) | null>(null)
   const [opening, setOpening] = useState(false)
   const [saving, setSaving] = useState(false)
   const [savingRawDraft, setSavingRawDraft] = useState(false)
@@ -41,6 +44,29 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
   }, [activeProjectId, allRevisions])
 
   if (!portableProjectsEnabled) return null
+
+  async function previewWordPress(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget
+    const file = input.files?.[0]
+    if (!file || useEditorStore.getState().mediaImporting) return
+    const originalProjectId = useEditorStore.getState().activeProjectId
+    const originalConfig = useConfigStore.getState().config
+    setOpening(true)
+    useEditorStore.getState().setMediaImporting(true)
+    try {
+      if (file.size > 1024 * 1024) throw new Error('For this initial importer, select a WordPress XML export of at most 1 MiB.')
+      await requestDesktopAction('project.open', originalProjectId)
+      const preview = importWordPressXml(decodeProjectFile(new Uint8Array(await file.arrayBuffer())))
+      if (useEditorStore.getState().activeProjectId !== originalProjectId || useConfigStore.getState().config !== originalConfig) throw new Error('The current project changed. Select the WordPress export again.')
+      setWordpressPreview({ ...preview, originalProjectId, originalConfig })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'WordPress XML could not be read.')
+    } finally {
+      input.value = ''
+      setOpening(false)
+      useEditorStore.getState().setMediaImporting(false)
+    }
+  }
 
   async function openProject(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget
@@ -283,6 +309,24 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
   return (
     <div className="relative flex flex-wrap items-center gap-2 shrink-0">
       <input ref={inputRef} type="file" accept=".json,.zip,application/json,application/zip" className="hidden" aria-label="Choose project file" onChange={openProject} />
+      <input ref={wordpressInputRef} type="file" accept=".xml,application/xml,text/xml" className="hidden" aria-label="Choose WordPress XML export" onChange={previewWordPress} />
+      <button type="button" onClick={() => wordpressInputRef.current?.click()} disabled={opening || mediaImporting} className="rounded px-2 py-1 text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">Import WordPress XML</button>
+      {wordpressPreview && <div role="region" aria-label="WordPress import report" className="basis-full rounded border border-border-default bg-bg-1 p-3 text-xs text-text-1">
+        <p>Found {wordpressPreview.pages} pages and {wordpressPreview.posts} posts; {wordpressPreview.skipped} other items will not be converted. A separate project will be created.</p>
+        <p>Text becomes editable. Original XML is retained as inactive project data and may include private author details. Layout, HTML formatting, links, media, plugins and themes need manual review; media must be imported separately. Imported posts start as drafts. The original file is not changed.</p>
+        <button type="button" disabled={mediaImporting} className="rounded px-2 py-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => {
+          try {
+            if (useEditorStore.getState().activeProjectId !== wordpressPreview.originalProjectId || useConfigStore.getState().config !== wordpressPreview.originalConfig) throw new Error('The current project changed. Select the WordPress export again.')
+            const id = useProjectsStore.getState().addProject(wordpressPreview.project.config.name, wordpressPreview.project)
+            useEditorStore.getState().setActiveProject(id)
+            useConfigStore.getState().setConfig(wordpressPreview.project.config)
+            setWordpressPreview(null)
+            navigate('/editor')
+            toast.success('WordPress content imported as a separate project. Review the conversion before exporting.')
+          } catch (error) { toast.error(error instanceof Error ? error.message : 'WordPress content could not be imported.') }
+        }}>Create imported project</button>
+        <button type="button" className="rounded px-2 py-1 hover:bg-bg-3" onClick={() => setWordpressPreview(null)}>Cancel</button>
+      </div>}
       <button type="button" onClick={() => inputRef.current?.click()} disabled={opening || mediaImporting}
         className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
         <FolderOpen size={14} />{opening ? 'Opening…' : 'Open project'}
