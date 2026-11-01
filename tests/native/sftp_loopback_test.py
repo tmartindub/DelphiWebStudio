@@ -31,6 +31,7 @@ class Server(paramiko.ServerInterface):
 snapshot = b'{"format":"webstudio-website-manifest","version":1,"files":[]}'
 files = {'/snapshot.json': snapshot, '/large.json': b'x' * (2 * 1024 * 1024 + 1), '/site/index.html': b'Hello world!', '/site/assets/image.png': b'picture', '/site/empty.txt': b'', '/changed/file.txt': b'four', '/collisions/a.txt': b'x', '/collisions/A.txt': b'y', '/upload/existing.txt': b'existing user data'}
 files.update({'/upload/update.txt': b'original update', '/upload/stale.txt': b'original stale', '/upload/race.txt': b'original race', '/upload/changed-original.txt': b'original change', '/upload/postverify-replace.txt': b'original postverify'})
+files.update({'/upload/rollback-stale.txt': b'current stale', '/upload/.webstudio-original-stale.bak': b'original rollback stale', '/upload/rollback-race.txt': b'current race', '/upload/.webstudio-original-race.bak': b'original rollback race', '/upload/rollback-changed.txt': b'current changed', '/upload/.webstudio-original-changed.bak': b'original rollback changed', '/upload/rollback-postverify.txt': b'current postverify', '/upload/.webstudio-original-postverify.bak': b'original rollback postverify'})
 corrupt_next_upload = False
 class Writer(paramiko.SFTPHandle):
     def __init__(self, path, flags):
@@ -87,15 +88,21 @@ class Files(paramiko.SFTPServerInterface):
             files[oldpath] = b'concurrent update'
         if oldpath == '/upload/changed-original.txt':
             files[newpath] = b'X' + files[newpath][1:]
+        if oldpath == '/upload/rollback-race.txt':
+            files[oldpath] = b'concurrent rollback'
+        if oldpath == '/upload/rollback-changed.txt':
+            files[newpath] = b'X' + files[newpath][1:]
         if newpath == '/upload/postverify.txt' and files[newpath]:
             files[newpath] = b'X' + files[newpath][1:]
         if newpath == '/upload/postverify-replace.txt' and oldpath.startswith('/upload/.webstudio-upload-'):
+            files[newpath] = b'X' + files[newpath][1:]
+        if newpath == '/upload/rollback-postverify.txt' and oldpath.startswith('/upload/.webstudio-original-'):
             files[newpath] = b'X' + files[newpath][1:]
         return paramiko.SFTP_OK
 
 def serve():
     try:
-        for _ in range(23):
+        for _ in range(28):
             connection, _ = listener.accept()
             transport = paramiko.Transport(connection)
             try:
@@ -162,16 +169,26 @@ stale = replace('stale.txt', b'original stale', '0' * 64)
 race = replace('race.txt', b'original race')
 changed_original = replace('changed-original.txt', b'original change')
 postverify_replacement = replace('postverify-replace.txt', b'original postverify')
+receipt_parts = replacement.stdout.strip().split('|')
+replacement_ok = len(receipt_parts) == 4 and receipt_parts[:3] == ['/upload/update.txt', str(len(local_data)), hashlib.sha256(local_data).hexdigest()] and files.get(receipt_parts[3]) == b'original update' and files.get('/upload/update.txt') == local_data
+def rollback(name, previous, current, original, current_hash=None):
+    return subprocess.run([str(exe), str(port), str(key_path), str(hosts_path), '/upload', name, previous, str(len(current)), current_hash or hashlib.sha256(current).hexdigest(), str(len(original)), hashlib.sha256(original).hexdigest(), 'test'], capture_output=True, text=True, timeout=75)
+rollback_ok = rollback('update.txt', receipt_parts[3].rsplit('/', 1)[-1] if len(receipt_parts) == 4 else 'invalid', local_data, b'original update')
+rollback_stale = rollback('rollback-stale.txt', '.webstudio-original-stale.bak', b'current stale', b'original rollback stale', '0' * 64)
+rollback_race = rollback('rollback-race.txt', '.webstudio-original-race.bak', b'current race', b'original rollback race')
+rollback_changed = rollback('rollback-changed.txt', '.webstudio-original-changed.bak', b'current changed', b'original rollback changed')
+rollback_postverify = rollback('rollback-postverify.txt', '.webstudio-original-postverify.bak', b'current postverify', b'original rollback postverify')
 thread.join(timeout=5)
 print(result.stdout, result.stderr)
 expected_inventory = {f'index.html:12:{hashlib.sha256(files["/site/index.html"]).hexdigest()}', f'assets/image.png:7:{hashlib.sha256(files["/site/assets/image.png"]).hexdigest()}', f'empty.txt:0:{hashlib.sha256(b"").hexdigest()}'}
 expected_receipt = f'/upload/new.txt:{len(local_data)}:{hashlib.sha256(local_data).hexdigest()}'
 empty_receipt = f'/upload/empty.txt:0:{hashlib.sha256(b"").hexdigest()}'
-receipt_parts = replacement.stdout.strip().split('|')
-replacement_ok = len(receipt_parts) == 4 and receipt_parts[:3] == ['/upload/update.txt', str(len(local_data)), hashlib.sha256(local_data).hexdigest()] and files.get(receipt_parts[3]) == b'original update' and files.get('/upload/update.txt') == local_data
 replacement_failures_ok = stale.returncode != 0 and files.get('/upload/stale.txt') == b'original stale' and race.returncode != 0 and files.get('/upload/race.txt') == b'concurrent update' and b'original race' in files.values() and changed_original.returncode != 0 and files.get('/upload/changed-original.txt') == b'Xriginal change' and postverify_replacement.returncode != 0 and b'original postverify' in files.values()
-if result.returncode or rejected.returncode == 0 or download.returncode or existing.returncode == 0 or oversize.returncode == 0 or unsafe.returncode == 0 or inventory.returncode or links.returncode == 0 or changed.returncode == 0 or scan.returncode or scan_existing.returncode == 0 or backup.returncode or backup_existing.returncode == 0 or links_backup.returncode == 0 or collision_backup.returncode == 0 or reserved_backup.returncode == 0 or transfer.returncode or transfer.stdout.strip() != expected_receipt or collision.returncode == 0 or 'staging file may remain' not in collision.stdout or corrupt.returncode == 0 or postverify.returncode == 0 or 'inspect it before retrying' not in postverify.stdout or empty_transfer.returncode or empty_transfer.stdout.strip() != empty_receipt or replacement.returncode or not replacement_ok or not replacement_failures_ok or files.get('/upload/new.txt') != local_data or files.get('/upload/empty.txt') != b'' or files.get('/upload/existing.txt') != b'existing user data' or '/upload/corrupt.txt' in files or links_backup_path.exists() or collision_path.exists() or reserved_path.exists() or list(work.glob('.webstudio-backup-*')) or not backup_path.exists() or backup_path.read_bytes() != backup_contents or not scan_path.exists() or scan_path.read_bytes() != scan_contents or set(inventory.stdout.splitlines()) != expected_inventory or oversize_path.exists() or unsafe_path.exists() or not destination.exists() or destination.read_bytes() != snapshot or thread.is_alive():
-    print(download.stdout, download.stderr, existing.stdout, existing.stderr, inventory.stdout, inventory.stderr, scan.stdout, scan.stderr, scan_existing.stdout, scan_existing.stderr, backup.stdout, backup.stderr, links_backup.stdout, links_backup.stderr, transfer.stdout, transfer.stderr, collision.stdout, collision.stderr, corrupt.stdout, corrupt.stderr, replacement.stdout, stale.stdout, race.stdout, changed_original.stdout, postverify_replacement.stdout)
+rollback_parts = rollback_ok.stdout.strip().split('|')
+rollback_success = len(rollback_parts) == 4 and rollback_parts[:3] == ['/upload/update.txt', str(len(b'original update')), hashlib.sha256(b'original update').hexdigest()] and files.get('/upload/update.txt') == b'original update' and files.get(rollback_parts[3]) == local_data
+rollback_failures_ok = rollback_stale.returncode != 0 and files.get('/upload/rollback-stale.txt') == b'current stale' and rollback_race.returncode != 0 and files.get('/upload/rollback-race.txt') == b'concurrent rollback' and files.get('/upload/.webstudio-original-race.bak') == b'original rollback race' and b'current race' in files.values() and rollback_changed.returncode != 0 and files.get('/upload/rollback-changed.txt') == b'Xurrent changed' and files.get('/upload/.webstudio-original-changed.bak') == b'original rollback changed' and rollback_postverify.returncode != 0 and b'current postverify' in files.values()
+if result.returncode or rejected.returncode == 0 or download.returncode or existing.returncode == 0 or oversize.returncode == 0 or unsafe.returncode == 0 or inventory.returncode or links.returncode == 0 or changed.returncode == 0 or scan.returncode or scan_existing.returncode == 0 or backup.returncode or backup_existing.returncode == 0 or links_backup.returncode == 0 or collision_backup.returncode == 0 or reserved_backup.returncode == 0 or transfer.returncode or transfer.stdout.strip() != expected_receipt or collision.returncode == 0 or 'staging file may remain' not in collision.stdout or corrupt.returncode == 0 or postverify.returncode == 0 or 'inspect it before retrying' not in postverify.stdout or empty_transfer.returncode or empty_transfer.stdout.strip() != empty_receipt or replacement.returncode or not replacement_ok or not replacement_failures_ok or rollback_ok.returncode or not rollback_success or not rollback_failures_ok or files.get('/upload/new.txt') != local_data or files.get('/upload/empty.txt') != b'' or files.get('/upload/existing.txt') != b'existing user data' or '/upload/corrupt.txt' in files or links_backup_path.exists() or collision_path.exists() or reserved_path.exists() or list(work.glob('.webstudio-backup-*')) or not backup_path.exists() or backup_path.read_bytes() != backup_contents or not scan_path.exists() or scan_path.read_bytes() != scan_contents or set(inventory.stdout.splitlines()) != expected_inventory or oversize_path.exists() or unsafe_path.exists() or not destination.exists() or destination.read_bytes() != snapshot or thread.is_alive():
+    print(download.stdout, download.stderr, existing.stdout, existing.stderr, inventory.stdout, inventory.stderr, scan.stdout, scan.stderr, scan_existing.stdout, scan_existing.stderr, backup.stdout, backup.stderr, links_backup.stdout, links_backup.stderr, transfer.stdout, transfer.stderr, collision.stdout, collision.stderr, corrupt.stdout, corrupt.stderr, replacement.stdout, stale.stdout, race.stdout, changed_original.stdout, postverify_replacement.stdout, rollback_ok.stdout, rollback_stale.stdout, rollback_race.stdout, rollback_changed.stdout, rollback_postverify.stdout)
     raise SystemExit('Local SFTP connection test failed')
 manifest = json.loads(scan_contents)
 assert manifest['format'] == 'webstudio-website-manifest' and manifest['version'] == 1

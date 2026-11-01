@@ -34,6 +34,12 @@ function ReplaceSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
 { Replacement is also internal. The caller must first review the full diff,
   back up the destination, and obtain explicit publication confirmation. The
   original is retained under the receipt's PreviousPath; it is never deleted. }
+{ Internal rollback primitive; not connected to the UI. Both files must match
+  reviewed hashes. The displaced current file is retained, never deleted. }
+function RestoreSftpOriginal(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RemoteName, PreviousName: string;
+  CurrentSize: UInt64; const CurrentSha256: string; OriginalSize: UInt64;
+  const OriginalSha256: string): TSftpTransferReceipt;
 
 implementation
 
@@ -61,6 +67,9 @@ type
     procedure RenameNoReplace(const OldPath, NewPath: string);
     function UploadFile(const RemoteDirectory, RemoteName: string; Source: TStream;
       Replacing: Boolean; ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
+    function RestoreOriginal(const RemoteDirectory, RemoteName, PreviousName: string;
+      CurrentSize: UInt64; const CurrentSha256: string; OriginalSize: UInt64;
+      const OriginalSha256: string): TSftpTransferReceipt;
     procedure ScanDirectory(const Root, Relative: string; Depth: Integer);
   public
     constructor Create(const Host, UserName, KeyFile, KnownHostsFile: string; Port: Word);
@@ -587,6 +596,83 @@ begin
   end;
 end;
 
+function TSftpScanner.RestoreOriginal(const RemoteDirectory, RemoteName, PreviousName: string;
+  CurrentSize: UInt64; const CurrentSha256: string; OriginalSize: UInt64;
+  const OriginalSha256: string): TSftpTransferReceipt;
+var
+  Root, Part, TargetPath, PreviousPath, DisplacedPath: string;
+  Index: Integer;
+  UniqueId: TGUID;
+  MoveAttempted, CurrentMoved, OriginalRestored: Boolean;
+begin
+  if (RemoteDirectory = '') or (Length(RemoteDirectory) > 1024) or (RemoteDirectory[1] <> '/') or (Pos('\', RemoteDirectory) > 0) then
+    raise EArgumentException.Create('Enter an absolute SFTP destination folder.');
+  for Part in RemoteDirectory.Split(['/']) do
+    if (Part = '.') or (Part = '..') then raise EArgumentException.Create('Invalid destination folder.');
+  for Index := 1 to Length(RemoteDirectory) do
+    if RemoteDirectory[Index] < #32 then raise EArgumentException.Create('Invalid destination folder.');
+  if (RemoteName = '') or (RemoteName = '.') or (RemoteName = '..') or
+     (Pos('/', RemoteName) > 0) or (Pos('\', RemoteName) > 0) or
+     (Length(TEncoding.UTF8.GetBytes(RemoteName)) > 255) then
+    raise EArgumentException.Create('Invalid destination filename.');
+  for Index := 1 to Length(RemoteName) do
+    if RemoteName[Index] < #32 then raise EArgumentException.Create('Invalid destination filename.');
+  if not PreviousName.StartsWith('.webstudio-original-') or not PreviousName.EndsWith('.bak') or
+     (Length(PreviousName) > 255) or (Pos('/', PreviousName) > 0) or (Pos('\', PreviousName) > 0) then
+    raise EArgumentException.Create('Choose an original file from a replacement receipt.');
+  for Index := 1 to Length(PreviousName) do
+    if PreviousName[Index] < #32 then raise EArgumentException.Create('Invalid original filename.');
+  if (CurrentSize > 64 * 1024 * 1024) or (OriginalSize > 64 * 1024 * 1024) or
+     (Length(CurrentSha256) <> 64) or (Length(OriginalSha256) <> 64) then
+    raise EArgumentException.Create('The reviewed rollback metadata is invalid.');
+  for Index := 1 to 64 do
+    if not CharInSet(CurrentSha256[Index], ['0'..'9', 'a'..'f', 'A'..'F']) or
+       not CharInSet(OriginalSha256[Index], ['0'..'9', 'a'..'f', 'A'..'F']) then
+      raise EArgumentException.Create('The reviewed rollback checksum is invalid.');
+  Root := RemoteDirectory;
+  if not Root.EndsWith('/') then Root := Root + '/';
+  TargetPath := Root + RemoteName;
+  PreviousPath := Root + PreviousName;
+  if TargetPath = PreviousPath then raise EArgumentException.Create('The original and destination must be different files.');
+  if CreateGUID(UniqueId) <> 0 then raise EInvalidOpException.Create('Could not create a rollback staging filename.');
+  DisplacedPath := Root + '.webstudio-displaced-' + GUIDToString(UniqueId) + '.bak';
+  Initialize;
+  RequireRegularFile(TargetPath, CurrentSize);
+  if HashFile(TargetPath, CurrentSize) <> LowerCase(CurrentSha256) then
+    raise EInvalidOpException.Create('The destination file no longer matches the reviewed scan.');
+  RequireRegularFile(PreviousPath, OriginalSize);
+  if HashFile(PreviousPath, OriginalSize) <> LowerCase(OriginalSha256) then
+    raise EInvalidOpException.Create('The retained original no longer matches the reviewed receipt.');
+  MoveAttempted := False; CurrentMoved := False; OriginalRestored := False;
+  try
+    MoveAttempted := True;
+    RenameNoReplace(TargetPath, DisplacedPath);
+    CurrentMoved := True;
+    RequireRegularFile(DisplacedPath, CurrentSize);
+    if HashFile(DisplacedPath, CurrentSize) <> LowerCase(CurrentSha256) then
+      raise EInvalidOpException.Create('The destination file changed after review.');
+    RenameNoReplace(PreviousPath, TargetPath);
+    OriginalRestored := True;
+    RequireRegularFile(TargetPath, OriginalSize);
+    if HashFile(TargetPath, OriginalSize) <> LowerCase(OriginalSha256) then
+      raise EInvalidOpException.Create('The restored file verification failed.');
+    Result.Path := TargetPath;
+    Result.Size := OriginalSize;
+    Result.Sha256 := LowerCase(OriginalSha256);
+    Result.PreviousPath := DisplacedPath;
+  except
+    on E: Exception do begin
+      if CurrentMoved and not OriginalRestored then begin
+        try RenameNoReplace(DisplacedPath, TargetPath) except end;
+      end;
+      if MoveAttempted then raise EInvalidOpException.Create(E.Message +
+        ' Inspect the destination at ' + TargetPath + ', the possible original at ' + PreviousPath +
+        ', and the possible displaced file at ' + DisplacedPath + ' before retrying.');
+      raise;
+    end;
+  end;
+end;
+
 function ScanSftpInventory(const Host, UserName, KeyFile, KnownHostsFile: string;
   Port: Word; const RemoteDirectory: string): TArray<TSftpInventoryEntry>;
 var Scanner: TSftpScanner;
@@ -685,6 +771,19 @@ begin
     Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
     try Result := Scanner.UploadFile(RemoteDirectory, RemoteName, Source, True, ExpectedSize, ExpectedSha256) finally Scanner.Free end;
   finally Source.Free end;
+end;
+
+function RestoreSftpOriginal(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RemoteName, PreviousName: string;
+  CurrentSize: UInt64; const CurrentSha256: string; OriginalSize: UInt64;
+  const OriginalSha256: string): TSftpTransferReceipt;
+var Scanner: TSftpScanner;
+begin
+  Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
+  try
+    Result := Scanner.RestoreOriginal(RemoteDirectory, RemoteName, PreviousName,
+      CurrentSize, CurrentSha256, OriginalSize, OriginalSha256);
+  finally Scanner.Free end;
 end;
 
 end.
