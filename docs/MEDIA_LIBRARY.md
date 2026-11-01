@@ -12,6 +12,8 @@ After importing an image, select a Hero, Image, Navbar or Footer block and use i
 
 In a Content block, use **Insert a link to Media** to add a text link to an imported file, including a PDF. You can edit the link label in the Body text. The website ZIP includes the linked file; this text link opens the file, while a PDF Viewer block provides the local viewer controls.
 
+To create a searchable list of files, add **Document library** from Components. In Properties, add document items and choose imported PDFs or other documents from Media. Edit each title and description as needed. Visitors can filter the list by title or description and download the files; searching does not examine document contents. The list and its local search work in the exported site without a server.
+
 Navbar logos appear in the editor and exported site. Footer logos are used in the simple and multi-column layouts; the minimal footer does not display a logo. These logo layouts constrain very wide images to 96 CSS pixels so the site name retains room on narrow screens. Other image blocks can be used for larger artwork.
 
 Duplicating a project also copies its media into the new project's library. Media references remain intact, and later changes to the copy do not change the original.

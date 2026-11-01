@@ -198,7 +198,7 @@ export function validateProjectMedia(config: SiteConfig, assets: unknown[]): voi
     portablePaths.add(path.toLowerCase())
     pathsById.set(id, path)
   }
-  const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery', 'pdfViewer', 'document', 'audio', 'mediaVideo'])
+  const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery', 'pdfViewer', 'document', 'documentLibrary', 'audio', 'mediaVideo'])
   const blocks = [...(config.pages ? config.pages.flatMap(page => page.blocks) : config.blocks), ...(config.webstudioReusableSections ?? []).map(section => section.block)]
   for (const block of blocks) {
     if (!knownTypes.has(block.type)) continue

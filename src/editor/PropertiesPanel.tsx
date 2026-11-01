@@ -16,6 +16,7 @@ interface FieldDef {
 
 const blockFields: Partial<Record<BlockType, { sections: { title: string; fields: FieldDef[] }[] }>> = {
   document: { sections: [{ title: 'Document', fields: [{ key: 'title', label: 'Title', type: 'text' }] }] },
+  documentLibrary: { sections: [{ title: 'Document library', fields: [{ key: 'title', label: 'Title', type: 'text' }, { key: 'items', label: 'Documents', type: 'array-items' }] }] },
   audio: { sections: [{ title: 'Audio', fields: [{ key: 'title', label: 'Title', type: 'text' }] }] },
   mediaVideo: { sections: [{ title: 'Video', fields: [{ key: 'title', label: 'Title', type: 'text' }] }] },
   pdfViewer: { sections: [{ title: 'PDF', fields: [
@@ -367,17 +368,19 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
   const mediaRevision = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.mediaRevision ?? 0)
   const [media, setMedia] = useState<{ projectId: string; revision: number; images: MediaAsset[] } | null>(null)
   const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image')) || (field.key === 'items' && block.type === 'features') || (field.key === 'members' && block.type === 'team'))
+  const documentItems = field.type === 'array-items' && block.type === 'documentLibrary' && field.key === 'items'
+  const mediaItems = imageItems || documentItems
   const imageKey = block.type === 'features' ? 'image' : block.type === 'team' ? 'avatar' : 'src'
   const contentMedia = block.type === 'content' && field.key === 'body' && field.type === 'textarea'
 
   useEffect(() => {
-    if (!portableProjectsEnabled || (field.type !== 'image' && !imageItems && !contentMedia) || !projectId) return
+    if (!portableProjectsEnabled || (field.type !== 'image' && !mediaItems && !contentMedia) || !projectId) return
     let active = true
     new ProjectMediaLibrary().list(projectId).then(assets => {
-      if (active) setMedia({ projectId, revision: mediaRevision, images: contentMedia ? assets : assets.filter(asset => asset.mime.startsWith('image/')) })
+      if (active) setMedia({ projectId, revision: mediaRevision, images: contentMedia ? assets : documentItems ? assets.filter(asset => !asset.mime.startsWith('image/') && !asset.mime.startsWith('audio/') && !asset.mime.startsWith('video/')) : assets.filter(asset => asset.mime.startsWith('image/')) })
     }).catch(() => { if (active) setMedia({ projectId, revision: mediaRevision, images: [] }) })
     return () => { active = false }
-  }, [field.type, imageItems, contentMedia, projectId, mediaRevision])
+  }, [field.type, mediaItems, documentItems, contentMedia, projectId, mediaRevision])
 
   // For variant field, it's on the block itself
   const value = field.key === 'variant'
@@ -579,6 +582,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
           features: { items: { title: '', description: '' } },
           image: { images: { src: '', alt: '' } },
           gallery: { images: { src: '', alt: '', caption: '' } },
+          documentLibrary: { items: { title: '', description: '', src: '' } },
         }
         return blockTemplates[block.type]?.[field.key] || { title: '', description: '' }
       }
@@ -598,7 +602,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                   Remove
                 </button>
               </div>
-              {Object.entries(imageItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(imageItems && key === 'assetId')).map(([key, val]) => (
+              {Object.entries(mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId')).map(([key, val]) => (
                 <div key={key} className="mb-1">
                   <label className="block text-[10px] text-text-3 mb-0.5">{key}</label>
                   <input
@@ -608,7 +612,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                     onChange={(e) => {
                       const updated = [...items]
                       updated[i] = { ...updated[i], [key]: e.target.value }
-                      if (imageItems && key === imageKey) delete updated[i].assetId
+                      if (mediaItems && key === imageKey) delete updated[i].assetId
                       onChange(updated)
                     }}
                     className="w-full px-1.5 py-1 rounded border border-border-subtle bg-bg-3 text-text-0 text-[11px] outline-none focus:border-green"
@@ -626,18 +630,18 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                     <option value="">Choose a site page...</option>
                     {(pages ?? []).filter(page => page.webstudioArticle?.status !== 'draft').map(page => <option key={page.id} value={page.path}>{page.name} ({page.path})</option>)}
                   </select>}
-                  {imageItems && key === imageKey && portableProjectsEnabled && images.length > 0 && <select
-                    aria-label={`Choose image for ${field.label} item ${i + 1}`}
+                  {mediaItems && key === imageKey && portableProjectsEnabled && images.length > 0 && <select
+                    aria-label={`Choose ${documentItems ? 'document' : 'image'} for ${field.label} item ${i + 1}`}
                     value={images.some(image => image.path === val) ? val : ''}
                     onChange={event => {
                       const image = images.find(candidate => candidate.path === event.target.value)
                       if (!image) return
                       const updated = [...items]
-                      updated[i] = { ...updated[i], [imageKey]: image.path, assetId: image.id }
+                      updated[i] = { ...updated[i], [imageKey]: image.path, assetId: image.id, ...(documentItems && !updated[i].title ? { title: image.name } : {}) }
                       onChange(updated)
                     }}
                     className="mt-1 w-full px-1.5 py-1 rounded border border-border-subtle bg-bg-3 text-text-0 text-[11px] outline-none focus:border-green">
-                    <option value="">Choose an image from Media...</option>
+                    <option value="">Choose {documentItems ? 'a document' : 'an image'} from Media...</option>
                     {images.map(image => <option key={image.id} value={image.path}>{image.name}</option>)}
                   </select>}
                 </div>

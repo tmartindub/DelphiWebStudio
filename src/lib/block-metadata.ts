@@ -10,6 +10,7 @@ export interface BlockMeta {
 }
 
 export const blockMetadata: BlockMeta[] = [
+  { type: 'documentLibrary', label: 'Document library', description: 'Searchable list of documents', category: 'Media', variants: ['default'], defaultProps: { title: 'Documents', items: [] } },
   {
     type: 'navbar',
     label: 'Navbar',

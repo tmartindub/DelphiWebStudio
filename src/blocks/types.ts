@@ -20,6 +20,7 @@ export type BlockType =
   | 'gallery'
   | 'pdfViewer'
   | 'document'
+  | 'documentLibrary'
   | 'audio'
   | 'mediaVideo'
 

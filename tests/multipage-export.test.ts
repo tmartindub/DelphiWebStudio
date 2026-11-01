@@ -114,6 +114,19 @@ describe('multi-page export', () => {
     expect(html).not.toContain('Open or download PDF')
   })
 
+  it('exports a searchable document library with local links on nested pages', async () => {
+    const site = structuredClone(config)
+    site.pages![1].blocks = [{ id: 'docs', type: 'documentLibrary', variant: 'default', props: { title: 'Library', items: [{ title: 'Bulletin', description: 'Community news', src: 'assets/example.pdf', assetId: 'example' }] } }]
+    const media = [{ id: 'example', projectId: 'p', name: 'bulletin.pdf', path: 'assets/example.pdf', mime: 'application/pdf', size: 9, sha256: '3c87d37f1dbea6909f917ce437c390fb8e655a774387d9e69301c0b2283d5b63', content: new Blob(['%PDF-test'], { type: 'application/pdf' }) }]
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site, undefined, media)).arrayBuffer())
+    const html = await zip.file('community/news.html')!.async('string')
+    expect(html).toContain('href="../assets/example.pdf"')
+    expect(html).toContain('data-library-search')
+    expect(html).toContain('data-library-item')
+    expect(html).toContain("querySelectorAll('[data-document-library]')")
+    expect(await zip.file('assets/example.pdf')!.async('string')).toBe('%PDF-test')
+  })
+
   it('retains an alternating feature image on a nested page', async () => {
     const site = structuredClone(config)
     site.pages![1].blocks = [{ id: 'feature', type: 'features', variant: 'alternating', props: { title: 'Stories', items: [{ title: 'Photo', description: 'Example', image: 'assets/photo.png' }] } }]

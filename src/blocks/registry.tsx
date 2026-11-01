@@ -22,6 +22,7 @@ import { VideoBlock } from './video/VideoBlock'
 import { GalleryBlock } from './gallery/GalleryBlock'
 import { PdfBlock } from './pdf/PdfBlock'
 import { MediaBlock } from './media/MediaBlock'
+import { DocumentLibraryBlock } from './media/DocumentLibraryBlock'
 
 // Error boundary for individual blocks
 class BlockErrorBoundary extends Component<
@@ -82,6 +83,7 @@ const blockRenderers: Record<string, React.ComponentType<{ block: BlockConfig }>
   gallery: GalleryBlock,
   pdfViewer: PdfBlock,
   document: MediaBlock,
+  documentLibrary: DocumentLibraryBlock,
   audio: MediaBlock,
   mediaVideo: MediaBlock,
 }

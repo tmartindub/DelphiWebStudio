@@ -1212,6 +1212,7 @@ function renderBlock(block: BlockConfig): string {
     case 'video':
     case 'gallery':
     case 'document':
+    case 'documentLibrary':
     case 'audio':
     case 'mediaVideo':
       return renderToStaticMarkup(createElement(RenderBlock, { block }))
@@ -1253,6 +1254,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
     const html = renderBlock(block)
     return classes.length ? `<div class="${classes.join(' ')}">${html}</div>` : html
   }).join('\n\n')}</main>`
+  const documentLibraryScript = config.blocks.some(block => block.type === 'documentLibrary') ? `<script>document.querySelectorAll('[data-document-library]').forEach(function(library){var search=library.querySelector('[data-library-search]');search.addEventListener('input',function(){var query=search.value.toLocaleLowerCase();library.querySelectorAll('[data-library-item]').forEach(function(item){item.style.display=item.textContent.toLocaleLowerCase().includes(query)?'':'none';});});});</script>` : ''
 
   const pageTitle = (settings?.seoTitle || settings?.siteName || config.name || 'Website').trim()
   const pageDescription = (settings?.seoDescription || settings?.siteDescription || '').trim()
@@ -1423,6 +1425,7 @@ ${posthogScript}
 <!-- WEBSTUDIO_PAGE_NAV -->
 
 ${blocksHtml}
+${documentLibraryScript}
 ${faqScript}
 ${contactScript}
 </body>
@@ -1441,7 +1444,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
   const allPages = validated.pages!
   const pages = allPages.filter(page => page.webstudioArticle?.status !== 'draft')
   const articles = pages.filter(page => page.webstudioArticle?.status === 'ready')
-  const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery', 'pdfViewer', 'document', 'audio', 'mediaVideo'])
+  const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery', 'pdfViewer', 'document', 'documentLibrary', 'audio', 'mediaVideo'])
   for (const page of pages) {
     const unknown = page.blocks.find(block => !knownTypes.has(block.type))
     if (unknown) throw new Error(`Page ${page.name} contains unsupported block ${unknown.type}; it cannot be exported safely.`)
