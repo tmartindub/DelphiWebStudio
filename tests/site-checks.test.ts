@@ -12,9 +12,11 @@ const config: SiteConfig = { name: 'Community', pages: [
 describe('local site checks', () => {
   it('recognizes an HTTPS contact service and rejects an unsafe configured service', () => {
     const copy = structuredClone(config)
-    copy.pages![0].blocks.push({ id: 'contact-service', type: 'contact', variant: 'form', props: { formEndpoint: 'https://forms.example.test/submit' } })
+    copy.pages![0].blocks.push({ id: 'contact-service', type: 'contact', variant: 'form', props: { formEndpoint: 'https://forms.example.test/submit', consentNotice: 'I agree to the privacy notice.' } })
     copy.blocks = copy.pages![0].blocks
     expect(checkSite(copy).some(issue => issue.blockId === 'contact-service')).toBe(false)
+    copy.pages![0].blocks.at(-1)!.props.consentNotice = ''
+    expect(checkSite(copy).some(issue => issue.blockId === 'contact-service' && issue.message.includes('privacy and consent'))).toBe(true)
     copy.pages![0].blocks.at(-1)!.props.formEndpoint = 'http://forms.example.test/submit'
     expect(checkSite(copy).some(issue => issue.blockId === 'contact-service' && issue.message.includes('disabled'))).toBe(true)
     copy.pages![0].blocks.at(-1)!.props.formEndpoint = 'https://user:password@forms.example.test/submit'

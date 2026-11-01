@@ -1061,6 +1061,7 @@ function renderContact(block: BlockConfig): string {
   const subtitle = prop<string>(block.props, 'subtitle', '')
   const recipient = typeof block.props.recipientEmail === 'string' ? block.props.recipientEmail.trim() : ''
   const endpoint = typeof block.props.formEndpoint === 'string' ? block.props.formEndpoint.trim() : ''
+  const consent = typeof block.props.consentNotice === 'string' ? block.props.consentNotice.trim() : ''
   let validEndpoint = false
   try { const url = new URL(endpoint); validEndpoint = !/[\s\p{Cc}]/u.test(endpoint) && url.protocol === 'https:' && !url.username && !url.password && !url.hash } catch { /* no valid endpoint */ }
   const configured = endpoint ? validEndpoint : /^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/.test(recipient)
@@ -1090,6 +1091,7 @@ ${subtitleHtml}
             <label class="block text-[11.5px] text-text-2 mb-1.5 font-medium">Message
             <textarea name="message" required maxlength="4000" rows="4" placeholder="How can we help?" class="w-full px-3 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 resize-y transition-colors"></textarea></label>
           </div>
+          ${consent ? `<label class="flex gap-2 text-sm text-text-1"><input type="checkbox" name="consent" value="yes" required /> <span>${escapeHtml(consent)}</span></label>` : ''}
           <button type="submit" class="w-full py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all flex items-center justify-center gap-2">
             ${SVG_SEND}
             Send Message

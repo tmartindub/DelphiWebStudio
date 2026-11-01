@@ -14,11 +14,13 @@ const config: SiteConfig = { name: 'Example', pages, blocks: pages[0].blocks }
 describe('multi-page export', () => {
   it('exports configured HTTPS contact service forms and disables unsafe endpoints', async () => {
     const site = structuredClone(config)
-    site.pages![1].blocks.push({ id: 'contact-service', type: 'contact', variant: 'form', props: { formEndpoint: 'https://forms.example.test/submit?site=one&mode=post' } })
+    site.pages![1].blocks.push({ id: 'contact-service', type: 'contact', variant: 'form', props: { formEndpoint: 'https://forms.example.test/submit?site=one&mode=post', consentNotice: 'I agree to the privacy notice.' } })
     let zip = await JSZip.loadAsync(await (await exportSiteZip(site)).arrayBuffer())
     let html = await zip.file('community/news.html')!.async('string')
     expect(html).toContain('action="https://forms.example.test/submit?site=one&amp;mode=post" method="post"')
     expect(html).toContain('name="message" required')
+    expect(html).toContain('name="consent" value="yes" required')
+    expect(html).toContain('I agree to the privacy notice.')
     site.pages![1].blocks.at(-1)!.props.formEndpoint = 'http://forms.example.test/submit'
     zip = await JSZip.loadAsync(await (await exportSiteZip(site)).arrayBuffer())
     html = await zip.file('community/news.html')!.async('string')

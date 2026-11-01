@@ -7,12 +7,14 @@ interface ContactProps {
   subtitle?: string
   recipientEmail?: string
   formEndpoint?: string
+  consentNotice?: string
 }
 
 export function ContactBlock({ block }: { block: BlockConfig }) {
   const props = block.props as unknown as ContactProps
   const recipient = typeof props.recipientEmail === 'string' ? props.recipientEmail.trim() : ''
   const endpoint = typeof props.formEndpoint === 'string' ? props.formEndpoint.trim() : ''
+  const consent = typeof props.consentNotice === 'string' ? props.consentNotice.trim() : ''
   let validEndpoint = false
   try { const url = new URL(endpoint); validEndpoint = !/[\s\p{Cc}]/u.test(endpoint) && url.protocol === 'https:' && !url.username && !url.password && !url.hash } catch { /* no valid endpoint */ }
   const configured = endpoint ? validEndpoint : /^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/.test(recipient)
@@ -63,6 +65,7 @@ export function ContactBlock({ block }: { block: BlockConfig }) {
             />
             </label>
           </div>
+          {consent && <label className="flex gap-2 text-sm text-text-1"><input type="checkbox" name="consent" value="yes" required /> <span>{consent}</span></label>}
           <button
             className="w-full py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-lg flex items-center justify-center gap-2"
           >
