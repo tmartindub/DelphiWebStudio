@@ -6,6 +6,8 @@ OpenPage: copyright (c) 2026 Federico De Ponte, MIT. Preserve LICENSE and origin
 
 This is the baseline declared-license inventory. The accompanying `docs/THIRD_PARTY_LICENSE_TEXTS.txt` contains texts from installed non-development lockfile packages, including optional and build-only packages. It does not establish complete redistribution compliance. Before release, review applicable notices and MPL covered-source obligations, packaged fonts/media/PDF.js/models, WebView2 and Delphi redistributables. No model or new font was bundled in M0. Development tools are not automatically shipped.
 
+The table below is the original baseline, not a current version list. The lockfile was updated on 2026-11-01; current installed non-development versions and supplemental license texts are recorded in `docs/THIRD_PARTY_LICENSE_TEXTS.txt`. Consult `package-lock.json` for current dependency versions.
+
 The matching Microsoft WebView2 SDK 1.0.4314.35 license is supplied separately in `docs/WEBVIEW2_SDK_LICENSE.txt`; the x64 loader in that official package matches the tested loader by SHA-256. The separately installed WebView2 Runtime has its own terms.
 
 | Package path | Version | Declared license | Scope |
