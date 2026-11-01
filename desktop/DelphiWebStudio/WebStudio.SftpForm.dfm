@@ -37,7 +37,7 @@ object SftpForm: TSftpForm
     Height = 42
     AutoSize = False
     WordWrap = True
-    Caption = 'Use an SSH key and trusted hosts file. Scan or back up up to 512 MiB; backup files must be 64 MiB or less. Links are unsupported. No files are uploaded.'
+    Caption = 'Use an SSH key and trusted hosts file. Scan or back up up to 512 MiB; backup files must be 64 MiB or less. Links are unsupported. Uploads require a separate review and confirmation.'
   end
   object RemoteLabel: TLabel
     Left = 16
