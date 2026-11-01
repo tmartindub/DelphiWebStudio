@@ -42,7 +42,7 @@ begin
     Request.AddPair('messages', Messages);
     MessageObject := TJSONObject.Create;
     MessageObject.AddPair('role', 'user');
-    MessageObject.AddPair('content', 'Plan a noncommercial informational website based on this description. Return exactly five pages, each with a short name and a headline. Do not invent contact details, paid features, advertisements, donations, or signups. Description: ' + Text);
+    MessageObject.AddPair('content', 'Plan an informational website based on this description. Return exactly five distinct pages, beginning with Home, each with a short name and a headline. Use neutral headings; do not invent activities, schedules, services, business practices, contact details, paid features, advertisements, donations, or signups. Description: ' + Text);
     Messages.AddElement(MessageObject);
     FormatObject := TJSONObject.Create;
     Request.AddPair('response_format', FormatObject);
