@@ -22,9 +22,11 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
   pdfViewer: { sections: [{ title: 'PDF', fields: [
     { key: 'title', label: 'Title', type: 'text' },
     { key: 'caption', label: 'Caption', type: 'text' },
+    { key: 'accessibilityLabel', label: 'Accessibility label', type: 'text' },
     { key: 'height', label: 'Height (px)', type: 'text' },
     { key: 'initialPage', label: 'Starting page', type: 'text' },
     { key: 'fitMode', label: 'Fit mode', type: 'select', options: ['auto', 'width', 'page'] },
+    { key: 'mobileMode', label: 'Mobile display', type: 'select', options: ['viewer', 'link'] },
     { key: 'showThumbnails', label: 'Show page thumbnails', type: 'checkbox' },
     { key: 'showSearch', label: 'Show search', type: 'checkbox' },
     { key: 'showPrint', label: 'Show print link', type: 'checkbox' },
@@ -514,7 +516,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
           <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{field.label}</label>
           <select
             aria-label={field.label}
-            value={String(value || (field.key === 'fitMode' ? 'auto' : ''))}
+            value={String(value || (field.key === 'fitMode' ? 'auto' : field.key === 'mobileMode' ? 'viewer' : ''))}
             onChange={(e) => onChange(e.target.value)}
             className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-2 text-text-0 text-xs outline-none focus:border-green cursor-pointer"
           >

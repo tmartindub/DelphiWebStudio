@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+.ws-pdf-mobile-link { display: none; }
+@container (max-width: 479px) {
+  .ws-pdf-mobile-link { display: block; }
+  .ws-pdf-viewer-when-wide { display: none; }
+}
+
 @theme {
   /* Background layers */
   --color-bg-0: #10223a;

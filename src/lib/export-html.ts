@@ -1220,6 +1220,7 @@ function renderBlock(block: BlockConfig): string {
       const src = String(block.props.src || '')
       if (!/^assets\/[a-zA-Z0-9._-]+\.pdf$/i.test(src)) throw new Error('PDF viewer requires a PDF from the media library.')
       const title = escapeHtml(String(block.props.title || 'PDF document'))
+      const accessibilityLabel = escapeHtml(typeof block.props.accessibilityLabel === 'string' && block.props.accessibilityLabel.trim() ? block.props.accessibilityLabel : String(block.props.title || 'PDF document'))
       const height = Math.max(200, Math.min(2000, Number(block.props.height) || 600))
       let viewer = `assets/pdfjs/viewer.html?file=${encodeURIComponent(`../${src.slice(7)}`)}`
       const initialPage = Number(block.props.initialPage)
@@ -1231,7 +1232,9 @@ function renderBlock(block: BlockConfig): string {
       }
       const caption = typeof block.props.caption === 'string' && block.props.caption ? `<p class="text-sm mb-3">${escapeHtml(block.props.caption)}</p>` : ''
       const download = block.props.showDownload !== false ? `<a href="${escapeHtml(src)}" class="text-green" download>Open or download PDF</a>` : ''
-      return `<section class="p-6"><h2 class="text-xl font-semibold mb-3">${title}</h2>${caption}<iframe src="${escapeHtml(viewer)}" title="${title}" style="width:100%;height:${height}px;border:0" allowfullscreen></iframe>${download}</section>`
+      const embedded = `<iframe src="${escapeHtml(viewer)}" title="${accessibilityLabel}" style="width:100%;height:${height}px;border:0" allowfullscreen></iframe>${download}`
+      const content = block.props.mobileMode === 'link' ? `<a href="${escapeHtml(src)}" class="ws-pdf-mobile-link text-green" download>Open or download PDF</a><div class="ws-pdf-viewer-when-wide">${embedded}</div>` : embedded
+      return `<section class="p-6"><h2 class="text-xl font-semibold mb-3">${title}</h2>${caption}${content}</section>`
     }
     default:
       return `  <!-- Unknown block type: ${escapeHtml(block.type)} -->`
@@ -1387,6 +1390,8 @@ ${ogDescriptionMeta}${ogImageMeta}${faviconLink}
 
     html { font-size: 14px; }
     *, *::before, *::after { box-sizing: border-box; }
+    .ws-pdf-mobile-link { display: none; }
+    @container (max-width: 479px) { .ws-pdf-mobile-link { display: block; } .ws-pdf-viewer-when-wide { display: none; } }
     @media (max-width: 479px) { .ws-hidden-mobile { display: none !important; } }
     @media (min-width: 480px) and (max-width: 899px) { .ws-hidden-tablet { display: none !important; } }
     @media (min-width: 900px) { .ws-hidden-desktop { display: none !important; } }

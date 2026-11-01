@@ -103,15 +103,17 @@ describe('multi-page export', () => {
   it('exports PDF starting page, caption and requested toolbar options', async () => {
     const site = structuredClone(config)
     site.pages![1].blocks = [{ id: 'pdf', type: 'pdfViewer', variant: 'default', props: {
-      title: 'Bulletin', caption: 'Read & enjoy', src: 'assets/example.pdf', initialPage: 3, fitMode: 'page', showThumbnails: true,
+      title: 'Bulletin', caption: 'Read & enjoy', accessibilityLabel: 'Community bulletin', mobileMode: 'link', src: 'assets/example.pdf', initialPage: 3, fitMode: 'page', showThumbnails: true,
       showSearch: false, showPrint: false, showDownload: false, showFullscreen: false,
     } }]
     const media = [{ id: 'example', projectId: 'p', name: 'bulletin.pdf', path: 'assets/example.pdf', mime: 'application/pdf', size: 9, sha256: '3c87d37f1dbea6909f917ce437c390fb8e655a774387d9e69301c0b2283d5b63', content: new Blob(['%PDF-test'], { type: 'application/pdf' }) }]
     const zip = await JSZip.loadAsync(await (await exportSiteZip(site, undefined, media)).arrayBuffer())
     const html = await zip.file('community/news.html')!.async('string')
     expect(html).toContain('Read &amp; enjoy')
+    expect(html).toContain('title="Community bulletin"')
+    expect(html).toContain('ws-pdf-mobile-link')
     expect(html).toContain('page=3&amp;fit=page&amp;thumbnails=1&amp;search=0&amp;print=0&amp;download=0&amp;fullscreen=0')
-    expect(html).not.toContain('Open or download PDF')
+    expect(html.match(/Open or download PDF/g)).toHaveLength(1)
   })
 
   it('exports a searchable document library with local links on nested pages', async () => {

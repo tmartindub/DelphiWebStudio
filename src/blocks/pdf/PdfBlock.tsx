@@ -8,6 +8,8 @@ GlobalWorkerOptions.workerSrc = workerUrl
 export function PdfBlock({ block }: { block: BlockConfig }) {
   const title = typeof block.props.title === 'string' ? block.props.title : 'PDF document'
   const caption = typeof block.props.caption === 'string' ? block.props.caption : ''
+  const accessibilityLabel = typeof block.props.accessibilityLabel === 'string' && block.props.accessibilityLabel.trim() ? block.props.accessibilityLabel : title
+  const mobileLink = block.props.mobileMode === 'link'
   const src = typeof block.props.src === 'string' ? block.props.src : ''
   const requestedHeight = Number(block.props.height)
   const height = Number.isFinite(requestedHeight) && requestedHeight >= 200 && requestedHeight <= 2000 ? requestedHeight : 600
@@ -150,6 +152,8 @@ export function PdfBlock({ block }: { block: BlockConfig }) {
       <h2 className="text-xl font-semibold mb-3">{title}</h2>
       {caption && <p className="text-sm mb-3">{caption}</p>}
       {src ? <>
+        {mobileLink && <a href={src} className="ws-pdf-mobile-link text-green" download>Open or download PDF</a>}
+        <div className={mobileLink ? 'ws-pdf-viewer-when-wide' : undefined}>
         <div className="flex flex-wrap items-center gap-3 mb-2 text-sm">
           <button type="button" disabled={!pdf || pageNumber <= 1} onClick={() => { searchRef.current++; setSearchState(null); setRendered(null); setPageState({ src, number: pageNumber - 1 }) }}>Previous</button>
           <label>Page <input aria-label="PDF page number" type="number" min={1} max={pdf?.numPages ?? 1} value={pageNumber} disabled={!pdf} onChange={event => {
@@ -176,7 +180,8 @@ export function PdfBlock({ block }: { block: BlockConfig }) {
           </button>)}
         </div>}
         <div ref={areaRef} style={{ height }} className="overflow-auto bg-bg-2 p-2">
-          <canvas key={`${src}:${pageNumber}:${width}:${zoom}:${height}:${fitMode}`} ref={canvasRef} aria-label={`Page ${pageNumber} of ${title}`} data-rendered={pageRendered ? 'true' : undefined} className="mx-auto bg-white" />
+          <canvas key={`${src}:${pageNumber}:${width}:${zoom}:${height}:${fitMode}`} ref={canvasRef} aria-label={`Page ${pageNumber} of ${accessibilityLabel}`} data-rendered={pageRendered ? 'true' : undefined} className="mx-auto bg-white" />
+        </div>
         </div>
       </> : <p>Select a PDF from the media library.</p>}
     </section>
