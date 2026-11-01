@@ -9,6 +9,11 @@ type
     Size: UInt64;
     Sha256: string;
   end;
+  TSftpTransferReceipt = record
+    Path: string;
+    Size: UInt64;
+    Sha256: string;
+  end;
 
 { Read-only SFTP directory inventory. Unsupported entries fail the scan. }
 function ScanSftpInventory(const Host, UserName, KeyFile, KnownHostsFile: string;
@@ -16,6 +21,12 @@ function ScanSftpInventory(const Host, UserName, KeyFile, KnownHostsFile: string
 procedure SaveSftpInventory(const Entries: TArray<TSftpInventoryEntry>; const Destination: string);
 procedure BackupSftpDestination(const Host, UserName, KeyFile, KnownHostsFile: string;
   Port: Word; const RemoteDirectory, Destination: string);
+{ Internal primitive, not connected to the UI. It relies on SFTP v3's
+  no-overwrite rename semantics and verifies a new file. It does not review a
+  deployment, back up the destination, replace existing files or restore them.
+  Do not expose it without the required review and explicit confirmation. }
+function UploadNewSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RemoteName, LocalFile: string): TSftpTransferReceipt;
 
 implementation
 
@@ -38,6 +49,8 @@ type
     function ReceivePacket: TBytesStream;
     function Request(Kind: Byte; const Value: TBytes; const Extra: TBytes = nil): TBytesStream;
     function HashFile(const RemotePath: string; ExpectedSize: UInt64; Capture: TStream = nil): string;
+    procedure Initialize;
+    function UploadNewFile(const RemoteDirectory, RemoteName: string; Source: TStream): TSftpTransferReceipt;
     procedure ScanDirectory(const Root, Relative: string; Depth: Integer);
   public
     constructor Create(const Host, UserName, KeyFile, KnownHostsFile: string; Port: Word);
@@ -375,8 +388,20 @@ begin
   finally Packet.Free end;
 end;
 
+procedure TSftpScanner.Initialize;
+var Packet: TBytesStream; Kind: Byte;
+begin
+  Packet := TBytesStream.Create;
+  try Kind := 1; Packet.WriteBuffer(Kind, 1); PutUInt32(Packet, 3); SendPacket(Packet) finally Packet.Free end;
+  Packet := ReceivePacket;
+  try
+    Packet.ReadBuffer(Kind, 1);
+    if (Kind <> 2) or (GetUInt32(Packet) <> 3) then raise EInvalidOpException.Create('The server does not support SFTP version 3.');
+  finally Packet.Free end;
+end;
+
 function TSftpScanner.Scan(const RemoteDirectory: string): TArray<TSftpInventoryEntry>;
-var Packet: TBytesStream; Kind: Byte; Path, Part: string; Index: Integer;
+var Path, Part: string; Index: Integer;
 begin
   if (RemoteDirectory = '') or (Length(RemoteDirectory) > 1024) or (RemoteDirectory[1] <> '/') or (Pos('\', RemoteDirectory) > 0) then
     raise EArgumentException.Create('Enter an absolute SFTP destination folder.');
@@ -386,15 +411,114 @@ begin
     if (Part = '.') or (Part = '..') then raise EArgumentException.Create('The destination folder cannot contain dot segments.');
   Path := RemoteDirectory;
   if not Path.EndsWith('/') then Path := Path + '/';
-  Packet := TBytesStream.Create;
-  try Kind := 1; Packet.WriteBuffer(Kind, 1); PutUInt32(Packet, 3); SendPacket(Packet) finally Packet.Free end;
-  Packet := ReceivePacket;
-  try
-    Packet.ReadBuffer(Kind, 1);
-    if (Kind <> 2) or (GetUInt32(Packet) <> 3) then raise EInvalidOpException.Create('The server does not support SFTP version 3.');
-  finally Packet.Free end;
+  Initialize;
   ScanDirectory(Path, '', 0);
   Result := FEntries.ToArray;
+end;
+
+function TSftpScanner.UploadNewFile(const RemoteDirectory, RemoteName: string; Source: TStream): TSftpTransferReceipt;
+var
+  Root, Part, TempPath, TargetPath, LocalHash, RemoteHash: string;
+  Index, ReadCount: Integer;
+  UniqueId: TGUID;
+  Packet, Extra: TBytesStream;
+  Handle, RequestData, Bytes: TBytes;
+  Kind: Byte;
+  Offset: UInt64;
+  Hash: THashSHA2;
+  Created, Renamed: Boolean;
+begin
+  if (RemoteDirectory = '') or (Length(RemoteDirectory) > 1024) or (RemoteDirectory[1] <> '/') or (Pos('\', RemoteDirectory) > 0) then
+    raise EArgumentException.Create('Enter an absolute SFTP destination folder.');
+  for Part in RemoteDirectory.Split(['/']) do
+    if (Part = '.') or (Part = '..') then raise EArgumentException.Create('Invalid destination folder.');
+  for Index := 1 to Length(RemoteDirectory) do
+    if RemoteDirectory[Index] < #32 then raise EArgumentException.Create('Invalid destination folder.');
+  if (RemoteName = '') or (RemoteName = '.') or (RemoteName = '..') or (Pos('/', RemoteName) > 0) or
+     (Pos('\', RemoteName) > 0) or (Length(TEncoding.UTF8.GetBytes(RemoteName)) > 255) then
+    raise EArgumentException.Create('Invalid destination filename.');
+  for Index := 1 to Length(RemoteName) do
+    if RemoteName[Index] < #32 then raise EArgumentException.Create('Invalid destination filename.');
+  if (Source.Size < 0) or (Source.Size > 64 * 1024 * 1024) then
+    raise EArgumentException.Create('The file exceeds the 64 MiB transfer limit.');
+  Root := RemoteDirectory;
+  if not Root.EndsWith('/') then Root := Root + '/';
+  TargetPath := Root + RemoteName;
+  if CreateGUID(UniqueId) <> 0 then raise EInvalidOpException.Create('Could not create a staging filename.');
+  TempPath := Root + '.webstudio-upload-' + GUIDToString(UniqueId) + '.tmp';
+  Initialize;
+  Created := False;
+  Renamed := False;
+  try
+    Extra := TBytesStream.Create;
+    try
+      PutUInt32(Extra, 2 or 8 or 32); PutUInt32(Extra, 0);
+      RequestData := Copy(Extra.Bytes, 0, Extra.Size);
+    finally Extra.Free end;
+    Packet := Request(3, TEncoding.UTF8.GetBytes(TempPath), RequestData);
+    try
+      Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
+      if Kind <> 102 then raise EInvalidOpException.Create('Cannot create the remote staging file.');
+      Handle := GetBytes(Packet);
+      if Length(Handle) > 256 then raise EInvalidOpException.Create('Invalid SFTP file handle.');
+      Created := True;
+    finally Packet.Free end;
+    Source.Position := 0;
+    Hash := THashSHA2.Create;
+    Offset := 0;
+    SetLength(Bytes, 2048);
+    repeat
+      ReadCount := Source.Read(Bytes[0], Length(Bytes));
+      if ReadCount = 0 then Break;
+      if Offset + UInt64(ReadCount) > UInt64(Source.Size) then
+        raise EInvalidOpException.Create('The local file changed during transfer.');
+      Hash.Update(Bytes[0], ReadCount);
+      Extra := TBytesStream.Create;
+      try
+        PutUInt32(Extra, Cardinal(Offset shr 32)); PutUInt32(Extra, Cardinal(Offset));
+        PutUInt32(Extra, ReadCount); Extra.WriteBuffer(Bytes[0], ReadCount);
+        RequestData := Copy(Extra.Bytes, 0, Extra.Size);
+      finally Extra.Free end;
+      Packet := Request(6, Handle, RequestData);
+      try
+        Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
+        if (Kind <> 101) or (GetUInt32(Packet) <> 0) then raise EInvalidOpException.Create('The remote write failed.');
+      finally Packet.Free end;
+      Inc(Offset, ReadCount);
+    until False;
+    if Offset <> UInt64(Source.Size) then raise EInvalidOpException.Create('The local file changed during transfer.');
+    Packet := Request(4, Handle);
+    try
+      Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
+      if (Kind <> 101) or (GetUInt32(Packet) <> 0) then raise EInvalidOpException.Create('Could not close the staged file.');
+    finally Packet.Free end;
+    LocalHash := LowerCase(Hash.HashAsString);
+    RemoteHash := HashFile(TempPath, Offset);
+    if LocalHash <> RemoteHash then raise EInvalidOpException.Create('The staged file verification failed.');
+    Extra := TBytesStream.Create;
+    try
+      PutBytes(Extra, TEncoding.UTF8.GetBytes(TargetPath));
+      RequestData := Copy(Extra.Bytes, 0, Extra.Size);
+    finally Extra.Free end;
+    Packet := Request(18, TEncoding.UTF8.GetBytes(TempPath), RequestData);
+    try
+      Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
+      if (Kind <> 101) or (GetUInt32(Packet) <> 0) then
+        raise EInvalidOpException.Create('The server refused to place the new file; it may already exist.');
+    finally Packet.Free end;
+    Renamed := True;
+    if HashFile(TargetPath, Offset) <> LocalHash then
+      raise EInvalidOpException.Create('The destination file verification failed.');
+    Result.Path := TargetPath;
+    Result.Size := Offset;
+    Result.Sha256 := LocalHash;
+  except
+    on E: Exception do begin
+      if Renamed then raise EInvalidOpException.Create(E.Message + ' The destination file may exist at ' + TargetPath + '; inspect it before retrying.');
+      if Created then raise EInvalidOpException.Create(E.Message + ' A staging file may remain at ' + TempPath + '.');
+      raise;
+    end;
+  end;
 end;
 
 function ScanSftpInventory(const Host, UserName, KeyFile, KnownHostsFile: string;
@@ -472,6 +596,17 @@ begin
     if TFile.Exists(TempZip) then DeleteFile(PChar(TempZip));
     RemoveDir(TempDirectory);
   end;
+end;
+
+function UploadNewSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RemoteName, LocalFile: string): TSftpTransferReceipt;
+var Scanner: TSftpScanner; Source: TFileStream;
+begin
+  Source := TFileStream.Create(LocalFile, fmOpenRead or fmShareDenyWrite);
+  try
+    Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
+    try Result := Scanner.UploadNewFile(RemoteDirectory, RemoteName, Source) finally Scanner.Free end;
+  finally Source.Free end;
 end;
 
 end.

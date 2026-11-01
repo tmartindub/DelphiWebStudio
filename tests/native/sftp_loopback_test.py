@@ -29,7 +29,19 @@ class Server(paramiko.ServerInterface):
         return paramiko.OPEN_SUCCEEDED if kind == 'session' else paramiko.OPEN_FAILED_ADMINISTRATIVELY_PROHIBITED
 
 snapshot = b'{"format":"webstudio-website-manifest","version":1,"files":[]}'
-files = {'/snapshot.json': snapshot, '/large.json': b'x' * (2 * 1024 * 1024 + 1), '/site/index.html': b'Hello world!', '/site/assets/image.png': b'picture', '/site/empty.txt': b'', '/changed/file.txt': b'four', '/collisions/a.txt': b'x', '/collisions/A.txt': b'y'}
+files = {'/snapshot.json': snapshot, '/large.json': b'x' * (2 * 1024 * 1024 + 1), '/site/index.html': b'Hello world!', '/site/assets/image.png': b'picture', '/site/empty.txt': b'', '/changed/file.txt': b'four', '/collisions/a.txt': b'x', '/collisions/A.txt': b'y', '/upload/existing.txt': b'existing user data'}
+corrupt_next_upload = False
+class Writer(paramiko.SFTPHandle):
+    def __init__(self, path, flags):
+        super().__init__(flags)
+        self.path = path
+    def write(self, offset, data):
+        current = files[self.path]
+        if offset != len(current):
+            return paramiko.SFTP_FAILURE
+        files[self.path] = current + data
+        return paramiko.SFTP_OK
+
 class Files(paramiko.SFTPServerInterface):
     def list_folder(self, path):
         if path not in ['/site', '/site/', '/site/assets', '/site/assets/', '/site/emptydir', '/site/emptydir/', '/links', '/links/', '/changed', '/changed/', '/collisions', '/collisions/', '/reserved', '/reserved/']:
@@ -53,15 +65,30 @@ class Files(paramiko.SFTPServerInterface):
     def lstat(self, path):
         return self.stat(path)
     def open(self, path, flags, attr):
+        if path.startswith('/upload/.webstudio-upload-') and flags & os.O_CREAT:
+            if path in files:
+                return paramiko.SFTP_FAILURE
+            files[path] = b''
+            return Writer(path, flags)
         if path not in files or flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC):
             return paramiko.SFTP_PERMISSION_DENIED
         handle = paramiko.SFTPHandle(flags)
-        handle.readfile = io.BytesIO(files[path])
+        content = files[path]
+        if corrupt_next_upload and path.startswith('/upload/.webstudio-upload-') and content:
+            content = b'X' + content[1:]
+        handle.readfile = io.BytesIO(content)
         return handle
+    def rename(self, oldpath, newpath):
+        if oldpath not in files or newpath in files:
+            return paramiko.SFTP_FAILURE
+        files[newpath] = files.pop(oldpath)
+        if newpath == '/upload/postverify.txt' and files[newpath]:
+            files[newpath] = b'X' + files[newpath][1:]
+        return paramiko.SFTP_OK
 
 def serve():
     try:
-        for _ in range(13):
+        for _ in range(18):
             connection, _ = listener.accept()
             transport = paramiko.Transport(connection)
             try:
@@ -109,11 +136,25 @@ collision_path = work / 'collisions.zip'
 collision_backup = subprocess.run([str(exe), str(port), str(key_path), str(hosts_path), '/collisions', str(collision_path), 'backup', 'zip'], capture_output=True, text=True, timeout=75)
 reserved_path = work / 'reserved.zip'
 reserved_backup = subprocess.run([str(exe), str(port), str(key_path), str(hosts_path), '/reserved', str(reserved_path), 'backup', 'zip'], capture_output=True, text=True, timeout=75)
+local_file = work / 'transfer fixture.txt'
+local_data = b'synthetic test data ' * 300
+local_file.write_bytes(local_data)
+transfer = subprocess.run([str(exe), str(port), str(key_path), str(hosts_path), '/upload', 'new.txt', str(local_file), 'test', 'only'], capture_output=True, text=True, timeout=75)
+collision = subprocess.run([str(exe), str(port), str(key_path), str(hosts_path), '/upload', 'existing.txt', str(local_file), 'test', 'only'], capture_output=True, text=True, timeout=75)
+corrupt_next_upload = True
+corrupt = subprocess.run([str(exe), str(port), str(key_path), str(hosts_path), '/upload', 'corrupt.txt', str(local_file), 'test', 'only'], capture_output=True, text=True, timeout=75)
+corrupt_next_upload = False
+postverify = subprocess.run([str(exe), str(port), str(key_path), str(hosts_path), '/upload', 'postverify.txt', str(local_file), 'test', 'only'], capture_output=True, text=True, timeout=75)
+empty_file = work / 'empty transfer.txt'
+empty_file.write_bytes(b'')
+empty_transfer = subprocess.run([str(exe), str(port), str(key_path), str(hosts_path), '/upload', 'empty.txt', str(empty_file), 'test', 'only'], capture_output=True, text=True, timeout=75)
 thread.join(timeout=5)
 print(result.stdout, result.stderr)
 expected_inventory = {f'index.html:12:{hashlib.sha256(files["/site/index.html"]).hexdigest()}', f'assets/image.png:7:{hashlib.sha256(files["/site/assets/image.png"]).hexdigest()}', f'empty.txt:0:{hashlib.sha256(b"").hexdigest()}'}
-if result.returncode or rejected.returncode == 0 or download.returncode or existing.returncode == 0 or oversize.returncode == 0 or unsafe.returncode == 0 or inventory.returncode or links.returncode == 0 or changed.returncode == 0 or scan.returncode or scan_existing.returncode == 0 or backup.returncode or backup_existing.returncode == 0 or links_backup.returncode == 0 or collision_backup.returncode == 0 or reserved_backup.returncode == 0 or links_backup_path.exists() or collision_path.exists() or reserved_path.exists() or list(work.glob('.webstudio-backup-*')) or not backup_path.exists() or backup_path.read_bytes() != backup_contents or not scan_path.exists() or scan_path.read_bytes() != scan_contents or set(inventory.stdout.splitlines()) != expected_inventory or oversize_path.exists() or unsafe_path.exists() or not destination.exists() or destination.read_bytes() != snapshot or thread.is_alive():
-    print(download.stdout, download.stderr, existing.stdout, existing.stderr, inventory.stdout, inventory.stderr, scan.stdout, scan.stderr, scan_existing.stdout, scan_existing.stderr, backup.stdout, backup.stderr, links_backup.stdout, links_backup.stderr)
+expected_receipt = f'/upload/new.txt:{len(local_data)}:{hashlib.sha256(local_data).hexdigest()}'
+empty_receipt = f'/upload/empty.txt:0:{hashlib.sha256(b"").hexdigest()}'
+if result.returncode or rejected.returncode == 0 or download.returncode or existing.returncode == 0 or oversize.returncode == 0 or unsafe.returncode == 0 or inventory.returncode or links.returncode == 0 or changed.returncode == 0 or scan.returncode or scan_existing.returncode == 0 or backup.returncode or backup_existing.returncode == 0 or links_backup.returncode == 0 or collision_backup.returncode == 0 or reserved_backup.returncode == 0 or transfer.returncode or transfer.stdout.strip() != expected_receipt or collision.returncode == 0 or 'staging file may remain' not in collision.stdout or corrupt.returncode == 0 or postverify.returncode == 0 or 'inspect it before retrying' not in postverify.stdout or empty_transfer.returncode or empty_transfer.stdout.strip() != empty_receipt or files.get('/upload/new.txt') != local_data or files.get('/upload/empty.txt') != b'' or files.get('/upload/existing.txt') != b'existing user data' or '/upload/corrupt.txt' in files or links_backup_path.exists() or collision_path.exists() or reserved_path.exists() or list(work.glob('.webstudio-backup-*')) or not backup_path.exists() or backup_path.read_bytes() != backup_contents or not scan_path.exists() or scan_path.read_bytes() != scan_contents or set(inventory.stdout.splitlines()) != expected_inventory or oversize_path.exists() or unsafe_path.exists() or not destination.exists() or destination.read_bytes() != snapshot or thread.is_alive():
+    print(download.stdout, download.stderr, existing.stdout, existing.stderr, inventory.stdout, inventory.stderr, scan.stdout, scan.stderr, scan_existing.stdout, scan_existing.stderr, backup.stdout, backup.stderr, links_backup.stdout, links_backup.stderr, transfer.stdout, transfer.stderr, collision.stdout, collision.stderr, corrupt.stdout, corrupt.stderr)
     raise SystemExit('Local SFTP connection test failed')
 manifest = json.loads(scan_contents)
 assert manifest['format'] == 'webstudio-website-manifest' and manifest['version'] == 1
@@ -125,4 +166,4 @@ with zipfile.ZipFile(backup_path) as archive:
     assert archive.read('index.html') == files['/site/index.html']
     assert archive.read('assets/image.png') == files['/site/assets/image.png']
     assert archive.read('empty.txt') == b''
-print('Local SFTP connection, recursive inventory and ZIP backup passed. No files were uploaded.')
+print('Local SFTP scan, ZIP backup and synthetic in-memory transfer checks passed. No website was published.')

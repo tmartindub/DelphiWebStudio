@@ -12,8 +12,14 @@ var
   Dialog: TSftpForm;
   Entry: TSftpInventoryEntry;
   Entries: TArray<TSftpInventoryEntry>;
+  Receipt: TSftpTransferReceipt;
 begin
   try
+    if ParamCount = 8 then begin
+      Receipt := UploadNewSftpFile('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(5), ParamStr(6));
+      Writeln(Receipt.Path, ':', Receipt.Size, ':', Receipt.Sha256);
+      Exit;
+    end;
     if ParamCount = 7 then begin
       BackupSftpDestination('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(5));
       Writeln('Backup saved.');
