@@ -40,8 +40,10 @@ export function JsonDrawer() {
   const replaceConfig = useConfigStore((s) => s.replaceConfig)
   const { jsonDrawerOpen, toggleJsonDrawer, activeProjectId } = useEditorStore()
   const settings = useProjectsStore((s) => s.projects.find(project => project.id === activeProjectId)?.settings)
+  const projectFile = useProjectsStore((s) => s.projects.find(project => project.id === activeProjectId)?.projectFile)
   const [editing, setEditing] = useState(false)
   const [pageSource, setPageSource] = useState<string | null>(null)
+  const [importedSelection, setImportedSelection] = useState<{ projectId: string | null; index: number } | null>(null)
   const [customDraft, setCustomDraft] = useState<{ projectId: string | null; pageId: string; pageName: string; baseline: string; html: string; css: string; js: string } | null>(null)
   const [showCustomPreview, setShowCustomPreview] = useState(false)
   const customPreviewAvailable = window.location.hostname !== 'webstudio.local'
@@ -51,6 +53,11 @@ export function JsonDrawer() {
 
   const jsonStr = JSON.stringify(config, null, 2)
   const highlighted = syntaxHighlight(jsonStr)
+  const importedFiles: { path: string; text: string }[] = Array.isArray(projectFile?.webstudioStaticSource)
+    ? projectFile.webstudioStaticSource.filter((item): item is { path: string; text: string } => !!item && typeof item === 'object' && typeof item.path === 'string' && typeof item.text === 'string')
+    : []
+  if (typeof projectFile?.webstudioWordPressSource === 'string') importedFiles.push({ path: 'WordPress export.xml', text: projectFile.webstudioWordPressSource })
+  const importedView = importedSelection?.projectId === activeProjectId ? importedSelection : null
 
   function startEditing() {
     setEditValue(jsonStr)
@@ -135,13 +142,15 @@ export function JsonDrawer() {
         className="h-8 min-h-8 bg-bg-1 border-b border-border-default flex items-center px-3 text-[11px] text-text-2 gap-2 select-none"
       >
         <span className="font-mono">{'{ }'}</span>
-        <span>{customDraft ? `Custom code: ${customDraft.pageName}` : pageSource === null ? 'Site Config' : 'Page HTML source'}</span>
+        <span>{customDraft ? `Custom code: ${customDraft.pageName}` : importedView ? 'Imported source' : pageSource === null ? 'Site Config' : 'Page HTML source'}</span>
 
         <div className="ml-auto flex items-center gap-2">
-          {!editing && !customDraft && pageSource === null && <button onClick={(e) => { e.stopPropagation(); editCustomCode() }} className="text-[10px] text-text-3 hover:text-green transition-colors">Custom HTML/CSS/JS</button>}
-          {!editing && !customDraft && pageSource === null && <button onClick={(e) => { e.stopPropagation(); inspectPageSource() }} className="text-[10px] text-text-3 hover:text-green transition-colors">Inspect page HTML</button>}
+          {!editing && !customDraft && !importedView && pageSource === null && <button onClick={(e) => { e.stopPropagation(); editCustomCode() }} className="text-[10px] text-text-3 hover:text-green transition-colors">Custom HTML/CSS/JS</button>}
+          {!editing && !customDraft && !importedView && pageSource === null && <button onClick={(e) => { e.stopPropagation(); inspectPageSource() }} className="text-[10px] text-text-3 hover:text-green transition-colors">Inspect page HTML</button>}
+          {!editing && !customDraft && !importedView && pageSource === null && importedFiles.length > 0 && <button onClick={() => setImportedSelection({ projectId: activeProjectId, index: 0 })} className="text-[10px] text-text-3 hover:text-green transition-colors">Inspect imported source</button>}
           {pageSource !== null && <button onClick={(e) => { e.stopPropagation(); setPageSource(null) }} className="text-[10px] text-text-3 hover:text-green transition-colors">Back to JSON</button>}
-          {!editing && !customDraft && pageSource === null && (
+          {importedView && <button onClick={() => setImportedSelection(null)} className="text-[10px] text-text-3 hover:text-green transition-colors">Back to JSON</button>}
+          {!editing && !customDraft && !importedView && pageSource === null && (
             <button
               onClick={(e) => { e.stopPropagation(); startEditing() }}
               className="text-[10px] text-text-3 hover:text-green transition-colors"
@@ -181,6 +190,12 @@ export function JsonDrawer() {
             {(['html', 'css', 'js'] as const).map(field => <label key={field} className="flex flex-col gap-1">{field.toUpperCase()}<textarea aria-label={`Custom ${field.toUpperCase()}`} value={customDraft[field]} onChange={event => setCustomDraft({ ...customDraft, [field]: event.target.value })} className="h-20 w-full bg-bg-2 border border-border-default rounded p-1 font-mono" spellCheck={false} /></label>)}
             <div className="flex gap-3"><button onClick={applyCustomCode}>Apply custom code</button>{customPreviewAvailable && <button onClick={() => setShowCustomPreview(true)}>Preview HTML/CSS</button>}<button onClick={() => { setCustomDraft(null); setShowCustomPreview(false) }}>Cancel draft</button></div>
             {showCustomPreview && <iframe title="Sandboxed custom code preview" sandbox="" className="w-full h-48 bg-white" srcDoc={`<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src data: 'unsafe-inline'; img-src data: blob:; font-src data:"><link rel="stylesheet" href="data:text/css;charset=utf-8,${encodeURIComponent(customDraft.css)}">${customDraft.html}`} />}
+          </div>
+        ) : importedView ? (
+          <div className="h-full flex flex-col gap-1">
+            <p className="text-text-2">Read-only original source. It is not executed here and may contain private information.</p>
+            <label>Imported source file <select aria-label="Imported source file" value={importedView.index} onChange={event => setImportedSelection({ projectId: activeProjectId, index: Number(event.target.value) })} className="bg-bg-2 text-text-1">{importedFiles.map((file, index) => <option key={index} value={index}>{file.path}</option>)}</select></label>
+            <textarea aria-label="Imported source text" readOnly value={importedFiles[importedView.index]?.text ?? ''} className="flex-1 w-full bg-transparent text-text-1 outline-none resize-none font-mono" spellCheck={false} />
           </div>
         ) : pageSource !== null ? (
           <div className="h-full flex flex-col gap-1">

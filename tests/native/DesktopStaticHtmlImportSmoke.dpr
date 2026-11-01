@@ -89,6 +89,27 @@ begin
       Value := MainForm.EditorBrowser.ExecuteScript('(()=>{const p=JSON.parse(localStorage.getItem("openpage-projects")||"{}").state?.projects;return p?.length===2 && p[0]?.projectFile?.webstudioStaticSource?.some(f=>f.text.includes("<script>"))})()', '');
     until (Value = 'true') or (GetTickCount64 >= Deadline);
     if Value <> 'true' then raise Exception.Create('Saved import did not reopen with its original HTML.');
-    Writeln('HTML and image import, save and reopen retained the original HTML, CSS and image.');
+    MainForm.EditorBrowser.ExecuteScript('document.body.dispatchEvent(new KeyboardEvent("keydown",{key:"j",bubbles:true}))');
+    Deadline := GetTickCount64 + 5000;
+    repeat
+      CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+      Value := MainForm.EditorBrowser.ExecuteScript('!!Array.from(document.querySelectorAll("#editor-code-panel button")).find(b=>b.textContent.trim()==="Inspect imported source")', '');
+    until (Value = 'true') or (GetTickCount64 >= Deadline);
+    if Value <> 'true' then raise Exception.Create('Imported source view control missing.');
+    MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("#editor-code-panel button")).find(b=>b.textContent.trim()==="Inspect imported source").click()');
+    Deadline := GetTickCount64 + 5000;
+    repeat
+      CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+      Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("textarea[aria-label=\"Imported source text\"]")?.value.includes("<script>") && window.htmlUnsafe === undefined', '');
+    until (Value = 'true') or (GetTickCount64 >= Deadline);
+    if Value <> 'true' then raise Exception.Create('Original HTML is not safely visible.');
+    MainForm.EditorBrowser.ExecuteScript('(()=>{const s=document.querySelector("select[aria-label=\"Imported source file\"]");s.value="2";s.dispatchEvent(new Event("change",{bubbles:true}))})()');
+    Deadline := GetTickCount64 + 5000;
+    repeat
+      CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+      Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("textarea[aria-label=\"Imported source text\"]")?.value.includes("color: blue")', '');
+    until (Value = 'true') or (GetTickCount64 >= Deadline);
+    if Value <> 'true' then raise Exception.Create('Original CSS is not visible.');
+    Writeln('HTML and image import, save, reopen and read-only source review passed.');
   finally Driver.Free; MainForm.Free end;
 end.

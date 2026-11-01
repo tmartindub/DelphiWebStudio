@@ -77,6 +77,20 @@ begin
       Value := MainForm.EditorBrowser.ExecuteScript('(()=>{const p=JSON.parse(localStorage.getItem("openpage-projects")||"{}").state?.projects;return p?.length===2 && p[0]?.projectFile?.webstudioWordPressSource?.includes("<script>")})()', '');
     until (Value = 'true') or (GetTickCount64 >= Deadline);
     if Value <> 'true' then raise Exception.Create('Saved import did not reopen with its original WXR.');
-    Writeln('WordPress preview, separate-project creation, save and reopen retained the original WXR.');
+    MainForm.EditorBrowser.ExecuteScript('document.body.dispatchEvent(new KeyboardEvent("keydown",{key:"j",bubbles:true}))');
+    Deadline := GetTickCount64 + 5000;
+    repeat
+      CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+      Value := MainForm.EditorBrowser.ExecuteScript('!!Array.from(document.querySelectorAll("#editor-code-panel button")).find(b=>b.textContent.trim()==="Inspect imported source")', '');
+    until (Value = 'true') or (GetTickCount64 >= Deadline);
+    if Value <> 'true' then raise Exception.Create('Imported source view control missing.');
+    MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("#editor-code-panel button")).find(b=>b.textContent.trim()==="Inspect imported source").click()');
+    Deadline := GetTickCount64 + 5000;
+    repeat
+      CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+      Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("textarea[aria-label=\"Imported source text\"]")?.value.includes("<script>") && window.wpUnsafe === undefined', '');
+    until (Value = 'true') or (GetTickCount64 >= Deadline);
+    if Value <> 'true' then raise Exception.Create('Original WXR is not safely visible.');
+    Writeln('WordPress import, save, reopen and read-only source review passed.');
   finally Driver.Free; MainForm.Free end;
 end.
