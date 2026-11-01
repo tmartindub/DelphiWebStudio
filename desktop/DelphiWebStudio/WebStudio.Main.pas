@@ -5,7 +5,8 @@ interface
 
 uses
   Winapi.Windows, Winapi.WebView2, System.SysUtils, System.Classes,
-  Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Edge, Vcl.Dialogs, Vcl.Menus;
+  Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Edge, Vcl.Dialogs, Vcl.Menus,
+  WebStudio.Bridge;
 
 type
   TMainForm = class(TForm)
@@ -31,6 +32,7 @@ type
     DiagnosticsItem: TMenuItem;
     DiagnosticsDialog: TTaskDialog;
     procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure EditorBrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HResult);
     procedure EditorBrowserNavigationStarting(Sender: TCustomEdgeBrowser; Args: TNavigationStartingEventArgs);
@@ -39,6 +41,7 @@ type
     procedure EditorBrowserNewWindowRequested(Sender: TCustomEdgeBrowser; Args: TNewWindowRequestedEventArgs);
     procedure EditorBrowserPermissionRequested(Sender: TCustomEdgeBrowser; Args: TPermissionRequestedEventArgs);
     procedure EditorBrowserDownloadStarting(Sender: TCustomEdgeBrowser; Args: TDownloadStartingEventArgs);
+    procedure EditorBrowserWebMessageReceived(Sender: TCustomEdgeBrowser; Args: TWebMessageReceivedEventArgs);
     procedure RecoverStageButtonClick(Sender: TObject);
     procedure BackupProjectItemClick(Sender: TObject);
     procedure RestoreBackupItemClick(Sender: TObject);
@@ -50,13 +53,14 @@ type
     FActiveProjectSaves: Integer;
     FCloseWarningShown: Boolean;
     FLocalAIWorking: Boolean;
+    FBridgeSession: TDesktopSession;
   end;
 
 var MainForm: TMainForm;
 
 implementation
 
-uses Winapi.ActiveX, System.IOUtils, System.Zip, System.JSON, System.UITypes,
+uses Winapi.ActiveX, System.IOUtils, System.Zip, System.JSON, System.UITypes, System.RegularExpressions,
   WebStudio.ProjectSave, WebStudio.LocalAIForm, WebStudio.LocalAIHost, WebStudio.SftpForm;
 
 {$R *.dfm}
@@ -243,6 +247,12 @@ begin
   except on E: Exception do StatusLabel.Caption := 'Unable to start the local editor: ' + E.Message end;
 end;
 
+procedure TMainForm.FormDestroy(Sender: TObject);
+begin
+  if Assigned(FBridgeSession) then FBridgeSession.Revoke;
+  FreeAndNil(FBridgeSession);
+end;
+
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   if FLocalAIWorking then begin
@@ -341,7 +351,7 @@ begin
     Exit;
   end;
   if Winapi.Windows.Failed(Sender.DefaultInterface.Get_Settings(Settings)) or (Settings = nil) or
-    Winapi.Windows.Failed(Settings.Set_IsWebMessageEnabled(0)) then begin
+    Winapi.Windows.Failed(Settings.Set_IsWebMessageEnabled(1)) then begin
     StatusLabel.Caption := 'WebView2 security settings could not be applied.';
     Exit;
   end;
@@ -356,6 +366,8 @@ end;
 procedure TMainForm.EditorBrowserNavigationStarting(Sender: TCustomEdgeBrowser; Args: TNavigationStartingEventArgs);
 var Address: PWideChar; Allowed: Boolean;
 begin
+  if Assigned(FBridgeSession) then FBridgeSession.Revoke;
+  FreeAndNil(FBridgeSession);
   Address := nil;
   Allowed := False;
   try
@@ -365,6 +377,64 @@ begin
     CoTaskMemFree(Address);
   end;
   if not Allowed then Args.ArgsInterface.Set_Cancel(1);
+end;
+
+procedure TMainForm.EditorBrowserWebMessageReceived(Sender: TCustomEdgeBrowser; Args: TWebMessageReceivedEventArgs);
+var
+  Source, Raw: PWideChar;
+  SourceText, RequestId, ProjectId, Kind: string;
+  Parsed: TJSONValue;
+  Obj, Reply: TJSONObject;
+  Request: TDesktopRequest;
+  Index: Integer;
+begin
+  Source := nil; Raw := nil;
+  try
+   try
+    if Failed(Args.ArgsInterface.Get_Source(Source)) or (Source = nil) or
+       Failed(Args.ArgsInterface.Get_webMessageAsJson(Raw)) or (Raw = nil) then Exit;
+    SourceText := string(Source);
+    if not SourceText.StartsWith('https://webstudio.local/') or (TEncoding.UTF8.GetByteCount(string(Raw)) > 16384) then Exit;
+    for Index := 1 to Length(SourceText) do if (Ord(SourceText[Index]) < 32) or (SourceText[Index] = '\') then Exit;
+    Parsed := TJSONObject.ParseJSONValue(string(Raw));
+    try
+      if not (Parsed is TJSONObject) then Exit;
+      Obj := TJSONObject(Parsed);
+      if Obj.TryGetValue<string>('kind', Kind) then begin
+        if (Obj.Count <> 4) or (Kind <> 'session.open') or
+           not (Obj.GetValue('version') is TJSONNumber) or (Obj.GetValue('version').Value <> '1') or
+           not (Obj.GetValue('requestId') is TJSONString) or not Obj.TryGetValue<string>('requestId', RequestId) or
+           not (Obj.GetValue('projectId') is TJSONString) or not Obj.TryGetValue<string>('projectId', ProjectId) or
+           not TRegEx.IsMatch(RequestId, '^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$') or
+           not TRegEx.IsMatch(ProjectId, '^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$') then Exit;
+        if Assigned(FBridgeSession) then FBridgeSession.Revoke;
+        FreeAndNil(FBridgeSession);
+        FBridgeSession := TDesktopSession.Create(ProjectId, [dcSiteExport]);
+        Reply := TJSONObject.Create;
+        try
+          Reply.AddPair('version', TJSONNumber.Create(1)); Reply.AddPair('kind', 'session.open');
+          Reply.AddPair('requestId', RequestId); Reply.AddPair('sessionId', FBridgeSession.SessionId);
+          Reply.AddPair('projectId', ProjectId);
+          Sender.DefaultInterface.PostWebMessageAsJson(PWideChar(Reply.ToJSON));
+        finally Reply.Free end;
+      end else begin
+        if not Assigned(FBridgeSession) then Exit;
+        Request := FBridgeSession.ValidateAndClaim(string(Raw), SourceText);
+        if Request.Capability <> dcSiteExport then Exit;
+        Reply := TJSONObject.Create;
+        try
+          Reply.AddPair('version', TJSONNumber.Create(1)); Reply.AddPair('requestId', Request.RequestId);
+          Reply.AddPair('capability', 'site.export'); Reply.AddPair('ok', TJSONBool.Create(True));
+          Sender.DefaultInterface.PostWebMessageAsJson(PWideChar(Reply.ToJSON));
+        finally Reply.Free end;
+      end;
+    finally Parsed.Free end;
+   except
+     { Invalid requests receive no grant and cannot access native file paths. }
+   end;
+  finally
+    CoTaskMemFree(Source); CoTaskMemFree(Raw);
+  end;
 end;
 
 procedure TMainForm.EditorBrowserNavigationCompleted(Sender: TCustomEdgeBrowser; IsSuccess: Boolean; WebErrorStatus: COREWEBVIEW2_WEB_ERROR_STATUS);

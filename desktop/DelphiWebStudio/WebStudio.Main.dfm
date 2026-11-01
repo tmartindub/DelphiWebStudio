@@ -9,6 +9,7 @@ object MainForm: TMainForm
   Menu = ProjectMenu
   Position = poScreenCenter
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
   OnCloseQuery = FormCloseQuery
   object StatusPanel: TPanel
     Left = 0
@@ -51,6 +52,7 @@ object MainForm: TMainForm
     OnNewWindowRequested = EditorBrowserNewWindowRequested
     OnPermissionRequested = EditorBrowserPermissionRequested
     OnDownloadStarting = EditorBrowserDownloadStarting
+    OnWebMessageReceived = EditorBrowserWebMessageReceived
   end
   object SaveDownloadDialog: TSaveDialog
     Filter = 'Project and website files|*.json;*.zip|All files|*.*'
