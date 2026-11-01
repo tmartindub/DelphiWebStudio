@@ -4,7 +4,7 @@ program SftpConnectionSmoke;
 
 uses
   Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils, Vcl.Forms, WebStudio.SftpConnection,
-  WebStudio.SftpForm, WebStudio.SftpInventory, WebStudio.DeploymentReview, WebStudio.DeploymentReviewForm;
+  WebStudio.SftpForm, WebStudio.SftpInventory, WebStudio.DeploymentReview, WebStudio.DeploymentPreflight, WebStudio.DeploymentReviewForm;
 
 var
   DirectoryName, KeyName, HostsName: string;
@@ -20,6 +20,47 @@ var
   Deadline: UInt64;
 begin
   try
+    if ParamCount = 17 then begin
+      Review := ReviewDeployment(ParamStr(5), ParamStr(6), ParamStr(7));
+      TFile.AppendAllText(ParamStr(5), 'changed after review');
+      CheckDeploymentPreflight(ParamStr(5), ParamStr(6), ParamStr(7), Review,
+        '127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4));
+      Writeln('Unexpectedly accepted modified input.');
+      Exit;
+    end;
+    if ParamCount = 16 then begin
+      Application.Initialize;
+      ReviewDialog := TDeploymentReviewForm.Create(nil);
+      try
+        ReviewDialog.SetConnection('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), ParamStr(1), ParamStr(4));
+        ReviewDialog.WebsiteEdit.Text := ParamStr(5);
+        ReviewDialog.ScanEdit.Text := ParamStr(6);
+        ReviewDialog.BackupEdit.Text := ParamStr(7);
+        ReviewDialog.ReviewButton.Click;
+        Deadline := GetTickCount64 + 30000;
+        while not ReviewDialog.ReviewButton.Enabled and (GetTickCount64 < Deadline) do begin
+          Application.ProcessMessages; CheckSynchronize(0); Sleep(10);
+        end;
+        if not ReviewDialog.CheckButton.Enabled then raise Exception.Create('Review did not enable the live check.');
+        ReviewDialog.CheckButton.Click;
+        Deadline := GetTickCount64 + 70000;
+        while not ReviewDialog.ReviewButton.Enabled and (GetTickCount64 < Deadline) do begin
+          Application.ProcessMessages; CheckSynchronize(0); Sleep(10);
+        end;
+        if not ReviewDialog.ReviewButton.Enabled or
+           (Pos('Destination matched', ReviewDialog.StatusLabel.Caption) = 0) then
+          raise Exception.Create('Native live check did not pass.');
+        Writeln('Native live check passed.');
+      finally ReviewDialog.Free end;
+      Exit;
+    end;
+    if ParamCount = 15 then begin
+      Review := ReviewDeployment(ParamStr(5), ParamStr(6), ParamStr(7));
+      CheckDeploymentPreflight(ParamStr(5), ParamStr(6), ParamStr(7), Review,
+        '127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4));
+      Writeln('Read-only preflight passed.');
+      Exit;
+    end;
     if ParamCount = 13 then begin
       Application.Initialize;
       ReviewDialog := TDeploymentReviewForm.Create(nil);
@@ -38,10 +79,11 @@ begin
            (Pos('Review complete', ReviewDialog.StatusLabel.Caption) = 0) or
            (Pos('New files: 1', ReviewDialog.ResultsMemo.Text) = 0) or
            (Pos('Changed files: 1', ReviewDialog.ResultsMemo.Text) = 0) or
-           (Pos('Only on destination: 1', ReviewDialog.ResultsMemo.Text) = 0) then
+           (Pos('Only on destination: 1', ReviewDialog.ResultsMemo.Text) = 0) or
+           not ReviewDialog.CheckButton.Enabled then
           raise Exception.Create('Native review dialog did not show the expected results.');
         ReviewDialog.WebsiteEdit.Text := 'changed input';
-        if ReviewDialog.ResultsMemo.Text <> '' then raise Exception.Create('Changed inputs did not clear the review.');
+        if (ReviewDialog.ResultsMemo.Text <> '') or ReviewDialog.CheckButton.Enabled then raise Exception.Create('Changed inputs did not clear the review.');
         Writeln('Native review dialog passed.');
       finally ReviewDialog.Free end;
       Exit;

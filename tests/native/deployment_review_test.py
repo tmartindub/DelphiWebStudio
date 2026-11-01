@@ -30,6 +30,11 @@ dialog = subprocess.run([str(exe), str(desired), str(scan), str(backup)] + ['tes
 if dialog.returncode or 'Native review dialog passed.' not in dialog.stdout:
     raise SystemExit('Native review dialog failed: ' + dialog.stdout + dialog.stderr)
 
+changed_input = work / 'website changed after review.zip'
+changed_input.write_bytes(desired.read_bytes())
+changed_result = subprocess.run([str(exe), '1', 'unused-key', 'unused-hosts', '/site', str(changed_input), str(scan), str(backup)] + ['test'] * 10, capture_output=True, text=True, timeout=30)
+assert changed_result.returncode != 0 and 'reviewed files changed' in changed_result.stdout.lower()
+
 bad_scan = work / 'bad-scan.json'
 data = json.loads(scan.read_text(encoding='utf8'))
 data['files'][0]['sha256'] = '0' * 64

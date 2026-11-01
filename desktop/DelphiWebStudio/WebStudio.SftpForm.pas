@@ -67,8 +67,8 @@ var Dialog: TDeploymentReviewForm;
 begin
   Dialog := TDeploymentReviewForm.Create(Self);
   try
-    Dialog.DestinationLabel.Caption := 'Entered destination (not checked during local review): ' +
-      Trim(HostEdit.Text) + ':' + Trim(PortEdit.Text) + ' ' + Trim(FolderEdit.Text);
+    Dialog.SetConnection(Trim(HostEdit.Text), Trim(UserEdit.Text), KeyEdit.Text,
+      HostsEdit.Text, Trim(PortEdit.Text), Trim(FolderEdit.Text));
     Dialog.ShowModal;
   finally Dialog.Free end;
 end;

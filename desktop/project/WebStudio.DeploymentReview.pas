@@ -3,6 +3,8 @@ unit WebStudio.DeploymentReview;
 
 interface
 
+uses WebStudio.SftpInventory;
+
 type
   TDeploymentTransfer = record
     Path: string;
@@ -17,6 +19,7 @@ type
     WebsiteSha256, ScanSha256, BackupSha256: string;
     Added, Changed, OnlyAtDestination: TArray<string>;
     Transfers: TArray<TDeploymentTransfer>;
+    DestinationFiles: TArray<TSftpInventoryEntry>;
   end;
 
 { Local review only: does not contact or change a destination. The caller must
@@ -26,7 +29,7 @@ function ReviewDeployment(const WebsiteZip, ScanFile, BackupZip: string): TDeplo
 implementation
 
 uses System.SysUtils, System.Classes, System.JSON, System.Zip, System.Hash,
-  System.Generics.Collections, WebStudio.SftpInventory;
+  System.Generics.Collections;
 
 procedure ValidatePath(const Path: string);
 var Part: string; Index: Integer;
@@ -208,6 +211,12 @@ begin
           Added.Sort; Changed.Sort; OnlyDestination.Sort;
           Result.Added := Added.ToStringArray; Result.Changed := Changed.ToStringArray;
           Result.OnlyAtDestination := OnlyDestination.ToStringArray;
+          SetLength(Result.DestinationFiles, Scan.Count);
+          Position := 0;
+          for Pair in Scan do begin
+            Result.DestinationFiles[Position] := Pair.Value;
+            Inc(Position);
+          end;
           SetLength(Result.Transfers, Added.Count + Changed.Count);
           Position := 0;
           for Index := 0 to Added.Count - 1 do begin

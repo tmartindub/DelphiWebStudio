@@ -100,13 +100,22 @@ object DeploymentReviewForm: TDeploymentReviewForm
     TabOrder = 7
     OnClick = ReviewButtonClick
   end
+  object CheckButton: TButton
+    Left = 355
+    Top = 467
+    Width = 120
+    Caption = 'Check destination'
+    Enabled = False
+    TabOrder = 8
+    OnClick = CheckButtonClick
+  end
   object CloseButton: TButton
     Left = 605
     Top = 467
     Width = 75
     Caption = 'Close'
     ModalResult = 2
-    TabOrder = 8
+    TabOrder = 9
   end
   object WebsiteDialog: TOpenDialog
     Filter = 'Website ZIP|*.zip'
