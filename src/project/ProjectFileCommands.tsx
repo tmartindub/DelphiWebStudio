@@ -402,12 +402,19 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       {wordpressPreview && <div role="region" aria-label="WordPress import report" className="basis-full rounded border border-border-default bg-bg-1 p-3 text-xs text-text-1">
         <p>Found {wordpressPreview.pages} pages and {wordpressPreview.posts} posts; {wordpressPreview.skipped} other items will not be converted. A separate project will be created.</p>
         <p>Text and recognized headings and links become editable. Original XML is retained as inactive project data and may include private author details. Layout, other formatting, unmatched links, media, plugins and themes need manual review; media must be imported separately. Posts and unpublished pages start as drafts; unpublished pages use article draft controls. The original file is not changed.</p>
+        {wordpressPreview.issueCount > 0 && <details className="mt-2">
+          <summary className="cursor-pointer">Review {wordpressPreview.issueCount} conversion {wordpressPreview.issueCount === 1 ? 'issue' : 'issues'}</summary>
+          <ul className="mt-1 max-h-40 overflow-y-auto break-all">{wordpressPreview.issues.map((issue, index) => <li key={index}>{issue.source}: {issue.reason}{issue.reference ? `: ${issue.reference}` : ''}</li>)}</ul>
+          {wordpressPreview.issueCount > wordpressPreview.issues.length && <p>Additional entries are not shown; review the retained XML.</p>}
+        </details>}
         <button type="button" disabled={mediaImporting} className="rounded px-2 py-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => {
           try {
             if (useEditorStore.getState().activeProjectId !== wordpressPreview.originalProjectId || useConfigStore.getState().config !== wordpressPreview.originalConfig) throw new Error('The current project changed. Select the WordPress export again.')
-            const id = useProjectsStore.getState().addProject(wordpressPreview.project.config.name, wordpressPreview.project)
+            const project = structuredClone(wordpressPreview.project)
+            project.webstudioWordPressImportReport = { issueCount: wordpressPreview.issueCount, issues: wordpressPreview.issues }
+            const id = useProjectsStore.getState().addProject(project.config.name, project)
             useEditorStore.getState().setActiveProject(id)
-            useConfigStore.getState().setConfig(wordpressPreview.project.config)
+            useConfigStore.getState().setConfig(project.config)
             setWordpressPreview(null)
             navigate('/editor')
             toast.success('WordPress content imported as a separate project. Review the conversion before exporting.')

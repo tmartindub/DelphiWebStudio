@@ -57,6 +57,7 @@ export function JsonDrawer() {
     ? projectFile.webstudioStaticSource.filter((item): item is { path: string; text: string } => !!item && typeof item === 'object' && typeof item.path === 'string' && typeof item.text === 'string')
     : []
   if (typeof projectFile?.webstudioWordPressSource === 'string') importedFiles.push({ path: 'WordPress export.xml', text: projectFile.webstudioWordPressSource })
+  if (projectFile?.webstudioWordPressImportReport && typeof projectFile.webstudioWordPressImportReport === 'object') importedFiles.push({ path: 'WordPress import report.json', text: JSON.stringify(projectFile.webstudioWordPressImportReport, null, 2) })
   if (projectFile?.webstudioStaticImportReport && typeof projectFile.webstudioStaticImportReport === 'object') importedFiles.push({ path: 'HTML import report.json', text: JSON.stringify(projectFile.webstudioStaticImportReport, null, 2) })
   const importedView = importedSelection?.projectId === activeProjectId ? importedSelection : null
 

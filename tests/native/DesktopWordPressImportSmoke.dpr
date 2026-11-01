@@ -49,6 +49,8 @@ begin
       Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("[aria-label=\"WordPress import report\"]")?.innerText.includes("1 pages and 1 posts") === true', '');
     until (Value = 'true') or (GetTickCount64 >= Deadline);
     if Value <> 'true' then raise Exception.Create('Import report missing: ' + MainForm.EditorBrowser.ExecuteScript('document.body.innerText', ''));
+    Value := MainForm.EditorBrowser.ExecuteScript('(()=>{const r=document.querySelector("[aria-label=\"WordPress import report\"]");return r.innerText.includes("5 conversion issues") && r.textContent.includes("attachment") && r.textContent.includes("media.jpg") && r.textContent.includes("Script or style") && r.textContent.includes("fragment was omitted") && r.textContent.includes("not matched")})()', '');
+    if Value <> 'true' then raise Exception.Create('WordPress conversion issues were not reported.');
     MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Create imported project").click()');
     Deadline := GetTickCount64 + 15000;
     repeat
@@ -65,6 +67,7 @@ begin
     Project := TJSONObject.ParseJSONValue(TFile.ReadAllText(TPath.Combine(Folder, 'wordpress-project.webstudio.json'), TEncoding.UTF8));
     try
       if not Assigned(Project) or not Project.GetValue<string>('webstudioWordPressSource').Contains('<script>') then raise Exception.Create('Original WXR was not retained.');
+      if Project.GetValue<TJSONObject>('webstudioWordPressImportReport').GetValue<TJSONArray>('issues').Count <> 5 then raise Exception.Create('WordPress import report was not retained.');
       if Project.GetValue<TJSONObject>('config').GetValue<TJSONArray>('pages').Count <> 3 then raise Exception.Create('Imported page count differs.');
       if not Project.GetValue<TJSONObject>('config').ToJSON.Contains('Welcome from WordPress') then raise Exception.Create('Editable content missing.');
       if not Project.GetValue<TJSONObject>('config').ToJSON.Contains('## Welcome from WordPress') then raise Exception.Create('Imported heading missing.');
@@ -94,6 +97,13 @@ begin
       Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("textarea[aria-label=\"Imported source text\"]")?.value.includes("<script>") && window.wpUnsafe === undefined', '');
     until (Value = 'true') or (GetTickCount64 >= Deadline);
     if Value <> 'true' then raise Exception.Create('Original WXR is not safely visible.');
-    Writeln('WordPress import, save, reopen and read-only source review passed.');
+    MainForm.EditorBrowser.ExecuteScript('(()=>{const s=document.querySelector("select[aria-label=\"Imported source file\"]");s.value="1";s.dispatchEvent(new Event("change",{bubbles:true}))})()');
+    Deadline := GetTickCount64 + 5000;
+    repeat
+      CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+      Value := MainForm.EditorBrowser.ExecuteScript('document.querySelector("textarea[aria-label=\"Imported source text\"]")?.value.includes("media.jpg") && document.querySelector("textarea[aria-label=\"Imported source text\"]")?.value.includes("attachment")', '');
+    until (Value = 'true') or (GetTickCount64 >= Deadline);
+    if Value <> 'true' then raise Exception.Create('Retained WordPress report is not visible.');
+    Writeln('WordPress conversion report, save, reopen and read-only review passed.');
   finally Driver.Free; MainForm.Free end;
 end.
