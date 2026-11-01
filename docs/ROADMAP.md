@@ -16,6 +16,8 @@ Last changed: 2026-10-29. Milestones are acceptance gates, not completed-feature
 
 Use small feature branches and PRs. M0 includes docs/evidence/CI and minimal lint fixes. M1 project controls are enabled by default, and its specified five-page exit scenario has passed isolated testing. The browser prototype does not complete the required Delphi product. Translation is deferred. Formal guides/help remain separate requested deliverables.
 
-M2's specified no-code build-and-export scenario passed an automated browser check using the current editor; independent testing by a nontechnical user has not been observed. The desktop app does not currently preview custom HTML/CSS inside its blocked frame. M3 is the next milestone under review.
+M2's specified no-code build-and-export scenario passed an automated browser check using the current editor; independent testing by a nontechnical user has not been observed. The desktop app does not currently preview custom HTML/CSS inside its blocked frame.
+
+M3's specified mixed-media offline scenario passed on the current editor with two images, a PDF and a text file. The four files survived save, reopen and export byte-for-byte, and images and PDF displayed with external requests blocked. M4 is the next milestone under review.
 
 Tracking: [issues 1–9](https://github.com/tmartindub/DelphiWebStudio/issues) correspond to M0–M8, each assigned to its matching GitHub milestone.

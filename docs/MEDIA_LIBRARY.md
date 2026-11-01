@@ -1,6 +1,6 @@
 # Media library and PDF viewer
 
-Last changed: 2026-10-29. Experimental M3 increment; enable `VITE_WEBSTUDIO_PROJECTS=true`.
+Last changed: 2026-11-01. The specified M3 mixed-media offline exit scenario has passed an automated browser check on the current editor. Project controls are enabled by default.
 
 Select a PDF Viewer section to set its title, caption, starting page, height, fit mode, and whether page thumbnails, search, print, download, and fullscreen controls appear. Thumbnails can be selected to go to a page. Auto fits the width without enlarging the original; width fills the available width; page fits the whole page in the viewer. Fit enlargement is capped at four times the PDF's original size. Starting pages beyond the document are clamped to its last page. Hiding a download or print link does not protect a PDF on a public website: visitors can still retrieve the file. The print link opens the PDF in the browser for printing.
 
@@ -33,6 +33,8 @@ The PDF preview and exported viewer initially fit pages to the available width w
 Validation included a browser import, save and reopen of 1,000 images and 100 PDFs; PDF preview/search and export viewer were exercised locally with external requests blocked. Complex PDF fonts, large files, accessibility, and all supported document variants require further testing before release.
 
 The current import workflow was also checked with a canceled and resumed batch of 1,000 small JPEG files and 100 copies of a two-page PDF. The saved project contained all 1,100 files and reopened with the last image and PDF available. The JPEGs were resized variants of one sample photo and the PDFs were identical; this does not establish performance for 1,000 distinct full-resolution photographs or 100 different large PDFs. A separate mixed-media check used two real images, a PDF and a text file, verified their exported bytes, and displayed the images and PDF with external requests blocked.
+
+On 2026-11-01, the mixed-media check was repeated against the current editor: all four files survived save, reopen and local website ZIP export byte-for-byte, and the images and PDF displayed with external requests blocked. This verifies that sample, not every supported file or device.
 
 Imported image paths inside feature items and gallery entries are resolved to temporary browser URLs for editor preview without changing the stored project paths. An isolated browser test imported a PNG, displayed it in an alternating feature and a gallery, and confirmed that both paths remained portable in the project model. Deeply nested extension data is not automatically resolved.
 
