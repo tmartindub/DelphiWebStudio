@@ -11,12 +11,15 @@ import JSZip from 'jszip'
 import { ProjectRevisions, type ProjectRevision } from './project-revisions'
 import { requestDesktopAction } from '@/desktop/native-bridge'
 import { importWordPressXml } from './wordpress-import'
+import { importStaticHtml } from './static-html-import'
 
 /** Explicit portable-file commands; browser draft recovery remains separate. */
 export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const wordpressInputRef = useRef<HTMLInputElement>(null)
+  const staticInputRef = useRef<HTMLInputElement>(null)
   const [wordpressPreview, setWordpressPreview] = useState<(ReturnType<typeof importWordPressXml> & { originalProjectId: string | null; originalConfig: typeof config }) | null>(null)
+  const [staticPreview, setStaticPreview] = useState<(ReturnType<typeof importStaticHtml> & { originalProjectId: string | null; originalConfig: typeof config }) | null>(null)
   const [opening, setOpening] = useState(false)
   const [saving, setSaving] = useState(false)
   const [savingRawDraft, setSavingRawDraft] = useState(false)
@@ -44,6 +47,33 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
   }, [activeProjectId, allRevisions])
 
   if (!portableProjectsEnabled) return null
+
+  async function previewStaticHtml(event: ChangeEvent<HTMLInputElement>) {
+    const input = event.currentTarget
+    const files = Array.from(input.files ?? [])
+    if (!files.length || useEditorStore.getState().mediaImporting) return
+    const originalProjectId = useEditorStore.getState().activeProjectId
+    const originalConfig = useConfigStore.getState().config
+    setOpening(true)
+    useEditorStore.getState().setMediaImporting(true)
+    try {
+      if (files.length > 1000) throw new Error('This folder contains more than 1,000 files. Select a smaller site.')
+      const selected = files.filter(file => /\.(html?|css)$/i.test(file.name))
+      if (selected.reduce((total, file) => total + file.size, 0) > 1024 * 1024) throw new Error('HTML and CSS files must total at most 1 MiB in this initial importer.')
+      await requestDesktopAction('project.open', originalProjectId)
+      const source = []
+      for (const file of selected) source.push({ path: file.webkitRelativePath || file.name, text: decodeProjectFile(new Uint8Array(await file.arrayBuffer())) })
+      const preview = importStaticHtml(source, files.length - selected.length)
+      if (useEditorStore.getState().activeProjectId !== originalProjectId || useConfigStore.getState().config !== originalConfig) throw new Error('The current project changed. Select the folder again.')
+      setStaticPreview({ ...preview, originalProjectId, originalConfig })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'The HTML folder could not be read.')
+    } finally {
+      input.value = ''
+      setOpening(false)
+      useEditorStore.getState().setMediaImporting(false)
+    }
+  }
 
   async function previewWordPress(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget
@@ -309,6 +339,24 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
   return (
     <div className="relative flex flex-wrap items-center gap-2 shrink-0">
       <input ref={inputRef} type="file" accept=".json,.zip,application/json,application/zip" className="hidden" aria-label="Choose project file" onChange={openProject} />
+      <input ref={staticInputRef} type="file" multiple {...{ webkitdirectory: '' }} className="hidden" aria-label="Choose static website folder" onChange={previewStaticHtml} />
+      <button type="button" onClick={() => staticInputRef.current?.click()} disabled={opening || mediaImporting} className="rounded px-2 py-1 text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">Import HTML folder</button>
+      {staticPreview && <div role="region" aria-label="HTML import report" className="basis-full rounded border border-border-default bg-bg-1 p-3 text-xs text-text-1">
+        <p>Found {staticPreview.pages} HTML pages and {staticPreview.stylesheets} stylesheets; {staticPreview.skipped} other files will not be copied. A separate project will be created.</p>
+        <p>Text becomes editable. Original HTML and CSS are retained as inactive project data and may contain private information. Layout, links, styling, images, scripts and other assets require manual review or separate import. Original files are not changed.</p>
+        <button type="button" disabled={mediaImporting} className="rounded px-2 py-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => {
+          try {
+            if (useEditorStore.getState().activeProjectId !== staticPreview.originalProjectId || useConfigStore.getState().config !== staticPreview.originalConfig) throw new Error('The current project changed. Select the folder again.')
+            const id = useProjectsStore.getState().addProject(staticPreview.project.config.name, staticPreview.project)
+            useEditorStore.getState().setActiveProject(id)
+            useConfigStore.getState().setConfig(staticPreview.project.config)
+            setStaticPreview(null)
+            navigate('/editor')
+            toast.success('HTML text imported as a separate project. Review the conversion before exporting.')
+          } catch (error) { toast.error(error instanceof Error ? error.message : 'The HTML folder could not be imported.') }
+        }}>Create HTML project</button>
+        <button type="button" className="rounded px-2 py-1 hover:bg-bg-3" onClick={() => setStaticPreview(null)}>Cancel</button>
+      </div>}
       <input ref={wordpressInputRef} type="file" accept=".xml,application/xml,text/xml" className="hidden" aria-label="Choose WordPress XML export" onChange={previewWordPress} />
       <button type="button" onClick={() => wordpressInputRef.current?.click()} disabled={opening || mediaImporting} className="rounded px-2 py-1 text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">Import WordPress XML</button>
       {wordpressPreview && <div role="region" aria-label="WordPress import report" className="basis-full rounded border border-border-default bg-bg-1 p-3 text-xs text-text-1">

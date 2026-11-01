@@ -1,0 +1,7 @@
+# Static HTML folder import (experimental)
+
+Choose **Import HTML folder** on the dashboard or in the editor, select the folder, review the report, then choose **Create HTML project**. A separate project is created; selected source files are not modified and nothing is published. The initial importer accepts up to 1,000 files, including at most 100 HTML pages, with a combined maximum of 1 MiB of UTF-8 HTML and CSS.
+
+The top-level `index.html` is used as Home when present; otherwise the first HTML file becomes Home. Pages get new local paths and editable plain-text blocks. The selected HTML and CSS text is retained as inactive project data and may contain private information. Layout, links, styling, scripts and images are not reconstructed. Image and other non-HTML/CSS files remain in the original folder and are counted as not copied; import required media separately and review every page and link before using the project. Keep the original folder.
+
+The importer does not execute or load the source HTML. An isolated Windows WebView2 test used fictional HTML, CSS, an image placeholder and a script; it checked the report, separate project, inactive script, and source retention after saving and reopening. The folder-selection control was enabled, but the test supplied files programmatically rather than using the system folder dialog. Broader site compatibility and clean-Windows acceptance remain unverified.
