@@ -1060,7 +1060,10 @@ function renderContact(block: BlockConfig): string {
   const title = escapeHtml(prop(block.props, 'title', 'Get in Touch'))
   const subtitle = prop<string>(block.props, 'subtitle', '')
   const recipient = typeof block.props.recipientEmail === 'string' ? block.props.recipientEmail.trim() : ''
-  const configured = /^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/.test(recipient)
+  const endpoint = typeof block.props.formEndpoint === 'string' ? block.props.formEndpoint.trim() : ''
+  let validEndpoint = false
+  try { const url = new URL(endpoint); validEndpoint = !/[\s\p{Cc}]/u.test(endpoint) && url.protocol === 'https:' && !url.username && !url.password && !url.hash } catch { /* no valid endpoint */ }
+  const configured = endpoint ? validEndpoint : /^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/.test(recipient)
 
   const subtitleHtml = subtitle
     ? `          <p class="text-text-2 text-sm">${escapeHtml(subtitle)}</p>`
@@ -1072,7 +1075,7 @@ function renderContact(block: BlockConfig): string {
           <h2 class="text-2xl @md:text-3xl font-bold tracking-tight mb-2">${title}</h2>
 ${subtitleHtml}
         </div>
-        <form onsubmit="return false"${configured ? ` data-contact-email="${escapeHtml(recipient)}"` : ''}><fieldset${configured ? '' : ' disabled'} class="space-y-4">
+        <form${configured && endpoint ? ` action="${escapeHtml(endpoint)}" method="post"` : ` onsubmit="return false"${configured ? ` data-contact-email="${escapeHtml(recipient)}"` : ''}`}><fieldset${configured ? '' : ' disabled'} class="space-y-4">
           <div class="grid grid-cols-1 @sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-[11.5px] text-text-2 mb-1.5 font-medium">Name
@@ -1092,8 +1095,8 @@ ${subtitleHtml}
             Send Message
           </button>
         </fieldset></form>
-        <p class="text-text-1 text-sm mt-3">${configured ? 'This form opens your email application; you send the message there.' : 'This form is not connected yet.'}</p>
-        ${configured ? '<noscript>JavaScript is required to open the email application from this form.</noscript>' : ''}
+        <p class="text-text-1 text-sm mt-3">${configured ? (endpoint ? 'This form sends your information to the site’s configured form service.' : 'This form opens your email application; you send the message there.') : 'This form is not connected yet.'}</p>
+        ${configured && !endpoint ? '<noscript>JavaScript is required to open the email application from this form.</noscript>' : ''}
       </div>
   </section>`
 }

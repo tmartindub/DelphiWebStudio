@@ -93,7 +93,10 @@ export function checkSite(config: SiteConfig): SiteIssue[] {
       }
       if (block.type === 'contact') {
         const email = typeof block.props.recipientEmail === 'string' ? block.props.recipientEmail.trim() : ''
-        if (!/^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/.test(email)) add('Contact form has no valid contact email and will be disabled in the export.')
+        const endpoint = typeof block.props.formEndpoint === 'string' ? block.props.formEndpoint.trim() : ''
+        let validEndpoint = false
+        try { const url = new URL(endpoint); validEndpoint = !/[\s\p{Cc}]/u.test(endpoint) && url.protocol === 'https:' && !url.username && !url.password && !url.hash } catch { /* no valid endpoint */ }
+        if (endpoint ? !validEndpoint : !/^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/.test(email)) add('Contact form has no valid contact email or HTTPS form service URL and will be disabled in the export.')
       }
       if (block.type === 'newsletter') add('Newsletter signup has no configured service and will be disabled in the export.')
     }

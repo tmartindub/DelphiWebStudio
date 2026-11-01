@@ -6,12 +6,16 @@ interface ContactProps {
   title?: string
   subtitle?: string
   recipientEmail?: string
+  formEndpoint?: string
 }
 
 export function ContactBlock({ block }: { block: BlockConfig }) {
   const props = block.props as unknown as ContactProps
   const recipient = typeof props.recipientEmail === 'string' ? props.recipientEmail.trim() : ''
-  const configured = /^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/.test(recipient)
+  const endpoint = typeof props.formEndpoint === 'string' ? props.formEndpoint.trim() : ''
+  let validEndpoint = false
+  try { const url = new URL(endpoint); validEndpoint = !/[\s\p{Cc}]/u.test(endpoint) && url.protocol === 'https:' && !url.username && !url.password && !url.hash } catch { /* no valid endpoint */ }
+  const configured = endpoint ? validEndpoint : /^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/.test(recipient)
 
   return (
     <section className="px-6 @md:px-10 py-16 @md:py-20">
@@ -25,7 +29,7 @@ export function ContactBlock({ block }: { block: BlockConfig }) {
           )}
         </div>
 
-        <form onSubmit={event => { event.preventDefault(); toast('Preview only: the exported form opens the visitor’s email application.') }}>
+        <form onSubmit={event => { event.preventDefault(); toast(endpoint ? 'Preview only: the exported form sends to the configured service.' : 'Preview only: the exported form opens the visitor’s email application.') }}>
         <fieldset disabled={!configured} className="reveal-fade-up reveal-d2 space-y-4">
           <div className="grid grid-cols-1 @sm:grid-cols-2 gap-3">
             <div>
@@ -67,7 +71,7 @@ export function ContactBlock({ block }: { block: BlockConfig }) {
           </button>
         </fieldset>
         </form>
-        <p className="text-text-1 text-sm mt-3">{configured ? 'This form opens the visitor’s email application; the visitor sends the message there.' : 'This form is not connected yet. Add a valid contact email in Properties.'}</p>
+        <p className="text-text-1 text-sm mt-3">{configured ? (endpoint ? 'This form sends the visitor’s information to the configured service.' : 'This form opens the visitor’s email application; the visitor sends the message there.') : 'This form is not connected yet. Add a valid contact email or HTTPS form service URL in Properties.'}</p>
       </div>
     </section>
   )

@@ -22,4 +22,6 @@ M3's specified mixed-media offline scenario passed on the current editor with tw
 
 M4's specified local five-page generation and editing functions were exercised in complementary isolated checks without an account or API fee. The generation and subsequent edit were not observed in one uninterrupted run. Both handoff model candidates have been sampled locally, but a multi-machine benchmark remains unverified. M5 is the next milestone under review.
 
+M5's local check created a ready article and a document site, detected an unconfigured contact form, saved and reopened the project, and exported the article, article index and media. A separate check configured an HTTPS form endpoint and intercepted a test POST; no external service was contacted. The sample site was tested on a local server only. Actual publication has not been performed or authorized, so the full M5 exit criterion has not been verified.
+
 Tracking: [issues 1–9](https://github.com/tmartindub/DelphiWebStudio/issues) correspond to M0–M8, each assigned to its matching GitHub milestone.
