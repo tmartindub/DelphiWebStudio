@@ -1,6 +1,6 @@
-# Experimental portable project files — M1 first increment
+# Experimental portable project files — M1
 
-Last changed: 2026-10-31. Tracking: issue #2. M1 is not complete and this is not a released desktop application.
+Last changed: 2026-11-01. Tracking: issue #2. The specified M1 five-page save, reopen and export exit scenario passed in isolated testing. The application remains experimental; clean-install, power-loss and broader release validation are still pending.
 
 ## Enable and use
 
@@ -107,6 +107,8 @@ An isolated browser test opened the five-page sample, imported the sample bullet
 An isolated Win64 desktop test opened that five-page PDF fixture, saved it, reopened the saved file separately, and exported it. The test inspected the saved and exported ZIPs for all five pages, the edited News text and About link, and the original PDF bytes. It used an isolated WebView profile and the legacy test dialog; it did not publish or establish behavior for every project or crash scenario. The reproducible test source is `tests/native/DesktopFivePageRoundtripSmoke.dpr`; stage the browser round-trip project ZIP as `editor/fixture.zip` and the original sample PDF as `editor/proof.pdf` in a fresh test folder.
 
 An additional isolated Win64 test opened the same synthetic fixture and used the normal modern dialogs to save the project ZIP and export the website ZIP. The saved project retained five pages and the original PDF bytes; the exported site contained all five HTML files, the edited News text and About link, and the same PDF bytes. A separate isolated browser reopened that modern-saved project and exported it again with the same checks. The test did not publish a website or simulate power loss. `tests/native/DesktopModernFivePageHarness.dpr` loads the synthetic fixture in a fresh test folder and leaves the normal save dialogs interactive.
+
+The project-file, storage, revision and site-action checks passed 86 tests; the multi-page export, HTML export and unsupported-block checks passed another 58 tests. These checks support the specified exit scenario, not every possible block variant or failure condition.
 
 ## Native create-only save increment
 

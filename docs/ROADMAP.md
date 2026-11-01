@@ -14,6 +14,6 @@ Last changed: 2026-10-29. Milestones are acceptance gates, not completed-feature
 | M7 | Design-time Delphi shell, WebView2 bridge, native saves/credentials, installer | Clean Windows create/import/edit/AI/export without Node |
 | M8 | Static HTML/WordPress import, security/accessibility/performance, docs/release | Regression/license audits, recovery/docs and beta tests; no silent data loss |
 
-Use small feature branches and PRs. M0 includes docs/evidence/CI and minimal lint fixes; M1 follows behind a feature gate. Browser prototype does not complete the required Delphi product. Translation is deferred. Formal guides/help remain separate requested deliverables.
+Use small feature branches and PRs. M0 includes docs/evidence/CI and minimal lint fixes. M1 project controls are enabled by default, and its specified five-page exit scenario has passed isolated testing. The browser prototype does not complete the required Delphi product. Translation is deferred. Formal guides/help remain separate requested deliverables.
 
 Tracking: [issues 1–9](https://github.com/tmartindub/DelphiWebStudio/issues) correspond to M0–M8, each assigned to its matching GitHub milestone.
