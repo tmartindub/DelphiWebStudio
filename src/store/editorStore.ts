@@ -16,6 +16,7 @@ interface EditorState {
   shortcutsModalOpen: boolean
   previewMode: boolean
   activeProjectId: string | null
+  deploymentKeys: Record<string, string>
   // Generation state
   isGenerating: boolean
   generationPrompt: string | null
@@ -31,6 +32,7 @@ interface EditorState {
   toggleShortcutsModal: () => void
   togglePreview: () => void
   setActiveProject: (id: string | null) => void
+  setDeploymentKey: (projectId: string, key: string) => void
   setGenerating: (prompt: string | null) => void
   setGenerationError: (err: string | null) => void
   clearGeneration: () => void
@@ -48,6 +50,7 @@ export const useEditorStore = create<EditorState>()((set) => ({
   shortcutsModalOpen: false,
   previewMode: false,
   activeProjectId: null,
+  deploymentKeys: {},
   isGenerating: false,
   generationPrompt: null,
   generationError: null,
@@ -62,6 +65,7 @@ export const useEditorStore = create<EditorState>()((set) => ({
   toggleShortcutsModal: () => set((s) => ({ shortcutsModalOpen: !s.shortcutsModalOpen })),
   togglePreview: () => set((s) => ({ previewMode: !s.previewMode, ...(!s.previewMode ? { selectedBlockId: null } : {}) })),
   setActiveProject: (id) => set({ activeProjectId: id }),
+  setDeploymentKey: (projectId, key) => set(state => ({ deploymentKeys: { ...state.deploymentKeys, [projectId]: key } })),
   setGenerating: (prompt) => set({ isGenerating: !!prompt, generationPrompt: prompt, generationError: null }),
   setGenerationError: (err) => set({ generationError: err }),
   clearGeneration: () => set({ isGenerating: false, generationPrompt: null }),

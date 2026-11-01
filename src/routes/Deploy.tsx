@@ -29,12 +29,13 @@ const readyOptions = [
 export function Deploy() {
   const config = useConfigStore((s) => s.config)
   const activeProjectId = useEditorStore((s) => s.activeProjectId)
+  const deploymentKeys = useEditorStore((s) => s.deploymentKeys)
   const projects = useProjectsStore((s) => s.projects)
 
   const project = activeProjectId ? projects.find((p) => p.id === activeProjectId) : null
   const deployUrl = project?.deployUrl
   const lastDeployedAt = project?.lastDeployedAt
-  const hasDeployKey = !!project?.settings?.deployAccessKey?.trim()
+  const hasDeployKey = !!(activeProjectId && Object.hasOwn(deploymentKeys, activeProjectId) ? deploymentKeys[activeProjectId] : project?.settings?.deployAccessKey)?.trim()
 
   const [exporting, setExporting] = useState(false)
   const [copied, setCopied] = useState(false)

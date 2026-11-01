@@ -138,6 +138,11 @@ function ApiPanel({ settings }: { settings: ReturnType<typeof useSettingsState> 
   const [legacyKeySaved, setLegacyKeySaved] = useState(() => !!localStorage.getItem('openpage-gemini-key'))
   const [showKey, setShowKey] = useState(false)
   const [testing, setTesting] = useState(false)
+  const activeProjectId = useEditorStore(state => state.activeProjectId)
+  const deploymentKeys = useEditorStore(state => state.deploymentKeys)
+  const setDeploymentKey = useEditorStore(state => state.setDeploymentKey)
+  const hasSessionDeployKey = !!activeProjectId && Object.hasOwn(deploymentKeys, activeProjectId)
+  const deployKey = activeProjectId && hasSessionDeployKey ? deploymentKeys[activeProjectId] : settings.data.deployAccessKey || ''
 
   function handleKeyChange(value: string) {
     setGeminiKey(value)
@@ -169,14 +174,26 @@ function ApiPanel({ settings }: { settings: ReturnType<typeof useSettingsState> 
       <h2 className="text-lg font-semibold mb-4">API Keys</h2>
 
       <FieldGroup label="Deploy Access Key">
-        <ControlledInput
-          settingsKey="deployAccessKey"
+        <input
+          type="password"
+          aria-label="Deploy Access Key"
+          value={deployKey}
+          disabled={!activeProjectId}
           placeholder="Must match OPENPAGE_DEPLOY_KEY on server"
-          settings={settings}
+          onChange={event => { if (activeProjectId) setDeploymentKey(activeProjectId, event.target.value) }}
+          className="w-full px-3 py-2 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green disabled:opacity-50"
         />
         <p className="text-[11px] text-text-3 mt-1.5">
-          Required for one-click publishing. Stored in your project settings.
+          New entries are held in memory for this project until the app closes or reloads.
         </p>
+        {activeProjectId && settings.data.deployAccessKey && <div className="text-[11px] text-status-yellow mt-1.5">
+          <p>An older key is still stored in project settings without application-level encryption. It is not removed automatically.</p>
+          <button type="button" className="underline" onClick={() => {
+            setDeploymentKey(activeProjectId, deployKey)
+            settings.update('deployAccessKey', '')
+            toast('Saved deployment key removed. The current entry remains available until the app closes or reloads.')
+          }}>Remove older saved deployment key</button>
+        </div>}
       </FieldGroup>
 
       <FieldGroup label="Gemini API Key">

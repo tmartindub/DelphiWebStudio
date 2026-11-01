@@ -1,6 +1,7 @@
 import type { SiteConfig } from '@/blocks/types'
 import { exportSiteToHTML } from '@/lib/export-html'
 import type { ProjectSettings } from '@/store/projectsStore'
+import { useEditorStore } from '@/store/editorStore'
 
 interface DeployApiResponse {
   url?: string
@@ -12,6 +13,7 @@ interface DeployApiResponse {
 
 export interface PublishSiteInput {
   config: SiteConfig
+  projectId?: string
   projectName?: string
   settings?: ProjectSettings
 }
@@ -42,8 +44,9 @@ async function readDeployError(response: Response): Promise<string> {
 }
 
 export async function publishSite(input: PublishSiteInput): Promise<PublishSiteResult> {
-  const { config, projectName, settings } = input
-  const deployAccessKey = settings?.deployAccessKey?.trim()
+  const { config, projectId, projectName, settings } = input
+  const { activeProjectId, deploymentKeys } = useEditorStore.getState()
+  const deployAccessKey = (projectId && projectId === activeProjectId && Object.hasOwn(deploymentKeys, projectId) ? deploymentKeys[projectId] : settings?.deployAccessKey)?.trim()
   if (!deployAccessKey) {
     throw new Error('Deploy Access Key is required. Set it in Settings -> API Keys.')
   }
