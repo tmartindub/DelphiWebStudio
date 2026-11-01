@@ -2,7 +2,11 @@
 
 Last changed: 2026-11-01
 
-The current Vitest run passed 265 tests across 17 files. Two integration tests were skipped by default: the offline browser test and the SFTP backup-fixture comparison. A separate run of the offline browser test passed with an isolated browser profile and network name resolution disabled. The SFTP fixture comparison was not run in this validation; no website was published.
+On 2026-11-01 the current Vitest run passed 272 tests across 19 files. Two integration tests were skipped by default: the offline browser test and the SFTP backup-fixture comparison. A separate run of the offline browser test passed with an isolated browser profile and network name resolution disabled. The SFTP fixture comparison was not run in this validation; no website was published. TypeScript and the production editor build passed, as did ESLint on tracked JavaScript and TypeScript files. A project-wide ESLint scan was stopped after it had not completed for more than a minute; the tracked-file run excludes generated test artifacts.
+
+The M8 local preview combines the previously tested desktop shell with the current editor build. Its staged editor files were compared with the build; an isolated startup check kept the application running for eight seconds, and the dashboard rendered. The complete installed desktop workflow has not been checked in this preview. The HTML import folder picker opened, but selection was not completed: Windows automation rejected interaction with the WebView-owned dialog. Existing synthetic import tests do not establish that the real folder selection works.
+
+The static importer retains original HTML and CSS as inactive project data, but does not yet preserve unknown HTML as isolated raw/embed blocks on the page as required by the handoff. Import conversion, broader compatibility, and the corresponding security review remain incomplete.
 
 The current lockfile contains 459 dependency entries, all with a declared license field. `THIRD_PARTY_LICENSE_TEXTS.txt` collects locally available texts for 73 installed non-development entries, conservatively including build-only and optional packages. Five entries used their parent package's license or the package README when no root license file was present. This is an inventory check, not a completed redistribution or legal review. Review the actual shipped bundle and applicable notices and obligations, PDF.js, WebView2, Delphi redistributables, optional AI runtime and model rights before release.
 
