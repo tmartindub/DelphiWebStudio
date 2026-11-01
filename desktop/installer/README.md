@@ -12,6 +12,8 @@ To rebuild with an installed or portable `ISCC.exe`, use a freshly built stage c
 & 'C:\path\to\ISCC.exe' '/DStageDir=C:\path\to\verified-stage' '/OC:\path\to\output' 'desktop\installer\DelphiWebStudio.iss'
 ```
 
+The experimental installer built on 2026-11-01 from `bin/DelphiWebStudio-Preview-M7-20261101-1908` is in `bin/DelphiWebStudio-Installer-M7-20261101-1918`. Its SHA-256 is `0ed66fabdddc3b0203e5817c343038607a829412134ab44a8e4f57554bca7800`. Compilation succeeded; this exact installer has not yet been tested on a clean Windows machine. The preview was checked against its build inputs and given a brief startup check.
+
 The first local test installed to a fresh folder under `test-results`, compared all staged executable, loader and editor files by SHA-256, and uninstalled. The uninstaller preserved a synthetic user-created file in the install folder.
 
 An isolated upgrade test built versions 0.1.0 and 0.1.1 from the installer script with a separate test application ID. Installing the second version added a changed application asset and preserved a synthetic user-created file; the test installation was then uninstalled. This verifies a local installer upgrade on the existing Windows system, not automatic update checks or clean-machine acceptance.
