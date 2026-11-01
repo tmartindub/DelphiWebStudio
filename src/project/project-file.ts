@@ -2,7 +2,7 @@ import type { BlockConfig, PageConfig, SiteConfig } from '@/blocks/types'
 import type JSZip from 'jszip'
 import crc32 from 'jszip/lib/crc32.js'
 
-export const portableProjectsEnabled = import.meta.env.VITE_WEBSTUDIO_PROJECTS === 'true'
+export const portableProjectsEnabled = import.meta.env.VITE_WEBSTUDIO_PROJECTS !== 'false'
 
 export interface SiteProjectFile {
   format: 'webstudio'
