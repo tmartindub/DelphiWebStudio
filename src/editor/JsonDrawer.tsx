@@ -46,6 +46,7 @@ export function JsonDrawer() {
   const [showCustomPreview, setShowCustomPreview] = useState(false)
   const customPreviewAvailable = window.location.hostname !== 'webstudio.local'
   const [editValue, setEditValue] = useState('')
+  const [editBaseline, setEditBaseline] = useState<{ projectId: string | null; config: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const jsonStr = JSON.stringify(config, null, 2)
@@ -53,12 +54,17 @@ export function JsonDrawer() {
 
   function startEditing() {
     setEditValue(jsonStr)
+    setEditBaseline({ projectId: activeProjectId, config: jsonStr })
     setError(null)
     setEditing(true)
   }
 
   function applyEdit() {
     try {
+      if (!editBaseline || useEditorStore.getState().activeProjectId !== editBaseline.projectId || JSON.stringify(useConfigStore.getState().config, null, 2) !== editBaseline.config) {
+        setError('The project changed while editing. Copy your draft, cancel, and reopen JSON before applying it.')
+        return
+      }
       const parsed = JSON.parse(editValue)
       if (!parsed.name || (!Array.isArray(parsed.blocks) && !Array.isArray(parsed.pages))) {
         setError('Invalid config: must have "name" and "blocks" or "pages" array')
@@ -66,6 +72,7 @@ export function JsonDrawer() {
       }
       replaceConfig(validateProjectConfig(parsed))
       setEditing(false)
+      setEditBaseline(null)
       setError(null)
       toast('Config updated from JSON')
     } catch (e) {
@@ -75,6 +82,7 @@ export function JsonDrawer() {
 
   function cancelEdit() {
     setEditing(false)
+    setEditBaseline(null)
     setError(null)
   }
 
@@ -114,13 +122,17 @@ export function JsonDrawer() {
 
   return (
     <div
+      id="editor-code-panel"
+      role="region"
+      aria-label="Site code panel"
+      aria-hidden={!jsonDrawerOpen}
+      inert={!jsonDrawerOpen}
       className={`bg-bg-0 flex flex-col overflow-hidden transition-all duration-250 ease-in-out ${jsonDrawerOpen ? 'border-t border-border-default' : ''}`}
       style={{ height: jsonDrawerOpen ? (customDraft ? '420px' : '220px') : '0px' }}
     >
       {/* Header */}
       <div
-        className="h-8 min-h-8 bg-bg-1 border-b border-border-default flex items-center px-3 text-[11px] text-text-2 gap-2 cursor-pointer select-none hover:bg-bg-2 transition-colors"
-        onClick={toggleJsonDrawer}
+        className="h-8 min-h-8 bg-bg-1 border-b border-border-default flex items-center px-3 text-[11px] text-text-2 gap-2 select-none"
       >
         <span className="font-mono">{'{ }'}</span>
         <span>{customDraft ? `Custom code: ${customDraft.pageName}` : pageSource === null ? 'Site Config' : 'Page HTML source'}</span>
@@ -157,6 +169,7 @@ export function JsonDrawer() {
             <span className="w-1.5 h-1.5 rounded-full bg-green" />
             Live
           </div>
+          <button type="button" aria-label="Close code panel" onClick={() => { toggleJsonDrawer(); document.querySelector<HTMLButtonElement>('[aria-controls="editor-code-panel"]')?.focus() }} className="text-[10px] text-text-2 hover:text-text-0">Close</button>
         </div>
       </div>
 
@@ -177,13 +190,16 @@ export function JsonDrawer() {
         ) : editing ? (
           <div className="h-full flex flex-col">
             <textarea
+              aria-label="Site configuration JSON"
+              aria-invalid={!!error}
+              aria-describedby={error ? 'site-json-error' : undefined}
               value={editValue}
               onChange={(e) => { setEditValue(e.target.value); setError(null) }}
               className="flex-1 w-full bg-transparent text-text-1 outline-none resize-none font-mono text-[11.5px] leading-relaxed"
               spellCheck={false}
             />
             {error && (
-              <div className="text-status-red text-[10px] mt-1 py-1">
+              <div id="site-json-error" role="alert" className="text-status-red text-[10px] mt-1 py-1">
                 {error}
               </div>
             )}

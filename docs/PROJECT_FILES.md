@@ -2,6 +2,8 @@
 
 Last changed: 2026-11-01. Tracking: issue #2. The specified M1 five-page save, reopen and export exit scenario passed in isolated testing. The application remains experimental; clean-install, power-loss and broader release validation are still pending.
 
+The code panel can be opened with its toolbar button or `J`, and its close button returns focus to the toolbar. The JSON editor has an accessible label and announces validation errors. Applying a JSON draft is blocked if the active project or configuration changed after editing began; copy the draft before cancelling and reopening. An isolated WebView2 test checked the keyboard shortcut, error, focus and stale-draft behavior. This is not a full accessibility audit.
+
 ## Enable and use
 
 The dashboard offers Personal, Portfolio, Community, Church, School club, Business, Documentation and Blog starters. Each begins with editable prompts suited to its purpose; replace the prompts with your own information. **Start blank** creates an empty site instead.

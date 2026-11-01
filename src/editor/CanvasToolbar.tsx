@@ -451,6 +451,8 @@ export function CanvasToolbar() {
           title="JSON (J)"
           aria-label="Toggle JSON drawer"
           aria-pressed={jsonDrawerOpen}
+          aria-expanded={jsonDrawerOpen}
+          aria-controls="editor-code-panel"
         >
           <Code size={13} />
           <span>JSON</span>
