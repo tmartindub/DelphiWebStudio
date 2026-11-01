@@ -108,7 +108,7 @@ class Files(paramiko.SFTPServerInterface):
 errors = []
 def serve():
     try:
-        for _ in range(53):
+        for _ in range(55):
             connection, _ = listener.accept()
             transport = paramiko.Transport(connection)
             try:
@@ -193,6 +193,16 @@ restore_records = [json.loads(line) for line in restore_journal.read_text(encodi
 assert restore_records[-1]['event'] == 'complete'
 restore_original = next(record['originalPath'] for record in restore_records if record['event'] == 'transfer-verified')
 assert files[restore_original] == b'new synthetic data'
+
+added_content = files['/success/newfolder/new.txt']
+added_args = [str(exe), str(port), str(key), str(hosts), '/success/newfolder', 'new.txt', str(len(added_content))]
+wrong = subprocess.run(added_args + ['0' * 64] + ['test'] * 16, capture_output=True, text=True, timeout=30)
+assert wrong.returncode != 0 and files['/success/newfolder/new.txt'] == added_content
+retained = subprocess.run(added_args + [hashlib.sha256(added_content).hexdigest()] + ['test'] * 16, capture_output=True, text=True, timeout=30)
+assert retained.returncode == 0, (retained.stdout, retained.stderr)
+retained_path = retained.stdout.strip().split('|')[-1]
+assert retained_path.startswith('/private/.webstudio-added-') and files[retained_path] == added_content
+assert '/success/newfolder/new.txt' not in files and files['/success/secondfolder/second.txt'] == b'second addition'
 
 replacement_website = work / 'replacement.zip'
 with zipfile.ZipFile(replacement_website, 'w') as archive:

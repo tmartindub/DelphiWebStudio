@@ -51,6 +51,12 @@ var
   ConfirmTimer: TTimer;
 begin
   try
+    if ParamCount = 23 then begin
+      Receipt := RetainAddedSftpFile('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3),
+        StrToInt(ParamStr(1)), ParamStr(4), '/private', ParamStr(5), StrToUInt64(ParamStr(6)), ParamStr(7));
+      Writeln(Receipt.Path, '|', Receipt.Size, '|', Receipt.Sha256, '|', Receipt.PreviousPath);
+      Exit;
+    end;
     if ParamCount = 22 then begin
       if ParamStr(4) <> '/gui' then raise Exception.Create('The dialog test requires the synthetic local destination.');
       Application.Initialize;

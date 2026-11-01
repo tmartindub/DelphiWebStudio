@@ -53,6 +53,11 @@ function RestoreSftpOriginal(const Host, UserName, KeyFile, KnownHostsFile: stri
   Port: Word; const RemoteDirectory, RecoveryDirectory, RemoteName, PreviousName: string;
   CurrentSize: UInt64; const CurrentSha256: string; OriginalSize: UInt64;
   const OriginalSha256: string): TSftpTransferReceipt;
+{ Internal rollback primitive for a file added by a deployment. It retains the
+  reviewed file in private recovery rather than deleting it. }
+function RetainAddedSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RecoveryDirectory, RemoteName: string;
+  ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
 { Internal transfer primitive, not connected to the UI. Creates missing
   directories only; it never follows links or removes existing entries. }
 function EnsureSftpDirectories(const Host, UserName, KeyFile, KnownHostsFile: string;
@@ -92,6 +97,8 @@ type
     function RestoreOriginal(const RemoteDirectory, RecoveryDirectory, RemoteName, PreviousName: string;
       CurrentSize: UInt64; const CurrentSha256: string; OriginalSize: UInt64;
       const OriginalSha256: string): TSftpTransferReceipt;
+    function RetainAdded(const RemoteDirectory, RecoveryDirectory, RemoteName: string;
+      ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
     function EnsureDirectories(const RemoteDirectory, RelativeDirectory: string): TArray<string>;
     procedure ScanDirectory(const Root, Relative: string; Depth: Integer);
   public
@@ -677,6 +684,52 @@ begin
   end;
 end;
 
+function TSftpScanner.RetainAdded(const RemoteDirectory, RecoveryDirectory, RemoteName: string;
+  ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
+var Root, RecoveryRoot, TargetPath, RetainedPath: string; Index: Integer; Id: TGUID; Moved: Boolean;
+begin
+  RecoveryRoot := NormalizePrivateRecoveryDirectory(RemoteDirectory, RecoveryDirectory);
+  if (RemoteName = '') or (RemoteName = '.') or (RemoteName = '..') or
+     (Pos('/', RemoteName) > 0) or (Pos('\', RemoteName) > 0) or
+     (Length(TEncoding.UTF8.GetBytes(RemoteName)) > 255) then
+    raise EArgumentException.Create('Invalid destination filename.');
+  for Index := 1 to Length(RemoteName) do
+    if RemoteName[Index] < #32 then raise EArgumentException.Create('Invalid destination filename.');
+  if (ExpectedSize > 64 * 1024 * 1024) or (Length(ExpectedSha256) <> 64) then
+    raise EArgumentException.Create('The reviewed file metadata is invalid.');
+  for Index := 1 to 64 do
+    if not CharInSet(ExpectedSha256[Index], ['0'..'9', 'a'..'f', 'A'..'F']) then
+      raise EArgumentException.Create('The reviewed checksum is invalid.');
+  Root := RemoteDirectory;
+  if not Root.EndsWith('/') then Root := Root + '/';
+  TargetPath := Root + RemoteName;
+  if CreateGUID(Id) <> 0 then raise EInvalidOpException.Create('Could not create a recovery filename.');
+  RetainedPath := RecoveryRoot + '.webstudio-added-' + GUIDToString(Id) + '.bak';
+  Initialize;
+  RequireDirectoryChain(RemoteDirectory);
+  RequireDirectoryChain(RecoveryRoot);
+  RequireRegularFile(TargetPath, ExpectedSize);
+  if HashFile(TargetPath, ExpectedSize) <> LowerCase(ExpectedSha256) then
+    raise EInvalidOpException.Create('The destination file no longer matches the reviewed scan.');
+  Moved := False;
+  try
+    RenameNoReplace(TargetPath, RetainedPath);
+    Moved := True;
+    RequireRegularFile(RetainedPath, ExpectedSize);
+    if HashFile(RetainedPath, ExpectedSize) <> LowerCase(ExpectedSha256) then
+      raise EInvalidOpException.Create('The retained file verification failed.');
+    Result.Path := TargetPath;
+    Result.Size := ExpectedSize;
+    Result.Sha256 := LowerCase(ExpectedSha256);
+    Result.PreviousPath := RetainedPath;
+  except
+    on E: Exception do begin
+      if Moved then try RenameNoReplace(RetainedPath, TargetPath) except end;
+      raise EInvalidOpException.Create(E.Message + ' Inspect ' + TargetPath + ' and ' + RetainedPath + ' before retrying.');
+    end;
+  end;
+end;
+
 function TSftpScanner.RestoreOriginal(const RemoteDirectory, RecoveryDirectory, RemoteName, PreviousName: string;
   CurrentSize: UInt64; const CurrentSha256: string; OriginalSize: UInt64;
   const OriginalSha256: string): TSftpTransferReceipt;
@@ -994,6 +1047,16 @@ begin
   try
     Result := Scanner.RestoreOriginal(RemoteDirectory, RecoveryDirectory, RemoteName, PreviousName,
       CurrentSize, CurrentSha256, OriginalSize, OriginalSha256);
+  finally Scanner.Free end;
+end;
+
+function RetainAddedSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RecoveryDirectory, RemoteName: string;
+  ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
+var Scanner: TSftpScanner;
+begin
+  Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
+  try Result := Scanner.RetainAdded(RemoteDirectory, RecoveryDirectory, RemoteName, ExpectedSize, ExpectedSha256);
   finally Scanner.Free end;
 end;
 
