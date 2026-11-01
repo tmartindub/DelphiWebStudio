@@ -196,7 +196,9 @@ An isolated desktop test also reviewed synthetic files, checked an in-memory loo
 
 ## Current local desktop preview
 
-The experimental preview at `bin/DelphiWebStudio-Preview-M7-20261101-1308` contains the current desktop build, locally built editor assets and a signature-verified WebView2 loader. The staged files were compared with their build inputs. An isolated-profile startup smoke check confirmed that the process started and remained running briefly; it did not verify that the editor rendered or exercise the full user workflow. This is not an installer, a release or a clean-machine test. Windows x64 and the WebView2 Runtime are required; optional local AI files are not included.
+The experimental preview at `bin/DelphiWebStudio-Preview-M7-20261101-1308` contains the desktop build and locally built editor assets from that staging, plus a signature-verified WebView2 loader. The staged files were compared with their build inputs. An isolated-profile startup smoke check confirmed that the process started and remained running briefly; it did not verify that the editor rendered or exercise the full user workflow. This is not an installer, a release or a clean-machine test. Windows x64 and the WebView2 Runtime are required; optional local AI files are not included.
+
+The newer desktop source has a **Diagnostics** menu showing the WebView2 version and whether the local editor loaded. The dialog stays local and does not include project contents or credentials. An isolated native test exercised the missing-editor state; the earlier preview above does not include this addition.
 
 ## Optional site search
 

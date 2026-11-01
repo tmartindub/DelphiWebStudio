@@ -28,6 +28,8 @@ type
     ReplaceConfirmDialog: TTaskDialog;
     LocalAIItem: TMenuItem;
     SftpItem: TMenuItem;
+    DiagnosticsItem: TMenuItem;
+    DiagnosticsDialog: TTaskDialog;
     procedure FormCreate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure EditorBrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HResult);
@@ -42,6 +44,7 @@ type
     procedure RestoreBackupItemClick(Sender: TObject);
     procedure LocalAIItemClick(Sender: TObject);
     procedure SftpItemClick(Sender: TObject);
+    procedure DiagnosticsItemClick(Sender: TObject);
   private
     FDownloadPending: Boolean;
     FActiveProjectSaves: Integer;
@@ -57,6 +60,21 @@ uses Winapi.ActiveX, System.IOUtils, System.Zip, System.JSON, System.UITypes,
   WebStudio.ProjectSave, WebStudio.LocalAIForm, WebStudio.LocalAIHost, WebStudio.SftpForm;
 
 {$R *.dfm}
+
+procedure TMainForm.DiagnosticsItemClick(Sender: TObject);
+var RuntimeVersion, EditorState: string;
+begin
+  RuntimeVersion := '';
+  try RuntimeVersion := EditorBrowser.BrowserVersionInfo except RuntimeVersion := '' end;
+  if RuntimeVersion = '' then RuntimeVersion := 'Not available';
+  if StatusLabel.Caption = 'Local editor loaded.' then EditorState := 'Loaded'
+  else EditorState := 'Not loaded; check the status line';
+  DiagnosticsDialog.Text := 'Desktop build: experimental Win64' + sLineBreak +
+    'WebView2 version: ' + RuntimeVersion + sLineBreak +
+    'Local editor: ' + EditorState + sLineBreak + sLineBreak +
+    'These diagnostics stay on this computer and do not include project contents or credentials.';
+  DiagnosticsDialog.Execute;
+end;
 
 procedure TMainForm.SftpItemClick(Sender: TObject);
 var Dialog: TSftpForm;

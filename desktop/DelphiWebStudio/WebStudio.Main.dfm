@@ -102,6 +102,10 @@ object MainForm: TMainForm
       Caption = 'SFTP connection...'
       OnClick = SftpItemClick
     end
+    object DiagnosticsItem: TMenuItem
+      Caption = 'Diagnostics...'
+      OnClick = DiagnosticsItemClick
+    end
   end
   object BackupSourceDialog: TOpenDialog
     Filter = 'Project files|*.json;*.zip'
@@ -140,6 +144,14 @@ object MainForm: TMainForm
     Text = 'Replace the selected project? A recovery ZIP of the existing file will be created in a recovery folder beside it first. Projects larger than 512 MiB cannot be replaced yet.'
     Title = 'Replace the existing project?'
     Left = 872
+    Top = 48
+  end
+  object DiagnosticsDialog: TTaskDialog
+    Caption = 'Delphi Web Studio diagnostics'
+    CommonButtons = [tcbOk]
+    MainIcon = 0
+    Title = 'Local diagnostics'
+    Left = 936
     Top = 48
   end
 end
