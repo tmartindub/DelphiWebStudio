@@ -23,6 +23,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
     { key: 'caption', label: 'Caption', type: 'text' },
     { key: 'height', label: 'Height (px)', type: 'text' },
     { key: 'initialPage', label: 'Starting page', type: 'text' },
+    { key: 'fitMode', label: 'Fit mode', type: 'select', options: ['auto', 'width', 'page'] },
     { key: 'showSearch', label: 'Show search', type: 'checkbox' },
     { key: 'showPrint', label: 'Show print link', type: 'checkbox' },
     { key: 'showDownload', label: 'Show download link', type: 'checkbox' },
@@ -508,7 +509,8 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
         <div className="mb-2.5">
           <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{field.label}</label>
           <select
-            value={String(value || '')}
+            aria-label={field.label}
+            value={String(value || (field.key === 'fitMode' ? 'auto' : ''))}
             onChange={(e) => onChange(e.target.value)}
             className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-2 text-text-0 text-xs outline-none focus:border-green cursor-pointer"
           >

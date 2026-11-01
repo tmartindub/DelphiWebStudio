@@ -8,6 +8,7 @@ const canvas = document.getElementById('page-canvas')
 const main = document.querySelector('main')
 const pageInput = document.getElementById('page')
 const zoomLabel = document.getElementById('zoom')
+const fitMode = ['width', 'page'].includes(params.get('fit')) ? params.get('fit') : 'auto'
 let pdf
 let zoom = 1
 let rendering
@@ -50,8 +51,12 @@ async function render() {
   if (sequence !== renderSequence) return
   const style = getComputedStyle(main)
   const available = Math.max(1, main.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight))
-  const pageWidth = page.getViewport({ scale: 1 }).width
-  const viewport = page.getViewport({ scale: Math.min(1, available / pageWidth) * zoom })
+  const original = page.getViewport({ scale: 1 })
+  const availableHeight = Math.max(1, main.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom))
+  const widthScale = available / original.width
+  const pageScale = Math.min(widthScale, availableHeight / original.height)
+  const fitScale = Math.min(4, fitMode === 'page' ? pageScale : fitMode === 'width' ? widthScale : Math.min(1, widthScale))
+  const viewport = page.getViewport({ scale: fitScale * zoom })
   canvas.width = Math.ceil(viewport.width)
   canvas.height = Math.ceil(viewport.height)
   canvas.setAttribute('aria-label', `PDF page ${number} of ${pdf.numPages}`)
