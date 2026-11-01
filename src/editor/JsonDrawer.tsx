@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
+import { useProjectsStore } from '@/store/projectsStore'
 import { validateProjectConfig } from '@/project/project-file'
+import { exportSiteToHTML } from '@/lib/export-html'
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -34,9 +36,12 @@ function syntaxHighlight(json: string): string {
 
 export function JsonDrawer() {
   const config = useConfigStore((s) => s.config)
+  const activePageId = useConfigStore((s) => s.activePageId)
   const replaceConfig = useConfigStore((s) => s.replaceConfig)
-  const { jsonDrawerOpen, toggleJsonDrawer } = useEditorStore()
+  const { jsonDrawerOpen, toggleJsonDrawer, activeProjectId } = useEditorStore()
+  const settings = useProjectsStore((s) => s.projects.find(project => project.id === activeProjectId)?.settings)
   const [editing, setEditing] = useState(false)
+  const [pageSource, setPageSource] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -70,6 +75,16 @@ export function JsonDrawer() {
     setError(null)
   }
 
+  function inspectPageSource() {
+    try {
+      const page = config.pages?.find(item => item.id === activePageId)
+      const pageSettings = { ...settings, ...(page?.webstudioSeo?.title?.trim() ? { seoTitle: page.webstudioSeo.title } : {}), ...(page?.webstudioSeo?.description?.trim() ? { seoDescription: page.webstudioSeo.description } : {}) }
+      setPageSource(exportSiteToHTML({ ...config, name: page?.name ?? config.name, blocks: page?.blocks ?? config.blocks }, { settings: pageSettings }))
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Page source could not be generated')
+    }
+  }
+
   return (
     <div
       className={`bg-bg-0 flex flex-col overflow-hidden transition-all duration-250 ease-in-out ${jsonDrawerOpen ? 'border-t border-border-default' : ''}`}
@@ -81,10 +96,12 @@ export function JsonDrawer() {
         onClick={toggleJsonDrawer}
       >
         <span className="font-mono">{'{ }'}</span>
-        <span>Site Config</span>
+        <span>{pageSource === null ? 'Site Config' : 'Page HTML source'}</span>
 
         <div className="ml-auto flex items-center gap-2">
-          {!editing && (
+          {!editing && pageSource === null && <button onClick={(e) => { e.stopPropagation(); inspectPageSource() }} className="text-[10px] text-text-3 hover:text-green transition-colors">Inspect page HTML</button>}
+          {pageSource !== null && <button onClick={(e) => { e.stopPropagation(); setPageSource(null) }} className="text-[10px] text-text-3 hover:text-green transition-colors">Back to JSON</button>}
+          {!editing && pageSource === null && (
             <button
               onClick={(e) => { e.stopPropagation(); startEditing() }}
               className="text-[10px] text-text-3 hover:text-green transition-colors"
@@ -117,7 +134,12 @@ export function JsonDrawer() {
 
       {/* JSON body */}
       <div className="flex-1 overflow-auto px-3.5 py-2.5 font-mono text-[11.5px] leading-relaxed text-text-1">
-        {editing ? (
+        {pageSource !== null ? (
+          <div className="h-full flex flex-col gap-1">
+            <p className="text-text-2">Generated page source snapshot. Site ZIP export adds navigation and adjusts links; export the site to inspect its final files.</p>
+            <textarea aria-label="Generated page HTML source" readOnly value={pageSource} className="flex-1 w-full bg-transparent text-text-1 outline-none resize-none font-mono" spellCheck={false} />
+          </div>
+        ) : editing ? (
           <div className="h-full flex flex-col">
             <textarea
               value={editValue}

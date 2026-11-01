@@ -6,11 +6,11 @@ The application chrome uses the blue and orange palette from VCL2FMXConverter 7.
 
 The description box selects a starter locally; it does not claim to be AI or send the description to an external service. Local AI remains M4 work. The application no longer requests Google Fonts on startup or while editing; installed/system fonts are used. Generated HTML still needs the separate offline export work.
 
-The editor has Beginner, Designer and Professional (JSON) views using the same site model. The Professional option opens the existing JSON editor. JSON changes are validated and undoable. These controls do not yet provide the complete advanced visual and source editing capabilities described in the handoff.
+The editor has Beginner, Designer and Professional views using the same site model. The Professional option opens the JSON editor. JSON changes are validated and undoable. Inspect page HTML displays a read-only snapshot of the active page's generated HTML; the final site ZIP adds navigation and adjusts links. These controls do not yet provide direct HTML/CSS/JS editing.
 
 An automated no-code check on the current preview created a community site, edited its home page, added an About page, checked the phone, tablet and desktop previews, and exported both pages. The exported sample had no horizontal overflow at 375, 768 and 1440 pixels. This is evidence for the M2 exit scenario, not a test by a nontechnical person or a guarantee for every site.
 
-Shared headers and footers, reusable sections, page links, and preset and custom preview widths are available. M2 remains in progress: the Professional mode does not yet provide the handoff's HTML/CSS/JS editing and source inspection, and the broader editor requirements remain to be checked.
+Shared headers and footers, reusable sections, page links, and preset and custom preview widths are available. M2 remains in progress: the Professional mode does not yet provide the handoff's HTML/CSS/JS editing, and the broader editor requirements remain to be checked.
 
 ## Responsive preview checks
 
