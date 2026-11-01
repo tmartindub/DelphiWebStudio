@@ -6,4 +6,6 @@ The editor is installed locally and does not require Node.js on the user's PC. O
 
 Projects, browser data, local revisions, and AI files are not removed by the application uninstaller. Keep separate backups of your projects.
 
+Offline privacy and project recovery information is installed in the application's docs folder.
+
 Opening, saving, reviewing, and exporting do not publish a website. Publishing and rollback require separate review and explicit confirmation.

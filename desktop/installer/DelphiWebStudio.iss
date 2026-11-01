@@ -30,6 +30,8 @@ Source: "{#StageDir}\WebView2Loader.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#StageDir}\editor\*"; DestDir: "{app}\editor"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 Source: "..\..\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\docs\PRIVACY.md"; DestDir: "{app}\docs"; Flags: ignoreversion
+Source: "..\..\docs\RECOVERY.md"; DestDir: "{app}\docs"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Delphi Web Studio (Experimental)"; Filename: "{app}\DelphiWebStudio.exe"
