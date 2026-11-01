@@ -98,6 +98,10 @@ object MainForm: TMainForm
       Caption = 'Local AI...'
       OnClick = LocalAIItemClick
     end
+    object SftpItem: TMenuItem
+      Caption = 'SFTP connection...'
+      OnClick = SftpItemClick
+    end
   end
   object BackupSourceDialog: TOpenDialog
     Filter = 'Project files|*.json;*.zip'

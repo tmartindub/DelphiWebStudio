@@ -27,6 +27,7 @@ type
     BackupRestoreDialog: TSaveDialog;
     ReplaceConfirmDialog: TTaskDialog;
     LocalAIItem: TMenuItem;
+    SftpItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure EditorBrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HResult);
@@ -40,6 +41,7 @@ type
     procedure BackupProjectItemClick(Sender: TObject);
     procedure RestoreBackupItemClick(Sender: TObject);
     procedure LocalAIItemClick(Sender: TObject);
+    procedure SftpItemClick(Sender: TObject);
   private
     FDownloadPending: Boolean;
     FActiveProjectSaves: Integer;
@@ -52,9 +54,20 @@ var MainForm: TMainForm;
 implementation
 
 uses Winapi.ActiveX, System.IOUtils, System.Zip, System.JSON, System.UITypes,
-  WebStudio.ProjectSave, WebStudio.LocalAIForm, WebStudio.LocalAIHost;
+  WebStudio.ProjectSave, WebStudio.LocalAIForm, WebStudio.LocalAIHost, WebStudio.SftpForm;
 
 {$R *.dfm}
+
+procedure TMainForm.SftpItemClick(Sender: TObject);
+var Dialog: TSftpForm;
+begin
+  Dialog := TSftpForm.Create(Self);
+  try
+    Dialog.ShowModal;
+  finally
+    Dialog.Free;
+  end;
+end;
 
 type
   TDownloadStateHandler = class(TInterfacedObject, ICoreWebView2StateChangedEventHandler)

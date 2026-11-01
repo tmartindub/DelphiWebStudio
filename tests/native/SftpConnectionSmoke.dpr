@@ -1,0 +1,53 @@
+program SftpConnectionSmoke;
+
+{$APPTYPE CONSOLE}
+
+uses
+  System.SysUtils, System.IOUtils, Vcl.Forms, WebStudio.SftpConnection,
+  WebStudio.SftpForm;
+
+var
+  DirectoryName, KeyName, HostsName: string;
+  Rejected: Boolean;
+  Dialog: TSftpForm;
+begin
+  try
+    Application.Initialize;
+    Dialog := TSftpForm.Create(nil);
+    try
+      if (Dialog.PortEdit.Text <> '22') or not Assigned(Dialog.TestButton.OnClick) then
+        raise Exception.Create('SFTP dialog did not load correctly');
+    finally
+      Dialog.Free;
+    end;
+    DirectoryName := TPath.Combine(ExtractFilePath(ParamStr(0)), 'sftp-fixtures');
+    ForceDirectories(DirectoryName);
+    KeyName := TPath.Combine(DirectoryName, 'key');
+    HostsName := TPath.Combine(DirectoryName, 'known_hosts');
+    if not TFile.Exists(KeyName) then TFile.WriteAllText(KeyName, 'test key');
+    if not TFile.Exists(HostsName) then TFile.WriteAllText(HostsName, 'test host');
+    Rejected := False;
+    try
+      TestSftpConnection('-bad', 'user', KeyName, HostsName, 22);
+    except on E: EArgumentException do Rejected := True end;
+    if not Rejected then raise Exception.Create('Invalid hostname was accepted');
+    Rejected := False;
+    try
+      TestSftpConnection('localhost', 'user@host', KeyName, HostsName, 22);
+    except on E: EArgumentException do Rejected := True end;
+    if not Rejected then raise Exception.Create('Invalid username was accepted');
+    Rejected := False;
+    try
+      TestSftpConnection('', '', KeyName, HostsName, 22);
+    except on E: EArgumentException do Rejected := True end;
+    if not Rejected then raise Exception.Create('Empty inputs were accepted');
+    Rejected := False;
+    try
+      TestSftpConnection('127.0.0.1', 'user', KeyName, HostsName, 1);
+    except on E: EInvalidOpException do Rejected := True end;
+    if not Rejected then raise Exception.Create('Closed port did not fail');
+    Writeln('SFTP validation and local closed-port checks passed.');
+  except
+    on E: Exception do begin Writeln(E.ClassName, ': ', E.Message); Halt(1) end;
+  end;
+end.

@@ -23,6 +23,7 @@
     <DelphiCompile Include="$(MainSource)"><MainSource>MainSource</MainSource></DelphiCompile>
     <DCCReference Include="WebStudio.Main.pas"><Form>MainForm</Form></DCCReference>
     <DCCReference Include="WebStudio.LocalAIForm.pas"><Form>LocalAIForm</Form></DCCReference>
+    <DCCReference Include="WebStudio.SftpForm.pas"><Form>SftpForm</Form></DCCReference>
   </ItemGroup>
   <ProjectExtensions><BorlandProject><Delphi.Personality><Source><Source Name="MainSource">DelphiWebStudio.dpr</Source></Source></Delphi.Personality><Platforms><Platform value="Win64">True</Platform></Platforms></BorlandProject><ProjectFileVersion>12</ProjectFileVersion></ProjectExtensions>
   <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')" />
