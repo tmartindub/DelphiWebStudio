@@ -116,9 +116,46 @@ export function MediaPanel() {
   return (
     <div className="flex flex-col flex-1 min-h-0 px-3 py-3 gap-2" onDragOver={event => event.preventDefault()} onDrop={event => {
       event.preventDefault()
-      const files = Array.from(event.dataTransfer.files)
-      if (files.length) void importFiles(files)
-      else toast.error('Drop files; folder import is not available yet.')
+      if (!projectId || useEditorStore.getState().mediaImporting) { toast.error('Wait for the current media operation to finish.'); return }
+      const entries = Array.from(event.dataTransfer.items).map(item => item.webkitGetAsEntry?.()).filter((entry): entry is FileSystemEntry => !!entry)
+      const fallbackFiles = Array.from(event.dataTransfer.files)
+      if (!entries.length) { if (fallbackFiles.length) void importFiles(fallbackFiles); else toast.error('No files were found.'); return }
+      const droppedProjectId = projectId
+      cancel.current = false
+      useEditorStore.getState().setMediaImporting(true)
+      setProgress('Reading dropped files and folders…')
+      void (async () => {
+        const files: File[] = []
+        const queue = entries.map(entry => ({ entry, folder: '' }))
+        try {
+          while (queue.length && !cancel.current) {
+            const current = queue.shift()!
+            if (current.entry.isFile) {
+              const file = await new Promise<File>((resolve, reject) => (current.entry as FileSystemFileEntry).file(resolve, reject))
+              if (current.folder) Object.defineProperty(file, 'webkitRelativePath', { value: `${current.folder}/${file.name}` })
+              files.push(file)
+            } else if (current.entry.isDirectory) {
+              const folder = current.folder ? `${current.folder}/${current.entry.name}` : current.entry.name
+              const reader = (current.entry as FileSystemDirectoryEntry).createReader()
+              let children: FileSystemEntry[]
+              do {
+                children = await new Promise<FileSystemEntry[]>((resolve, reject) => reader.readEntries(resolve, reject))
+                queue.push(...children.map(entry => ({ entry, folder })))
+              } while (children.length && !cancel.current)
+            }
+          }
+          if (cancel.current) { toast('Folder reading canceled; no files were imported.'); return }
+          if (useEditorStore.getState().activeProjectId !== droppedProjectId) { toast.error('The project changed; drop the files again in the intended project.'); return }
+          if (!files.length) { toast.error('No files were found in the dropped folders.'); return }
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : 'Dropped folders could not be read.')
+          return
+        } finally {
+          useEditorStore.getState().setMediaImporting(false)
+          setProgress('')
+        }
+        await importFiles(files)
+      })()
     }}>
       <label className="text-xs text-text-1">When files match
         <select aria-label="Duplicate files" value={duplicateMode} disabled={mediaBusy} onChange={event => setDuplicateMode(event.target.value as 'reuse' | 'keep' | 'skip')} className="ml-2 bg-bg-2 border border-border-default rounded p-1">
