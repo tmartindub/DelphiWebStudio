@@ -19,6 +19,7 @@ const
   RuntimeArchiveSHA256 = '7605ee19d22ff58053d0df045f972367f6e6fd36bbcd02e7c0633ca639603a85';
   RuntimeServerSHA256 = 'fdd36c37b25b171a4a7f293d52885f4e578064fcfd806800dcc0e5322039b3a8';
   ModelSHA256 = '061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a';
+  LargeModelSHA256 = '3605803b982cb64aead44f6c1b2ae36e3acdb41d8e46c8a94c6533bc4c67e597';
   BCRYPT_USE_SYSTEM_PREFERRED_RNG = $00000002;
   TCP_TABLE_OWNER_PID_LISTENER = 3;
 
@@ -123,7 +124,7 @@ end;
 
 function RunLocalSitePlan(const RuntimeArchive, ModelFile, Brief, ProposalKind: string): string;
 var
-  Directory, Key, KeyFile, ServerFile: string;
+  Directory, Key, KeyFile, ServerFile, VerifiedModelSHA256: string;
   Port: Word;
   Process: TLocalAIProcess;
   Http: THTTPClient;
@@ -134,7 +135,9 @@ begin
     raise EArgumentException.Create('Describe the website in 1 to 4000 characters.');
   if not SameText(THashSHA2.GetHashStringFromFile(RuntimeArchive), RuntimeArchiveSHA256) then
     raise EArgumentException.Create('The local AI runtime ZIP does not match the supported release.');
-  if not SameText(THashSHA2.GetHashStringFromFile(ModelFile), ModelSHA256) then
+  VerifiedModelSHA256 := THashSHA2.GetHashStringFromFile(ModelFile);
+  if not SameText(VerifiedModelSHA256, ModelSHA256) and
+     not SameText(VerifiedModelSHA256, LargeModelSHA256) then
     raise EArgumentException.Create('The local AI model does not match the supported model.');
   Directory := NewPrivateDirectory;
   try
@@ -146,7 +149,7 @@ begin
     Port := AllocateLoopbackPort;
     Process := TLocalAIProcess.Create;
     try
-      Process.Start(ServerFile, ModelFile, KeyFile, RuntimeServerSHA256, ModelSHA256, Port);
+      Process.Start(ServerFile, ModelFile, KeyFile, RuntimeServerSHA256, VerifiedModelSHA256, Port);
       Http := THTTPClient.Create;
       try
         Http.ConnectionTimeout := 1000;

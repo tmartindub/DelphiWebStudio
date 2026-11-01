@@ -16,6 +16,7 @@ type
     ModelEdit: TEdit;
     ModelBrowseButton: TButton;
     ModelDownloadButton: TButton;
+    LargeModelDownloadButton: TButton;
     ProposalLabel: TLabel;
     ProposalKind: TComboBox;
     BriefLabel: TLabel;
@@ -28,6 +29,7 @@ type
     procedure ModelBrowseButtonClick(Sender: TObject);
     procedure RuntimeDownloadButtonClick(Sender: TObject);
     procedure ModelDownloadButtonClick(Sender: TObject);
+    procedure LargeModelDownloadButtonClick(Sender: TObject);
     procedure GenerateButtonClick(Sender: TObject);
   end;
 
@@ -60,6 +62,15 @@ begin
   if ShellExecute(Handle, 'open',
     'https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/' +
     '90862c4b9d2787eaed51d12237eafdfe7c5f6077/Qwen3-1.7B-Q8_0.gguf',
+    nil, nil, SW_SHOWNORMAL) <= 32 then
+    MessageDlg('Could not open the model download in your browser.', mtError, [mbOK], 0);
+end;
+
+procedure TLocalAIForm.LargeModelDownloadButtonClick(Sender: TObject);
+begin
+  if ShellExecute(Handle, 'open',
+    'https://huggingface.co/unsloth/Qwen3-4B-Instruct-2507-GGUF/resolve/' +
+    'a06e946bb6b655725eafa393f4a9745d460374c9/Qwen3-4B-Instruct-2507-Q4_K_M.gguf',
     nil, nil, SW_SHOWNORMAL) <= 32 then
     MessageDlg('Could not open the model download in your browser.', mtError, [mbOK], 0);
 end;

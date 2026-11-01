@@ -12,7 +12,7 @@ object LocalAIForm: TLocalAIForm
     Width = 548
     Height = 34
     AutoSize = False
-    Caption = 'Open a project first. Page planning needs a blank project; colors work on any project. Download files if needed (model: about 1.8 GB).'
+    Caption = 'Open a project first. Page planning needs a blank project; colors work on any project. Download files if needed (models: 1.8 or 2.5 GB).'
     WordWrap = True
   end
   object RuntimeLabel: TLabel
@@ -48,7 +48,7 @@ object LocalAIForm: TLocalAIForm
   object ModelLabel: TLabel
     Left = 16
     Top = 108
-    Caption = 'Qwen3 1.7B Q8 GGUF model'
+    Caption = 'GGUF model (4B uses more memory)'
   end
   object ModelEdit: TEdit
     Left = 16
@@ -62,9 +62,18 @@ object LocalAIForm: TLocalAIForm
     Top = 101
     Width = 129
     Height = 23
-    Caption = 'Download model'
+    Caption = 'Download 1.7B'
     TabOrder = 3
     OnClick = ModelDownloadButtonClick
+  end
+  object LargeModelDownloadButton: TButton
+    Left = 299
+    Top = 101
+    Width = 129
+    Height = 23
+    Caption = 'Download 4B'
+    TabOrder = 10
+    OnClick = LargeModelDownloadButtonClick
   end
   object ModelBrowseButton: TButton
     Left = 480
