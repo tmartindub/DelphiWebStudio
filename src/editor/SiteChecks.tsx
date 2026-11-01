@@ -10,12 +10,13 @@ export function SiteChecks({ onClose }: { onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const config = useConfigStore(state => state.config)
   const projectId = useEditorStore(state => state.activeProjectId)
+  const settings = useProjectsStore(state => state.projects.find(project => project.id === projectId)?.settings)
   const mediaBusy = useEditorStore(state => state.mediaImporting)
   const revision = useProjectsStore(state => state.projects.find(project => project.id === projectId)?.mediaRevision ?? 0)
   const [media, setMedia] = useState<{ projectId: string; revision: number; assets?: MediaAsset[]; error?: string } | null>(null)
   let issues: SiteIssue[] = []
   let error = ''
-  try { issues = checkSite(config) } catch (cause) { error = cause instanceof Error ? cause.message : 'The site could not be checked.' }
+  try { issues = checkSite(config, settings ?? {}) } catch (cause) { error = cause instanceof Error ? cause.message : 'The site could not be checked.' }
   const mediaReady = !mediaBusy && !!projectId && media?.projectId === projectId && media.revision === revision
   let mediaError = mediaReady ? media?.error ?? '' : ''
   if (!error && mediaReady && media?.assets) {
@@ -40,13 +41,13 @@ export function SiteChecks({ onClose }: { onClose: () => void }) {
   return (
     <dialog ref={dialog} onCancel={event => { event.preventDefault(); onClose() }} aria-labelledby="site-checks-title" className="w-[min(92vw,38rem)] max-h-[85vh] rounded-xl border border-border-default bg-bg-1 p-5 text-text-0 shadow-xl backdrop:bg-black/60">
       <h2 id="site-checks-title" className="text-lg font-semibold">Check site</h2>
-      <p className="mt-2 text-sm text-text-2">Checks project media, missing media sources, Content text links, known button links, text-only navigation, image descriptions and form configuration. No website is published or contacted.</p>
+      <p className="mt-2 text-sm text-text-2">Checks page titles and descriptions, project media, missing media sources, Content text links, known button links, text-only navigation, image descriptions and form configuration. No website is published or contacted.</p>
       {!mediaReady && <p role="status" className="mt-3 text-sm">Checking project media…</p>}
       {mediaError && <p role="alert" className="mt-3 text-sm text-status-red">{mediaError}</p>}
       {error ? <p role="alert" className="mt-4 text-sm text-status-red">{error}</p> : issues.length ? <ul className="mt-4 space-y-2">
         {issues.map((issue, index) => <li key={`${issue.pageId}-${issue.blockId}-${index}`} className="rounded border border-border-default bg-bg-2 p-3 text-sm">
           <p><strong>{issue.pageName}:</strong> {issue.message}</p>
-          <button type="button" className="mt-2 text-green underline" onClick={() => { useConfigStore.getState().setActivePage(issue.pageId); useEditorStore.getState().selectBlock(issue.blockId); onClose() }}>Open this block</button>
+          <button type="button" className="mt-2 text-green underline" onClick={() => { useConfigStore.getState().setActivePage(issue.pageId); useEditorStore.getState().selectBlock(issue.blockId || null); onClose() }}>{issue.blockId ? 'Open this block' : 'Open this page'}</button>
         </li>)}
       </ul> : mediaReady && !mediaError ? <p className="mt-4 text-sm">No issues found in these checks.</p> : null}
       <p className="mt-4 text-xs text-text-2">External links, anchors, custom blocks, visual layout and overall accessibility are not verified. Review and test the exported website as well.</p>
