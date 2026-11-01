@@ -90,3 +90,13 @@ export async function createRestorePlan(backupZip: Blob, destination: unknown) {
   const backup = validateWebsiteManifest({ format: 'webstudio-website-manifest', version: 1, files })
   return compareWebsiteManifests(current, backup)
 }
+
+/** Review desired files only after the backup matches the supplied destination scan. */
+export async function createDeploymentPlan(websiteZip: Blob, destination: unknown, backupZip: Blob) {
+  const current = validateWebsiteManifest(destination)
+  const backupDifference = await createRestorePlan(backupZip, current)
+  if (backupDifference.added.length || backupDifference.changed.length || backupDifference.removed.length) {
+    throw new Error('The backup does not match the destination scan. Scan and back up the same destination again.')
+  }
+  return compareWebsiteManifests(current, await createWebsiteManifest(websiteZip))
+}

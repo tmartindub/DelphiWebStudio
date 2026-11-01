@@ -19,7 +19,7 @@ import { portableProjectsEnabled } from '@/project/project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
 import { publishSite } from '@/lib/publish-site'
 import JSZip from 'jszip'
-import { createRestorePlan, createWebsiteManifest, validateWebsiteManifest, compareWebsiteManifests, type WebsiteManifest } from '@/lib/website-manifest'
+import { createDeploymentPlan, createRestorePlan, createWebsiteManifest, validateWebsiteManifest, compareWebsiteManifests, type WebsiteManifest } from '@/lib/website-manifest'
 import { checkSite, type SiteIssue } from '@/project/site-checks'
 
 const readyOptions = [
@@ -49,6 +49,7 @@ export function Deploy() {
   const [restoreBackup, setRestoreBackup] = useState<File | null>(null)
   const [restoreScan, setRestoreScan] = useState<File | null>(null)
   const [restorePlan, setRestorePlan] = useState<ReturnType<typeof compareWebsiteManifests> | null>(null)
+  const [deploymentPlan, setDeploymentPlan] = useState<{ signature: string; result: ReturnType<typeof compareWebsiteManifests> } | null>(null)
   const [restoreWorking, setRestoreWorking] = useState(false)
   const signature = JSON.stringify({ projectId: activeProjectId, config, settings: project?.settings, mediaRevision: project?.mediaRevision })
 
@@ -106,6 +107,19 @@ export function Deploy() {
       setRestorePlan(await createRestorePlan(restoreBackup, JSON.parse(await restoreScan.text())))
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'The restore plan could not be prepared')
+    } finally { setRestoreWorking(false) }
+  }
+
+  async function reviewDeploymentPlan() {
+    if (!restoreBackup || !restoreScan || !review || review.signature !== signature) return
+    if (restoreScan.size > 2 * 1024 * 1024) { toast.error('The destination scan is too large.'); return }
+    setRestoreWorking(true)
+    setDeploymentPlan(null)
+    try {
+      const result = await createDeploymentPlan(review.zip, JSON.parse(await restoreScan.text()), restoreBackup)
+      setDeploymentPlan({ signature: review.signature, result })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'The deployment review could not be prepared')
     } finally { setRestoreWorking(false) }
   }
 
@@ -252,11 +266,14 @@ export function Deploy() {
           <h2 className="text-sm font-semibold">Review a restore plan</h2>
           <p className="mt-1 text-xs text-text-2">Choose a destination backup ZIP and a recent SFTP destination scan. This comparison lists files only; it does not restore or delete anything. Scan again if the destination has changed.</p>
           <div className="mt-3 flex flex-wrap gap-4 text-xs">
-            <label>Backup ZIP <input type="file" accept=".zip,application/zip" disabled={restoreWorking} onChange={event => { setRestoreBackup(event.target.files?.[0] ?? null); setRestorePlan(null) }} /></label>
-            <label>Destination scan <input type="file" accept=".json,application/json" disabled={restoreWorking} onChange={event => { setRestoreScan(event.target.files?.[0] ?? null); setRestorePlan(null) }} /></label>
+            <label>Backup ZIP <input type="file" accept=".zip,application/zip" disabled={restoreWorking} onChange={event => { setRestoreBackup(event.target.files?.[0] ?? null); setRestorePlan(null); setDeploymentPlan(null) }} /></label>
+            <label>Destination scan <input type="file" accept=".json,application/json" disabled={restoreWorking} onChange={event => { setRestoreScan(event.target.files?.[0] ?? null); setRestorePlan(null); setDeploymentPlan(null) }} /></label>
           </div>
           <button type="button" onClick={reviewRestorePlan} disabled={!restoreBackup || !restoreScan || restoreWorking} className="mt-3 rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">{restoreWorking ? 'Checking backup…' : 'Review restore plan'}</button>
+          <button type="button" onClick={reviewDeploymentPlan} disabled={!restoreBackup || !restoreScan || !review || review.signature !== signature || restoreWorking} className="ml-3 mt-3 rounded border border-border-default px-3 py-2 text-xs disabled:opacity-50">Review website changes</button>
+          <p className="mt-2 text-xs text-text-2">To review website changes, first use Review files above. The backup must match the selected scan. A scan can become stale; no files are uploaded or deleted here.</p>
           {restorePlan && <div className="mt-3 text-xs">{([['added', 'Missing from destination'], ['changed', 'Different contents'], ['removed', 'Only on destination']] as const).map(([kind, label]) => <div key={kind} className="mt-2"><p className="font-semibold">{label}: {restorePlan[kind].length}</p><ul aria-label={label} className="max-h-32 overflow-auto font-mono">{restorePlan[kind].map(path => <li key={path} className="break-all">{path}</li>)}</ul></div>)}</div>}
+          {deploymentPlan?.signature === signature && <div className="mt-3 text-xs"><p className="font-semibold">Website compared with the selected scan; backup matches.</p>{([['added', 'New files'], ['changed', 'Changed files'], ['removed', 'Only on destination']] as const).map(([kind, label]) => <div key={kind} className="mt-2"><p className="font-semibold">{label}: {deploymentPlan.result[kind].length}</p><ul aria-label={label} className="max-h-32 overflow-auto font-mono">{deploymentPlan.result[kind].map(path => <li key={path} className="break-all">{path}</li>)}</ul></div>)}</div>}
         </div>
       </div>}
       {hasDeployKey && !portableProjectsEnabled && (

@@ -1,12 +1,27 @@
 import { describe, expect, it } from 'vitest'
 import JSZip from 'jszip'
-import { compareWebsiteManifests, createRestorePlan, createWebsiteManifest, validateWebsiteManifest } from '../src/lib/website-manifest'
+import { compareWebsiteManifests, createDeploymentPlan, createRestorePlan, createWebsiteManifest, validateWebsiteManifest } from '../src/lib/website-manifest'
 
 const hashA = 'a'.repeat(64)
 const hashB = 'b'.repeat(64)
 const manifest = (files: { path: string; size: number; sha256: string }[]) => ({ format: 'webstudio-website-manifest' as const, version: 1 as const, files })
 
 describe('website deployment snapshots', () => {
+  it('previews deployment only when the backup matches the destination scan', async () => {
+    const backupZip = new JSZip()
+    backupZip.file('index.html', 'old page')
+    backupZip.file('old.html', 'old file')
+    const backup = await backupZip.generateAsync({ type: 'blob' })
+    const scan = await createWebsiteManifest(backup)
+    const desiredZip = new JSZip()
+    desiredZip.file('index.html', 'updated page')
+    desiredZip.file('new.html', 'new file')
+    const desired = await desiredZip.generateAsync({ type: 'blob' })
+    expect(await createDeploymentPlan(desired, scan, backup)).toEqual({ added: ['new.html'], changed: ['index.html'], removed: ['old.html'] })
+    const stale = structuredClone(scan)
+    stale.files[0].sha256 = hashA
+    await expect(createDeploymentPlan(desired, stale, backup)).rejects.toThrow('backup does not match')
+  })
   it('plans restoration from a backup against a destination scan without changing either', async () => {
     const zip = new JSZip()
     zip.file('index.html', 'hello')
