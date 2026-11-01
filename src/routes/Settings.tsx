@@ -5,6 +5,7 @@ import {
 import { toast } from 'sonner'
 import { useProjectsStore, type ProjectSettings } from '@/store/projectsStore'
 import { useEditorStore } from '@/store/editorStore'
+import { geminiSession } from '@/lib/generate-site'
 
 type SettingsTab = 'general' | 'seo' | 'api'
 
@@ -133,17 +134,15 @@ function SeoPanel({ settings }: { settings: ReturnType<typeof useSettingsState> 
 }
 
 function ApiPanel({ settings }: { settings: ReturnType<typeof useSettingsState> }) {
-  const [geminiKey, setGeminiKey] = useState(localStorage.getItem('openpage-gemini-key') || '')
+  const [geminiKey, setGeminiKey] = useState(geminiSession.changed ? geminiSession.key : localStorage.getItem('openpage-gemini-key') || '')
+  const [legacyKeySaved, setLegacyKeySaved] = useState(() => !!localStorage.getItem('openpage-gemini-key'))
   const [showKey, setShowKey] = useState(false)
   const [testing, setTesting] = useState(false)
 
   function handleKeyChange(value: string) {
     setGeminiKey(value)
-    if (value) {
-      localStorage.setItem('openpage-gemini-key', value)
-    } else {
-      localStorage.removeItem('openpage-gemini-key')
-    }
+    geminiSession.key = value
+    geminiSession.changed = true
   }
 
   async function handleTest() {
@@ -207,6 +206,19 @@ function ApiPanel({ settings }: { settings: ReturnType<typeof useSettingsState> 
           Used for client-side AI generation. Get one at{' '}
           <span className="text-text-2">aistudio.google.com</span>
         </p>
+        <p className="text-[11px] text-text-3 mt-1.5">New entries are kept only until the app closes or the page reloads.</p>
+        {legacyKeySaved && <div className="text-[11px] text-status-yellow mt-1.5">
+          <p>An older key is still stored without application-level encryption. It is not removed automatically.</p>
+          <button type="button" className="underline" onClick={() => {
+            try {
+              localStorage.removeItem('openpage-gemini-key')
+              geminiSession.key = geminiKey
+              geminiSession.changed = true
+              setLegacyKeySaved(false)
+              toast('Saved key removed. The current entry remains available until the app closes or reloads.')
+            } catch { toast.error('The saved key could not be removed.') }
+          }}>Remove older saved key</button>
+        </div>}
       </FieldGroup>
 
     </div>
