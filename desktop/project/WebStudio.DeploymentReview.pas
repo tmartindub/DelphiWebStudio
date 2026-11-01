@@ -4,9 +4,19 @@ unit WebStudio.DeploymentReview;
 interface
 
 type
+  TDeploymentTransfer = record
+    Path: string;
+    DesiredSize: UInt64;
+    DesiredSha256: string;
+    IsReplacement: Boolean;
+    ExpectedSize: UInt64;
+    ExpectedSha256: string;
+  end;
+
   TDeploymentReview = record
     WebsiteSha256, ScanSha256, BackupSha256: string;
     Added, Changed, OnlyAtDestination: TArray<string>;
+    Transfers: TArray<TDeploymentTransfer>;
   end;
 
 { Local review only: does not contact or change a destination. The caller must
@@ -172,7 +182,8 @@ var
   Website, Scan, Backup: TDictionary<string, TSftpInventoryEntry>;
   Added, Changed, OnlyDestination: TStringList;
   Pair: TPair<string, TSftpInventoryEntry>;
-  Other: TSftpInventoryEntry;
+  Other, Desired: TSftpInventoryEntry;
+  Index, Position: Integer;
 begin
   WebsiteStream := TFileStream.Create(WebsiteZip, fmOpenRead or fmShareDenyWrite);
   try
@@ -197,6 +208,29 @@ begin
           Added.Sort; Changed.Sort; OnlyDestination.Sort;
           Result.Added := Added.ToStringArray; Result.Changed := Changed.ToStringArray;
           Result.OnlyAtDestination := OnlyDestination.ToStringArray;
+          SetLength(Result.Transfers, Added.Count + Changed.Count);
+          Position := 0;
+          for Index := 0 to Added.Count - 1 do begin
+            Desired := Website.Items[Added[Index]];
+            Result.Transfers[Position].Path := Desired.Path;
+            Result.Transfers[Position].DesiredSize := Desired.Size;
+            Result.Transfers[Position].DesiredSha256 := Desired.Sha256;
+            Result.Transfers[Position].IsReplacement := False;
+            Result.Transfers[Position].ExpectedSize := 0;
+            Result.Transfers[Position].ExpectedSha256 := '';
+            Inc(Position);
+          end;
+          for Index := 0 to Changed.Count - 1 do begin
+            Desired := Website.Items[Changed[Index]];
+            Other := Scan.Items[Changed[Index]];
+            Result.Transfers[Position].Path := Desired.Path;
+            Result.Transfers[Position].DesiredSize := Desired.Size;
+            Result.Transfers[Position].DesiredSha256 := Desired.Sha256;
+            Result.Transfers[Position].IsReplacement := True;
+            Result.Transfers[Position].ExpectedSize := Other.Size;
+            Result.Transfers[Position].ExpectedSha256 := Other.Sha256;
+            Inc(Position);
+          end;
           WebsiteStream.Position := 0; ScanStream.Position := 0; BackupStream.Position := 0;
           Result.WebsiteSha256 := LowerCase(THashSHA2.GetHashString(WebsiteStream));
           Result.ScanSha256 := LowerCase(THashSHA2.GetHashString(ScanStream));

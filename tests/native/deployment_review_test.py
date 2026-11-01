@@ -19,6 +19,8 @@ def review(site, scan_file, backup_file):
 
 result = review(desired, scan, backup)
 expected = {'A:new.txt', 'C:index.html', 'R:assets/image.png',
+            'T:new.txt|0|11|' + hashlib.sha256(b'new content').hexdigest() + '|0|',
+            'T:index.html|1|12|' + hashlib.sha256(b'updated page').hexdigest() + '|12|' + hashlib.sha256(b'Hello world!').hexdigest(),
             'W:' + hashlib.sha256(desired.read_bytes()).hexdigest(),
             'S:' + hashlib.sha256(scan.read_bytes()).hexdigest(),
             'B:' + hashlib.sha256(backup.read_bytes()).hexdigest()}

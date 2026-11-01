@@ -14,6 +14,7 @@ var
   Entries: TArray<TSftpInventoryEntry>;
   Receipt: TSftpTransferReceipt;
   Review: TDeploymentReview;
+  Transfer: TDeploymentTransfer;
   Path: string;
   ReviewDialog: TDeploymentReviewForm;
   Deadline: UInt64;
@@ -50,6 +51,8 @@ begin
       for Path in Review.Added do Writeln('A:', Path);
       for Path in Review.Changed do Writeln('C:', Path);
       for Path in Review.OnlyAtDestination do Writeln('R:', Path);
+      for Transfer in Review.Transfers do
+        Writeln('T:', Transfer.Path, '|', Ord(Transfer.IsReplacement), '|', Transfer.DesiredSize, '|', Transfer.DesiredSha256, '|', Transfer.ExpectedSize, '|', Transfer.ExpectedSha256);
       Writeln('W:', Review.WebsiteSha256);
       Writeln('S:', Review.ScanSha256);
       Writeln('B:', Review.BackupSha256);
