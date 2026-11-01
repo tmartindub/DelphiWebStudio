@@ -22,7 +22,7 @@ hosts = work / 'known_hosts'
 hosts.write_text(f'[127.0.0.1]:{port} {host_key.get_name()} {host_key.get_base64()}\n', encoding='ascii')
 
 baseline = {'index.html': b'Hello world!', 'assets/image.png': b'picture', 'empty.txt': b''}
-roots = ['/success', '/stale', '/race', '/journal', '/deny', '/midfail', '/postchange', '/private-missing', '/private-link']
+roots = ['/success', '/gui', '/stale', '/race', '/journal', '/deny', '/midfail', '/postchange', '/private-missing', '/private-link']
 files = {prefix + '/' + name: content for prefix in roots for name, content in baseline.items()}
 directories = {'/', '/private'} | {directory for prefix in roots for directory in [prefix, prefix + '/assets']}
 removed = []
@@ -108,7 +108,7 @@ class Files(paramiko.SFTPServerInterface):
 errors = []
 def serve():
     try:
-        for _ in range(43):
+        for _ in range(53):
             connection, _ = listener.accept()
             transport = paramiko.Transport(connection)
             try:
@@ -164,6 +164,12 @@ assert files['/success/secondfolder/second.txt'] == b'second addition'
 assert files['/success/assets/image.png'] == b'picture'
 assert records[8]['originalPath'].startswith('/private/') and files[records[8]['originalPath']] == b'Hello world!'
 assert not any(path.startswith('/success/.webstudio-original-') for path in files)
+
+gui_receipt = work / 'gui-receipt.jsonl'
+gui = subprocess.run([str(exe), str(port), str(key), str(hosts), '/gui', str(website), str(scan), str(backup), str(gui_receipt)] + ['test'] * 14, capture_output=True, text=True, timeout=50)
+assert gui.returncode == 0 and 'Synthetic native confirmation workflow passed.' in gui.stdout, (gui.stdout, gui.stderr)
+assert files['/gui/index.html'] == b'new synthetic data'
+assert [json.loads(line)['event'] for line in gui_receipt.read_text(encoding='utf8').splitlines()][-1] == 'complete'
 
 # Restore the old backup using a fresh scan and backup of the current destination.
 # All paths and contents remain inside this in-memory test server.

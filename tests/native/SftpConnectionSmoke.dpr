@@ -3,8 +3,34 @@ program SftpConnectionSmoke;
 {$APPTYPE CONSOLE}
 
 uses
-  Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils, Vcl.Forms, WebStudio.SftpConnection,
+  Winapi.Windows, Winapi.Messages, Winapi.CommDlg, Winapi.Dlgs, System.SysUtils, System.Classes, System.IOUtils, System.UITypes, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, WebStudio.SftpConnection,
   WebStudio.SftpForm, WebStudio.SftpInventory, WebStudio.DeploymentReview, WebStudio.DeploymentPreflight, WebStudio.DeploymentReviewForm, WebStudio.DeploymentJournal, WebStudio.DeploymentExecutor;
+
+type
+  TDialogDriver = class
+    procedure SaveShown(Sender: TObject);
+    procedure Confirm(Sender: TObject);
+  end;
+
+procedure TDialogDriver.SaveShown(Sender: TObject);
+var Window: HWND; Name: string;
+begin
+  Window := GetParent(TSaveDialog(Sender).Handle);
+  Name := ExtractFileName(ParamStr(8));
+  SendMessage(Window, CDM_SETCONTROLTEXT, edt1, LPARAM(PChar(Name)));
+  PostMessage(Window, WM_COMMAND, IDOK, 0);
+end;
+
+procedure TDialogDriver.Confirm(Sender: TObject);
+var I: Integer;
+begin
+  for I := 0 to Screen.FormCount - 1 do
+    if Screen.Forms[I].ClassName = 'TMessageForm' then begin
+      Screen.Forms[I].ModalResult := mrYes;
+      TTimer(Sender).Enabled := False;
+      Exit;
+    end;
+end;
 
 var
   DirectoryName, KeyName, HostsName: string;
@@ -21,8 +47,43 @@ var
   Journal: TDeploymentJournal;
   Execution: TDeploymentExecution;
   OperationId, SecondId: TGUID;
+  Driver: TDialogDriver;
+  ConfirmTimer: TTimer;
 begin
   try
+    if ParamCount = 22 then begin
+      if ParamStr(4) <> '/gui' then raise Exception.Create('The dialog test requires the synthetic local destination.');
+      Application.Initialize;
+      UseLatestCommonDialogs := False;
+      ReviewDialog := TDeploymentReviewForm.Create(nil);
+      Driver := TDialogDriver.Create;
+      ConfirmTimer := TTimer.Create(nil);
+      try
+        ReviewDialog.SetConnection('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), ParamStr(1), ParamStr(4));
+        ReviewDialog.WebsiteEdit.Text := ParamStr(5);
+        ReviewDialog.ScanEdit.Text := ParamStr(6);
+        ReviewDialog.BackupEdit.Text := ParamStr(7);
+        ReviewDialog.RecoveryEdit.Text := '/private';
+        ReviewDialog.JournalDialog.InitialDir := ExtractFilePath(ParamStr(8));
+        ReviewDialog.JournalDialog.OnShow := Driver.SaveShown;
+        ReviewDialog.ReviewButton.Click;
+        Deadline := GetTickCount64 + 30000;
+        while not ReviewDialog.ReviewButton.Enabled and (GetTickCount64 < Deadline) do begin Application.ProcessMessages; CheckSynchronize(0); Sleep(10) end;
+        if not ReviewDialog.CheckButton.Enabled then raise Exception.Create('Dialog review failed.');
+        ReviewDialog.CheckButton.Click;
+        Deadline := GetTickCount64 + 30000;
+        while not ReviewDialog.ReviewButton.Enabled and (GetTickCount64 < Deadline) do begin Application.ProcessMessages; CheckSynchronize(0); Sleep(10) end;
+        if not ReviewDialog.PublishButton.Enabled then raise Exception.Create('Dialog preflight failed.');
+        ConfirmTimer.Enabled := False; ConfirmTimer.Interval := 100; ConfirmTimer.OnTimer := Driver.Confirm; ConfirmTimer.Enabled := True;
+        ReviewDialog.PublishButton.Click;
+        Deadline := GetTickCount64 + 30000;
+        while not ReviewDialog.ReviewButton.Enabled and (GetTickCount64 < Deadline) do begin Application.ProcessMessages; CheckSynchronize(0); Sleep(10) end;
+        if (Pos('Verified 3 transfers', ReviewDialog.StatusLabel.Caption) = 0) or not TFile.Exists(ParamStr(8)) then
+          raise Exception.Create('Dialog transfer failed: ' + ReviewDialog.StatusLabel.Caption);
+        Writeln('Synthetic native confirmation workflow passed.');
+      finally ConfirmTimer.Free; Driver.Free; ReviewDialog.Free end;
+      Exit;
+    end;
     if ParamCount = 21 then begin
       Review := ReviewDeployment(ParamStr(5), ParamStr(6), ParamStr(7));
       TFile.AppendAllText(ParamStr(5), 'changed after review');

@@ -188,6 +188,8 @@ To review restoration of an earlier destination backup, first scan the current d
 
 A synthetic local SFTP test restored a changed file from an earlier backup, retained two newer destination-only files, and kept the displaced file in the private recovery folder. This tests the transfer engine; restoration through the desktop confirmation dialog and a real host remains unverified.
 
+An isolated desktop test also reviewed synthetic files, checked an in-memory loopback destination, selected a receipt through the legacy Windows save dialog, confirmed the transfer, and checked the completed receipt. It did not contact a real host. The modern receipt dialog and real-host transfer remain unverified.
+
 ## Optional site search
 
 In Settings → General, set **Site search** to **Include in website ZIP** to add a Search link and a local search page. Search uses an index embedded in the exported page; it does not send queries to a search service. It searches page names and common text fields such as headings, descriptions, captions, questions and answers. It does not extract text from PDFs or search every possible block or plugin field. The index is part of the public website export and should contain only content intended for publication. A page path that would overwrite `search.html` is rejected. The Search link in the editor is a preview; use the exported website to run a search.
