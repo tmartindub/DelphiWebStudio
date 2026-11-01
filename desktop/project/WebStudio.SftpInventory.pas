@@ -13,6 +13,7 @@ type
     Path: string;
     Size: UInt64;
     Sha256: string;
+    PreviousPath: string;
   end;
 
 { Read-only SFTP directory inventory. Unsupported entries fail the scan. }
@@ -27,6 +28,12 @@ procedure BackupSftpDestination(const Host, UserName, KeyFile, KnownHostsFile: s
   Do not expose it without the required review and explicit confirmation. }
 function UploadNewSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
   Port: Word; const RemoteDirectory, RemoteName, LocalFile: string): TSftpTransferReceipt;
+function ReplaceSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RemoteName, LocalFile: string;
+  ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
+{ Replacement is also internal. The caller must first review the full diff,
+  back up the destination, and obtain explicit publication confirmation. The
+  original is retained under the receipt's PreviousPath; it is never deleted. }
 
 implementation
 
@@ -49,8 +56,11 @@ type
     function ReceivePacket: TBytesStream;
     function Request(Kind: Byte; const Value: TBytes; const Extra: TBytes = nil): TBytesStream;
     function HashFile(const RemotePath: string; ExpectedSize: UInt64; Capture: TStream = nil): string;
+    procedure RequireRegularFile(const RemotePath: string; ExpectedSize: UInt64);
     procedure Initialize;
-    function UploadNewFile(const RemoteDirectory, RemoteName: string; Source: TStream): TSftpTransferReceipt;
+    procedure RenameNoReplace(const OldPath, NewPath: string);
+    function UploadFile(const RemoteDirectory, RemoteName: string; Source: TStream;
+      Replacing: Boolean; ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
     procedure ScanDirectory(const Root, Relative: string; Depth: Integer);
   public
     constructor Create(const Host, UserName, KeyFile, KnownHostsFile: string; Port: Word);
@@ -416,9 +426,44 @@ begin
   Result := FEntries.ToArray;
 end;
 
-function TSftpScanner.UploadNewFile(const RemoteDirectory, RemoteName: string; Source: TStream): TSftpTransferReceipt;
+procedure TSftpScanner.RenameNoReplace(const OldPath, NewPath: string);
+var Packet, Extra: TBytesStream; RequestData: TBytes; Kind: Byte;
+begin
+  Extra := TBytesStream.Create;
+  try
+    PutBytes(Extra, TEncoding.UTF8.GetBytes(NewPath));
+    RequestData := Copy(Extra.Bytes, 0, Extra.Size);
+  finally Extra.Free end;
+  Packet := Request(18, TEncoding.UTF8.GetBytes(OldPath), RequestData);
+  try
+    Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
+    if (Kind <> 101) or (GetUInt32(Packet) <> 0) then
+      raise EInvalidOpException.Create('The server refused a non-overwriting rename.');
+  finally Packet.Free end;
+end;
+
+procedure TSftpScanner.RequireRegularFile(const RemotePath: string; ExpectedSize: UInt64);
+var Packet: TBytesStream; Kind: Byte; Flags, Mode: Cardinal; Size: UInt64;
+begin
+  Packet := Request(7, TEncoding.UTF8.GetBytes(RemotePath));
+  try
+    Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
+    if Kind <> 105 then raise EInvalidOpException.Create('Cannot inspect the reviewed destination file.');
+    Flags := GetUInt32(Packet);
+    if (Flags and 1 = 0) or (Flags and 4 = 0) then
+      raise EInvalidOpException.Create('The server did not provide the destination file type and size.');
+    Size := (UInt64(GetUInt32(Packet)) shl 32) or GetUInt32(Packet);
+    if Flags and 2 <> 0 then begin GetUInt32(Packet); GetUInt32(Packet) end;
+    Mode := GetUInt32(Packet);
+    if (Mode and $F000 <> $8000) or (Size <> ExpectedSize) then
+      raise EInvalidOpException.Create('The destination is not the reviewed regular file.');
+  finally Packet.Free end;
+end;
+
+function TSftpScanner.UploadFile(const RemoteDirectory, RemoteName: string; Source: TStream;
+  Replacing: Boolean; ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
 var
-  Root, Part, TempPath, TargetPath, LocalHash, RemoteHash: string;
+  Root, Part, TempPath, TargetPath, PreviousPath, LocalHash, RemoteHash: string;
   Index, ReadCount: Integer;
   UniqueId: TGUID;
   Packet, Extra: TBytesStream;
@@ -426,7 +471,7 @@ var
   Kind: Byte;
   Offset: UInt64;
   Hash: THashSHA2;
-  Created, Renamed: Boolean;
+  Created, Renamed, MoveAttempted, OriginalMoved: Boolean;
 begin
   if (RemoteDirectory = '') or (Length(RemoteDirectory) > 1024) or (RemoteDirectory[1] <> '/') or (Pos('\', RemoteDirectory) > 0) then
     raise EArgumentException.Create('Enter an absolute SFTP destination folder.');
@@ -441,15 +486,30 @@ begin
     if RemoteName[Index] < #32 then raise EArgumentException.Create('Invalid destination filename.');
   if (Source.Size < 0) or (Source.Size > 64 * 1024 * 1024) then
     raise EArgumentException.Create('The file exceeds the 64 MiB transfer limit.');
+  if Replacing then begin
+    if (ExpectedSize > 64 * 1024 * 1024) or (Length(ExpectedSha256) <> 64) then
+      raise EArgumentException.Create('The reviewed original file metadata is invalid.');
+    for Index := 1 to Length(ExpectedSha256) do
+      if not CharInSet(ExpectedSha256[Index], ['0'..'9', 'a'..'f', 'A'..'F']) then
+        raise EArgumentException.Create('The reviewed original checksum is invalid.');
+  end;
   Root := RemoteDirectory;
   if not Root.EndsWith('/') then Root := Root + '/';
   TargetPath := Root + RemoteName;
   if CreateGUID(UniqueId) <> 0 then raise EInvalidOpException.Create('Could not create a staging filename.');
   TempPath := Root + '.webstudio-upload-' + GUIDToString(UniqueId) + '.tmp';
+  PreviousPath := Root + '.webstudio-original-' + GUIDToString(UniqueId) + '.bak';
   Initialize;
   Created := False;
   Renamed := False;
+  MoveAttempted := False;
+  OriginalMoved := False;
   try
+    if Replacing then begin
+      RequireRegularFile(TargetPath, ExpectedSize);
+      if HashFile(TargetPath, ExpectedSize) <> LowerCase(ExpectedSha256) then
+        raise EInvalidOpException.Create('The destination file no longer matches the reviewed scan.');
+    end;
     Extra := TBytesStream.Create;
     try
       PutUInt32(Extra, 2 or 8 or 32); PutUInt32(Extra, 0);
@@ -495,25 +555,31 @@ begin
     LocalHash := LowerCase(Hash.HashAsString);
     RemoteHash := HashFile(TempPath, Offset);
     if LocalHash <> RemoteHash then raise EInvalidOpException.Create('The staged file verification failed.');
-    Extra := TBytesStream.Create;
-    try
-      PutBytes(Extra, TEncoding.UTF8.GetBytes(TargetPath));
-      RequestData := Copy(Extra.Bytes, 0, Extra.Size);
-    finally Extra.Free end;
-    Packet := Request(18, TEncoding.UTF8.GetBytes(TempPath), RequestData);
-    try
-      Packet.ReadBuffer(Kind, 1); GetUInt32(Packet);
-      if (Kind <> 101) or (GetUInt32(Packet) <> 0) then
-        raise EInvalidOpException.Create('The server refused to place the new file; it may already exist.');
-    finally Packet.Free end;
+    if Replacing then begin
+      MoveAttempted := True;
+      RenameNoReplace(TargetPath, PreviousPath);
+      OriginalMoved := True;
+      RequireRegularFile(PreviousPath, ExpectedSize);
+      if HashFile(PreviousPath, ExpectedSize) <> LowerCase(ExpectedSha256) then
+        raise EInvalidOpException.Create('The destination file changed after review.');
+    end;
+    RenameNoReplace(TempPath, TargetPath);
     Renamed := True;
     if HashFile(TargetPath, Offset) <> LocalHash then
       raise EInvalidOpException.Create('The destination file verification failed.');
     Result.Path := TargetPath;
     Result.Size := Offset;
     Result.Sha256 := LocalHash;
+    if Replacing then Result.PreviousPath := PreviousPath else Result.PreviousPath := '';
   except
     on E: Exception do begin
+      if OriginalMoved and not Renamed then begin
+        try RenameNoReplace(PreviousPath, TargetPath) except end;
+      end;
+      if MoveAttempted then begin
+        if Renamed then raise EInvalidOpException.Create(E.Message + ' The destination may exist at ' + TargetPath + ' and the original may remain at ' + PreviousPath + '; inspect both before retrying.');
+        raise EInvalidOpException.Create(E.Message + ' Inspect ' + TargetPath + ' and the possible original at ' + PreviousPath + ' before retrying. A staging file may remain at ' + TempPath + '.');
+      end;
       if Renamed then raise EInvalidOpException.Create(E.Message + ' The destination file may exist at ' + TargetPath + '; inspect it before retrying.');
       if Created then raise EInvalidOpException.Create(E.Message + ' A staging file may remain at ' + TempPath + '.');
       raise;
@@ -605,7 +671,19 @@ begin
   Source := TFileStream.Create(LocalFile, fmOpenRead or fmShareDenyWrite);
   try
     Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
-    try Result := Scanner.UploadNewFile(RemoteDirectory, RemoteName, Source) finally Scanner.Free end;
+    try Result := Scanner.UploadFile(RemoteDirectory, RemoteName, Source, False, 0, '') finally Scanner.Free end;
+  finally Source.Free end;
+end;
+
+function ReplaceSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RemoteName, LocalFile: string;
+  ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
+var Scanner: TSftpScanner; Source: TFileStream;
+begin
+  Source := TFileStream.Create(LocalFile, fmOpenRead or fmShareDenyWrite);
+  try
+    Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
+    try Result := Scanner.UploadFile(RemoteDirectory, RemoteName, Source, True, ExpectedSize, ExpectedSha256) finally Scanner.Free end;
   finally Source.Free end;
 end;
 
