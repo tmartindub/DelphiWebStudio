@@ -77,7 +77,7 @@ export class ProjectMediaLibrary {
     })
   }
 
-  async import(projectId: string, file: File, restored?: { id: string; path: string; sha256: string; importedAt?: number; folder?: string }, replacing = false, allowZip = false): Promise<{ asset: MediaAsset; duplicate: boolean }> {
+  async import(projectId: string, file: File, restored?: { id: string; path: string; sha256: string; importedAt?: number; folder?: string }, replacing = false, allowZip = false, duplicateMode: 'reuse' | 'keep' | 'skip' = 'reuse'): Promise<{ asset: MediaAsset; duplicate: boolean; skipped: boolean }> {
     if (!projectId) throw new Error('Open a project before importing media.')
     const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
     const mime = fileTypes[extension]
@@ -176,7 +176,7 @@ export class ProjectMediaLibrary {
           }
           store.put(asset)
         }
-      } else if (!restored) {
+      } else if (!restored && duplicateMode !== 'keep') {
         const request = store.index('projectHash').get([projectId, hash])
         request.onsuccess = () => {
           duplicate = request.result as MediaAsset | undefined
@@ -187,7 +187,7 @@ export class ProjectMediaLibrary {
       transaction.onerror = () => reject(changed ? new Error('Media changed while it was being replaced. Try again.') : transaction.error ?? new Error('Media could not be saved.'))
       transaction.onabort = () => reject(changed ? new Error('Media changed while it was being replaced. Try again.') : transaction.error ?? new Error('Media import was cancelled.'))
     })
-    return { asset: duplicate ?? asset, duplicate: !!duplicate }
+    return { asset: duplicate ?? asset, duplicate: !!duplicate, skipped: !!duplicate && duplicateMode === 'skip' }
   }
 
   async undoReplacement(projectId: string, id: string): Promise<void> {

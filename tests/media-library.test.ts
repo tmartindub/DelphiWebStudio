@@ -3,6 +3,21 @@ import { describe, expect, it, vi } from 'vitest'
 import { ProjectMediaLibrary } from '../src/media/media-library'
 
 describe('project media library', () => {
+  it('lets users reuse, keep, or skip files with matching contents', async () => {
+    const library = new ProjectMediaLibrary()
+    const projectId = crypto.randomUUID()
+    const original = await library.import(projectId, new File(['same'], 'one.txt'))
+    const reused = await library.import(projectId, new File(['same'], 'two.txt'), undefined, false, false, 'reuse')
+    expect(reused.duplicate).toBe(true)
+    expect(reused.asset.id).toBe(original.asset.id)
+    const skipped = await library.import(projectId, new File(['same'], 'three.txt'), undefined, false, false, 'skip')
+    expect(skipped.skipped).toBe(true)
+    expect(await library.list(projectId)).toHaveLength(1)
+    const kept = await library.import(projectId, new File(['same'], 'four.txt'), undefined, false, false, 'keep')
+    expect(kept.duplicate).toBe(false)
+    expect(kept.asset.id).not.toBe(original.asset.id)
+    expect(await library.list(projectId)).toHaveLength(2)
+  })
   it('deduplicates simultaneous imports within the same project', async () => {
     const library = new ProjectMediaLibrary()
     const projectId = crypto.randomUUID()

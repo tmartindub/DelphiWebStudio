@@ -57,6 +57,7 @@ export function MediaPanel() {
   const [fileType, setFileType] = useState('all')
   const [sort, setSort] = useState('name')
   const [allowZip, setAllowZip] = useState(false)
+  const [duplicateMode, setDuplicateMode] = useState<'reuse' | 'keep' | 'skip'>('reuse')
   const [preview, setPreview] = useState<MediaAsset | null>(null)
   const [failures, setFailures] = useState<string[]>([])
   const cancel = useRef(false)
@@ -78,13 +79,15 @@ export function MediaPanel() {
     cancel.current = false
     let imported = 0
     let duplicates = 0
+    let skipped = 0
     const errors: string[] = []
     try {
       for (let index = 0; index < files.length && !cancel.current; index++) {
         setProgress(`${index + 1} / ${files.length}: ${files[index].name}`)
         try {
-          const result = await library.import(projectId, files[index], undefined, false, allowZip)
-          if (result.duplicate) duplicates++
+          const result = await library.import(projectId, files[index], undefined, false, allowZip, duplicateMode)
+          if (result.skipped) skipped++
+          else if (result.duplicate) duplicates++
           else imported++
         } catch (error) {
           errors.push(error instanceof Error ? error.message : files[index].name)
@@ -96,7 +99,7 @@ export function MediaPanel() {
       setProgress('')
     }
     setFailures(errors)
-    toast(`${imported} imported, ${duplicates} duplicates${cancel.current ? ', cancelled' : ''}${errors.length ? `, ${errors.length} failed` : ''}`)
+    toast(`${imported} imported, ${duplicates} reused, ${skipped} skipped${cancel.current ? ', cancelled' : ''}${errors.length ? `, ${errors.length} failed` : ''}`)
   }
 
   return (
@@ -106,6 +109,11 @@ export function MediaPanel() {
       if (files.length) void importFiles(files)
       else toast.error('Drop files; folder import is not available yet.')
     }}>
+      <label className="text-xs text-text-1">When files match
+        <select aria-label="Duplicate files" value={duplicateMode} disabled={mediaBusy} onChange={event => setDuplicateMode(event.target.value as 'reuse' | 'keep' | 'skip')} className="ml-2 bg-bg-2 border border-border-default rounded p-1">
+          <option value="reuse">Reuse existing</option><option value="keep">Keep separate copies</option><option value="skip">Skip duplicates</option>
+        </select>
+      </label>
       <label className="text-xs font-semibold text-text-0">Import media
         <input aria-label="Import media files" type="file" multiple onChange={event => { const input = event.currentTarget; const files = Array.from(input.files ?? []); input.value = ''; void importFiles(files) }} disabled={mediaBusy} className="block w-full mt-2 text-xs text-text-1" />
       </label>
