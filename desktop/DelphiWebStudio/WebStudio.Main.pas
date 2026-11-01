@@ -73,7 +73,8 @@ begin
   if RuntimeVersion = '' then RuntimeVersion := 'Not available';
   if StatusLabel.Caption = 'Local editor loaded.' then EditorState := 'Loaded'
   else EditorState := 'Not loaded; check the status line';
-  DiagnosticsDialog.Text := 'Desktop build: experimental Win64' + sLineBreak +
+  DiagnosticsDialog.Text := 'Desktop build: experimental ' +
+    {$IFDEF WIN64}'Win64'{$ELSE}'Win32'{$ENDIF} + sLineBreak +
     'WebView2 version: ' + RuntimeVersion + sLineBreak +
     'Local editor: ' + EditorState + sLineBreak + sLineBreak +
     'These diagnostics stay on this computer and do not include project contents or credentials.';

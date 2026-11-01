@@ -8,6 +8,7 @@ object MainForm: TMainForm
   Constraints.MinWidth = 640
   Menu = ProjectMenu
   Position = poScreenCenter
+  WindowState = wsMaximized
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnCloseQuery = FormCloseQuery

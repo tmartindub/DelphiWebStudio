@@ -7,14 +7,14 @@
     <Base>True</Base>
     <Config Condition="'$(Config)'==''">Debug</Config>
     <Platform Condition="'$(Platform)'==''">Win64</Platform>
-    <TargetedPlatforms>2</TargetedPlatforms>
+    <TargetedPlatforms>3</TargetedPlatforms>
     <AppType>Application</AppType>
     <ProjectName Condition="'$(ProjectName)'==''">DelphiWebStudio</ProjectName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Base)'!=''">
     <DCC_Namespace>Winapi;System.Win;System;Xml;Data;Datasnap;Web;Soap;Vcl;$(DCC_Namespace)</DCC_Namespace>
-    <DCC_ExeOutput>..\..\bin</DCC_ExeOutput>
-    <DCC_DcuOutput>..\..\dcu</DCC_DcuOutput>
+    <DCC_ExeOutput>..\..\bin\$(Platform)</DCC_ExeOutput>
+    <DCC_DcuOutput>..\..\dcu\$(Platform)</DCC_DcuOutput>
     <DCC_UnitSearchPath>..\project;..\ai;..\bridge;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
     <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
     <AppEnableRuntimeThemes>true</AppEnableRuntimeThemes>
@@ -26,6 +26,6 @@
     <DCCReference Include="WebStudio.SftpForm.pas"><Form>SftpForm</Form></DCCReference>
     <DCCReference Include="WebStudio.DeploymentReviewForm.pas"><Form>DeploymentReviewForm</Form></DCCReference>
   </ItemGroup>
-  <ProjectExtensions><BorlandProject><Delphi.Personality><Source><Source Name="MainSource">DelphiWebStudio.dpr</Source></Source></Delphi.Personality><Platforms><Platform value="Win64">True</Platform></Platforms></BorlandProject><ProjectFileVersion>12</ProjectFileVersion></ProjectExtensions>
+  <ProjectExtensions><BorlandProject><Delphi.Personality><Source><Source Name="MainSource">DelphiWebStudio.dpr</Source></Source></Delphi.Personality><Platforms><Platform value="Win32">True</Platform><Platform value="Win64">True</Platform></Platforms></BorlandProject><ProjectFileVersion>12</ProjectFileVersion></ProjectExtensions>
   <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')" />
 </Project>
