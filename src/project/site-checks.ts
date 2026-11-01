@@ -9,9 +9,20 @@ export interface SiteIssue {
 }
 
 /** Local, limited checks. External URLs and arbitrary extension content are not inspected. */
-export function checkSite(config: SiteConfig): SiteIssue[] {
+export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; seoDescription?: string; siteName?: string; siteDescription?: string }): SiteIssue[] {
   const pages = validateProjectConfig(config).pages!
   const issues: SiteIssue[] = []
+  if (settings) {
+    const publishedPages = pages.filter(page => page.webstudioArticle?.status !== 'draft')
+    const titles = publishedPages.map(page => (page.webstudioSeo?.title?.trim() || settings.seoTitle || settings.siteName || page.name || 'Website').trim())
+    for (const [index, page] of publishedPages.entries()) {
+      const title = titles[index]
+      const description = (page.webstudioSeo?.description?.trim() || settings.seoDescription || settings.siteDescription || '').trim()
+      if (!title) issues.push({ pageId: page.id, pageName: page.name, blockId: '', message: 'Page has no SEO title. Add one in page settings.' })
+      else if (titles.filter(value => value.toLocaleLowerCase() === title.toLocaleLowerCase()).length > 1) issues.push({ pageId: page.id, pageName: page.name, blockId: '', message: 'Another page uses the same SEO title. Give pages distinct titles in page settings.' })
+      if (!description) issues.push({ pageId: page.id, pageName: page.name, blockId: '', message: 'Page has no meta description. Add one in page settings or site settings.' })
+    }
+  }
   for (const page of pages) {
     for (const block of page.blocks) {
       const add = (message: string) => issues.push({ pageId: page.id, pageName: page.name, blockId: block.id, message })

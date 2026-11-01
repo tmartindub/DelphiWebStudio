@@ -10,6 +10,18 @@ const config: SiteConfig = { name: 'Community', pages: [
 ], blocks: [hero] }
 
 describe('local site checks', () => {
+  it('checks exported SEO titles and descriptions using page and site settings', () => {
+    const copy = structuredClone(config)
+    const issues = checkSite(copy, { seoTitle: 'Community', siteDescription: '' })
+    expect(issues.filter(issue => issue.message.includes('same SEO title'))).toHaveLength(2)
+    expect(issues.filter(issue => issue.message.includes('no meta description'))).toHaveLength(2)
+    copy.pages![1].webstudioSeo = { title: 'News', description: 'Latest news' }
+    const improved = checkSite(copy, { seoTitle: 'Community', siteDescription: 'Community information' })
+    expect(improved.filter(issue => issue.message.includes('SEO title') || issue.message.includes('meta description'))).toEqual([])
+    copy.pages![1].webstudioArticle = { status: 'draft', author: '', summary: '', createdAt: '', modifiedAt: '' }
+    const draftExcluded = checkSite(copy, { seoTitle: 'Community', siteDescription: '' })
+    expect(draftExcluded.filter(issue => issue.message.includes('no meta description'))).toHaveLength(1)
+  })
   it('recognizes an HTTPS contact service and rejects an unsafe configured service', () => {
     const copy = structuredClone(config)
     copy.pages![0].blocks.push({ id: 'contact-service', type: 'contact', variant: 'form', props: { formEndpoint: 'https://forms.example.test/submit', consentNotice: 'I agree to the privacy notice.' } })

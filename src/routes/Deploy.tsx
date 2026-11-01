@@ -60,7 +60,7 @@ export function Deploy() {
       const current = JSON.stringify({ projectId: currentProjectId, config: useConfigStore.getState().config, settings: currentProject?.settings, mediaRevision: currentProject?.mediaRevision })
       if (current !== signature) throw new Error('The project changed during the review. Review the files again.')
       const files = Object.values(archive.files).filter(item => !item.dir).map(item => item.name).sort()
-      const warnings = checkSite(config).filter(issue => !config.pages?.some(page => page.id === issue.pageId && page.webstudioArticle?.status === 'draft'))
+      const warnings = checkSite(config, project?.settings ?? {}).filter(issue => !config.pages?.some(page => page.id === issue.pageId && page.webstudioArticle?.status === 'draft'))
       const filename = `${(project?.name || config.name || 'site').toLowerCase().replace(/[^a-z0-9-]+/g, '-')}.zip`
       setReview({ signature, files, warnings, zip, filename })
     } catch (error) {
