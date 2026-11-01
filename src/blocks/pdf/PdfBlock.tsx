@@ -14,6 +14,7 @@ export function PdfBlock({ block }: { block: BlockConfig }) {
   const fitMode = block.props.fitMode === 'width' || block.props.fitMode === 'page' ? block.props.fitMode : 'auto'
   const areaRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const thumbnailsRef = useRef<HTMLDivElement>(null)
   const widthRef = useRef(0)
   const searchRef = useRef(0)
   const [width, setWidth] = useState(0)
@@ -24,6 +25,7 @@ export function PdfBlock({ block }: { block: BlockConfig }) {
   const [searchState, setSearchState] = useState<{ src: string; message: string } | null>(null)
   const [rendered, setRendered] = useState<{ src: string; number: number; width: number; zoom: number; height: number; fitMode: string } | null>(null)
   const pdf = documentState?.src === src ? documentState.pdf : undefined
+  const showThumbnails = block.props.showThumbnails === true
   const error = documentState?.src === src ? documentState.error : undefined
   const requestedPage = Number(block.props.initialPage)
   const initialPage = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1
@@ -92,6 +94,34 @@ export function PdfBlock({ block }: { block: BlockConfig }) {
 
   useEffect(() => () => { searchRef.current++ }, [src])
 
+  useEffect(() => {
+    const container = thumbnailsRef.current
+    if (!pdf || !showThumbnails || !container) return
+    let active = true
+    const pending = new Set<{ cancel: () => void; promise: Promise<void> }>()
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting || !(entry.target instanceof HTMLCanvasElement)) continue
+        const canvas = entry.target
+        observer.unobserve(canvas)
+        const number = Number(canvas.dataset.page)
+        void pdf.getPage(number).then(page => {
+          if (!active) return
+          const original = page.getViewport({ scale: 1 })
+          const viewport = page.getViewport({ scale: Math.min(60 / original.width, 80 / original.height) })
+          canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height)
+          const context = canvas.getContext('2d')
+          if (!context) return
+          const task = page.render({ canvas, canvasContext: context, viewport })
+          pending.add(task)
+          return task.promise.finally(() => pending.delete(task))
+        }).catch(() => undefined)
+      }
+    }, { root: container, rootMargin: '100px' })
+    container.querySelectorAll('canvas[data-page]').forEach(canvas => observer.observe(canvas))
+    return () => { active = false; observer.disconnect(); pending.forEach(task => task.cancel()) }
+  }, [pdf, showThumbnails])
+
   async function search() {
     if (!pdf || !query.trim()) return
     const searchId = ++searchRef.current
@@ -140,6 +170,11 @@ export function PdfBlock({ block }: { block: BlockConfig }) {
         {!pdf && !error && <p role="status" className="text-sm">Loading PDF…</p>}
         {pdf && !pageRendered && <p role="status" className="text-sm">Rendering page…</p>}
         {searchState?.src === src && <p role="status" className="text-sm">{searchState.message}</p>}
+        {pdf && showThumbnails && <div ref={thumbnailsRef} aria-label="PDF page thumbnails" className="flex gap-2 overflow-x-auto mb-2">
+          {Array.from({ length: pdf.numPages }, (_, index) => <button key={index} type="button" aria-label={`Go to PDF page ${index + 1}`} aria-current={pageNumber === index + 1 ? 'page' : undefined} onClick={() => { setRendered(null); setPageState({ src, number: index + 1 }) }} className="shrink-0 border border-border-default rounded p-1 text-xs">
+            <canvas data-page={index + 1} width={1} height={1} aria-hidden="true" className="block bg-white mx-auto" />{index + 1}
+          </button>)}
+        </div>}
         <div ref={areaRef} style={{ height }} className="overflow-auto bg-bg-2 p-2">
           <canvas key={`${src}:${pageNumber}:${width}:${zoom}:${height}:${fitMode}`} ref={canvasRef} aria-label={`Page ${pageNumber} of ${title}`} data-rendered={pageRendered ? 'true' : undefined} className="mx-auto bg-white" />
         </div>

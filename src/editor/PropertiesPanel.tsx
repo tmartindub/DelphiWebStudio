@@ -24,6 +24,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
     { key: 'height', label: 'Height (px)', type: 'text' },
     { key: 'initialPage', label: 'Starting page', type: 'text' },
     { key: 'fitMode', label: 'Fit mode', type: 'select', options: ['auto', 'width', 'page'] },
+    { key: 'showThumbnails', label: 'Show page thumbnails', type: 'checkbox' },
     { key: 'showSearch', label: 'Show search', type: 'checkbox' },
     { key: 'showPrint', label: 'Show print link', type: 'checkbox' },
     { key: 'showDownload', label: 'Show download link', type: 'checkbox' },
@@ -394,7 +395,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
 
   switch (field.type) {
     case 'checkbox':
-      return <label className="mb-2 flex items-center gap-2 text-xs text-text-1"><input type="checkbox" checked={value !== false} onChange={event => onChange(event.target.checked)} /> {field.label}</label>
+      return <label className="mb-2 flex items-center gap-2 text-xs text-text-1"><input type="checkbox" checked={field.key === 'showThumbnails' ? value === true : value !== false} onChange={event => onChange(event.target.checked)} /> {field.label}</label>
     case 'image': {
       const images = media?.projectId === projectId && media.revision === mediaRevision ? media.images : []
       const current = String(value || '')

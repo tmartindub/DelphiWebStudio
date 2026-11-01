@@ -10,6 +10,7 @@
     button,input,a{font:inherit} button,input{padding:.35rem} a{color:#fff} #status{padding:.4rem}
     main{flex:1;min-height:0;overflow:auto;text-align:center;padding:1rem}
     canvas{background:#fff;max-width:none} button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #f28a25}
+    #thumbnails{display:flex;gap:.5rem;overflow-x:auto;padding:.4rem} #thumbnails[hidden]{display:none} #thumbnails button{flex:none} #thumbnails canvas{display:block;margin:auto}
   </style>
 </head>
 <body>
@@ -22,6 +23,7 @@
     <a id="download" download>Download</a><a id="print" target="_blank" rel="noopener">Open PDF to print</a>
     <button id="fullscreen" type="button">Fullscreen</button>
   </header>
+  <div id="thumbnails" aria-label="PDF page thumbnails" hidden></div>
   <div id="status" role="status">Loading document…</div>
   <main><canvas id="page-canvas" aria-label="PDF page"></canvas></main>
   <script type="module" src="./viewer.js"></script>

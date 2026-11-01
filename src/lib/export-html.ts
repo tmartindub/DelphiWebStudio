@@ -1224,6 +1224,7 @@ function renderBlock(block: BlockConfig): string {
       const initialPage = Number(block.props.initialPage)
       if (Number.isInteger(initialPage) && initialPage > 1) viewer += `&page=${initialPage}`
       if (block.props.fitMode === 'width' || block.props.fitMode === 'page') viewer += `&fit=${block.props.fitMode}`
+      if (block.props.showThumbnails === true) viewer += '&thumbnails=1'
       for (const [property, parameter] of [['showSearch', 'search'], ['showPrint', 'print'], ['showDownload', 'download'], ['showFullscreen', 'fullscreen']]) {
         if (block.props[property] === false) viewer += `&${parameter}=0`
       }

@@ -35,6 +35,32 @@ if (!/^\.\.\/[a-zA-Z0-9._-]+\.pdf$/i.test(file)) {
     const requestedPage = Number(params.get('page'))
     if (Number.isInteger(requestedPage) && requestedPage > 0) pageInput.value = String(Math.min(requestedPage, pdf.numPages))
     document.getElementById('total').textContent = `of ${pdf.numPages}`
+    if (params.get('thumbnails') === '1') {
+      const container = document.getElementById('thumbnails')
+      container.hidden = false
+      const observer = new IntersectionObserver(entries => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue
+          const thumbnail = entry.target
+          observer.unobserve(thumbnail)
+          void pdf.getPage(Number(thumbnail.dataset.page)).then(page => {
+            const original = page.getViewport({ scale: 1 })
+            const viewport = page.getViewport({ scale: Math.min(60 / original.width, 80 / original.height) })
+            thumbnail.width = Math.ceil(viewport.width); thumbnail.height = Math.ceil(viewport.height)
+            return page.render({ canvas: thumbnail, canvasContext: thumbnail.getContext('2d'), viewport }).promise
+          }).catch(() => undefined)
+        }
+      }, { root: container, rootMargin: '100px' })
+      for (let number = 1; number <= pdf.numPages; number++) {
+        const button = document.createElement('button')
+        button.type = 'button'; button.setAttribute('aria-label', `Go to PDF page ${number}`)
+        const thumbnail = document.createElement('canvas')
+        thumbnail.width = 1; thumbnail.height = 1; thumbnail.dataset.page = String(number); thumbnail.setAttribute('aria-hidden', 'true')
+        button.append(thumbnail, String(number))
+        button.onclick = () => { pageInput.value = String(number); void render() }
+        container.append(button); observer.observe(thumbnail)
+      }
+    }
     status.textContent = ''
     return render()
   }).catch(error => { status.textContent = `Unable to open PDF: ${error.message}` })
