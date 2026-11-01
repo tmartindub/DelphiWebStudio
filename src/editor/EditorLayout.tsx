@@ -15,6 +15,7 @@ import { useProjectsStore } from '@/store/projectsStore'
 import { generateSiteConfig } from '@/lib/generate-site'
 import { templateMeta, buildTemplate } from '@/lib/templates'
 import { hexToRgb } from '@/lib/theme-presets'
+import { LocalPlanReview } from '@/ai/LocalPlanReview'
 
 const templateIcons: Record<string, typeof Briefcase> = {
   Briefcase, UtensilsCrossed, Building2, BookOpen,
@@ -185,6 +186,7 @@ export function EditorLayout() {
         {!previewMode && <RightSidebar key={`right-${mode}`} />}
       </div>
       <VersionHistory />
+      <LocalPlanReview />
     </div>
   )
 }
