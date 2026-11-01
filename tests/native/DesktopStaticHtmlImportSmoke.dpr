@@ -73,8 +73,10 @@ begin
         if not Assigned(Project) or (Project.GetValue<TJSONArray>('webstudioStaticSource').Count <> 3) then raise Exception.Create('Original HTML and CSS were not retained.');
         if Project.GetValue<TJSONObject>('config').GetValue<TJSONArray>('pages').Count <> 2 then raise Exception.Create('Imported page count differs.');
         if not Project.GetValue<TJSONObject>('config').ToJSON.Contains('Welcome from HTML') then raise Exception.Create('Editable content missing.');
+        if not Project.GetValue<TJSONObject>('config').ToJSON.Contains('[About](/imported-page-2)') then raise Exception.Create('Imported page link missing.');
         if Project.GetValue<TJSONArray>('assets').Count <> 1 then raise Exception.Create('Imported image missing from project.');
         AssetPath := Project.GetValue<TJSONArray>('assets').Items[0].GetValue<string>('path');
+        if not Project.GetValue<TJSONObject>('config').ToJSON.Contains(AssetPath) then raise Exception.Create('Imported page image reference missing.');
         Zip.Read(AssetPath, Bytes);
         if not TEncoding.UTF8.GetString(Bytes).Contains('<svg') then raise Exception.Create('Imported image content missing.');
       finally Project.Free end;

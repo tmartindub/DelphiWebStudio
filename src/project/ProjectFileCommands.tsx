@@ -19,7 +19,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
   const wordpressInputRef = useRef<HTMLInputElement>(null)
   const staticInputRef = useRef<HTMLInputElement>(null)
   const [wordpressPreview, setWordpressPreview] = useState<(ReturnType<typeof importWordPressXml> & { originalProjectId: string | null; originalConfig: typeof config }) | null>(null)
-  const [staticPreview, setStaticPreview] = useState<(ReturnType<typeof importStaticHtml> & { images: File[]; originalProjectId: string | null; originalConfig: typeof config }) | null>(null)
+  const [staticPreview, setStaticPreview] = useState<(ReturnType<typeof importStaticHtml> & { source: { path: string; text: string }[]; images: File[]; originalProjectId: string | null; originalConfig: typeof config }) | null>(null)
   const [opening, setOpening] = useState(false)
   const [saving, setSaving] = useState(false)
   const [savingRawDraft, setSavingRawDraft] = useState(false)
@@ -67,7 +67,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       for (const file of selected) source.push({ path: file.webkitRelativePath || file.name, text: decodeProjectFile(new Uint8Array(await file.arrayBuffer())) })
       const preview = importStaticHtml(source, files.length - selected.length - images.length)
       if (useEditorStore.getState().activeProjectId !== originalProjectId || useConfigStore.getState().config !== originalConfig) throw new Error('The current project changed. Select the folder again.')
-      setStaticPreview({ ...preview, images, originalProjectId, originalConfig })
+      setStaticPreview({ ...preview, source, images, originalProjectId, originalConfig })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'The HTML folder could not be read.')
     } finally {
@@ -82,6 +82,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
     if (!preview || useEditorStore.getState().mediaImporting) return
     const stagedId = `proj-${crypto.randomUUID()}`
     const stagedAssets: string[] = []
+    const importedImages: { sourcePath: string; assetId: string; assetPath: string }[] = []
     let library: ProjectMediaLibrary | undefined
     let created = false
     useEditorStore.getState().setMediaImporting(true)
@@ -93,14 +94,16 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
         for (const image of preview.images) {
           const result = await library.import(stagedId, image)
           if (!result.duplicate) stagedAssets.push(result.asset.id)
+          importedImages.push({ sourcePath: image.webkitRelativePath || image.name, assetId: result.asset.id, assetPath: result.asset.path })
         }
       }
       if (useEditorStore.getState().activeProjectId !== preview.originalProjectId || useConfigStore.getState().config !== preview.originalConfig) throw new Error('The current project changed. Select the folder again.')
-      const id = useProjectsStore.getState().addProject(preview.project.config.name, preview.project, stagedId)
+      const project = importStaticHtml(preview.source, preview.skipped, importedImages).project
+      const id = useProjectsStore.getState().addProject(project.config.name, project, stagedId)
       created = true
       if (stagedAssets.length) useProjectsStore.getState().mediaChanged(id)
       useEditorStore.getState().setActiveProject(id)
-      useConfigStore.getState().setConfig(preview.project.config)
+      useConfigStore.getState().setConfig(project.config)
       setStaticPreview(null)
       navigate('/editor')
       toast.success('HTML text and images imported as a separate project. Review the conversion before exporting.')
@@ -379,7 +382,7 @@ export function ProjectFileCommands({ allRevisions = false }: { allRevisions?: b
       <button type="button" onClick={() => staticInputRef.current?.click()} disabled={opening || mediaImporting} className="rounded px-2 py-1 text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">Import HTML folder</button>
       {staticPreview && <div role="region" aria-label="HTML import report" className="basis-full rounded border border-border-default bg-bg-1 p-3 text-xs text-text-1">
         <p>Found {staticPreview.pages} HTML pages, {staticPreview.stylesheets} stylesheets and {staticPreview.images.length} images; {staticPreview.skipped} other files will not be copied. A separate project will be created.</p>
-        <p>Text becomes editable and supported images are copied to the media library. Original HTML and CSS are retained as inactive project data and may contain private information. Page image placement, layout, links, styling, scripts and other assets require manual review. Original files are not changed.</p>
+        <p>Text becomes editable. Supported local images and links to selected HTML pages are placed where recognized. Original HTML and CSS are retained as inactive project data and may contain private information. Layout, styling, scripts, unmatched links and other assets require manual review. Original files are not changed.</p>
         <button type="button" disabled={mediaImporting} className="rounded px-2 py-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => void createStaticProject()}>Create HTML project</button>
         <button type="button" disabled={mediaImporting} className="rounded px-2 py-1 hover:bg-bg-3 disabled:opacity-50" onClick={() => setStaticPreview(null)}>Cancel</button>
       </div>}
