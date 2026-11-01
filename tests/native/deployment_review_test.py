@@ -24,6 +24,9 @@ expected = {'A:new.txt', 'C:index.html', 'R:assets/image.png',
             'B:' + hashlib.sha256(backup.read_bytes()).hexdigest()}
 if result.returncode or set(result.stdout.splitlines()) != expected:
     raise SystemExit('Native review failed: ' + result.stdout + result.stderr)
+dialog = subprocess.run([str(exe), str(desired), str(scan), str(backup)] + ['test'] * 10, capture_output=True, text=True, timeout=40)
+if dialog.returncode or 'Native review dialog passed.' not in dialog.stdout:
+    raise SystemExit('Native review dialog failed: ' + dialog.stdout + dialog.stderr)
 
 bad_scan = work / 'bad-scan.json'
 data = json.loads(scan.read_text(encoding='utf8'))

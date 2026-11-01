@@ -142,12 +142,20 @@ object SftpForm: TSftpForm
     TabOrder = 11
     OnClick = BackupButtonClick
   end
+  object ReviewButton: TButton
+    Left = 240
+    Top = 355
+    Width = 140
+    Caption = 'Review website...'
+    TabOrder = 12
+    OnClick = ReviewButtonClick
+  end
   object TestButton: TButton
     Left = 396
     Top = 398
     Width = 110
     Caption = 'Test connection'
-    TabOrder = 12
+    TabOrder = 13
     OnClick = TestButtonClick
   end
   object CloseButton: TButton
@@ -156,7 +164,7 @@ object SftpForm: TSftpForm
     Width = 75
     Caption = 'Close'
     ModalResult = 2
-    TabOrder = 13
+    TabOrder = 14
   end
   object KeyDialog: TOpenDialog
     Options = [ofHideReadOnly, ofNoChangeDir, ofFileMustExist, ofPathMustExist, ofEnableSizing]

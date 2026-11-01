@@ -3,8 +3,8 @@ program SftpConnectionSmoke;
 {$APPTYPE CONSOLE}
 
 uses
-  System.SysUtils, System.IOUtils, Vcl.Forms, WebStudio.SftpConnection,
-  WebStudio.SftpForm, WebStudio.SftpInventory, WebStudio.DeploymentReview;
+  Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils, Vcl.Forms, WebStudio.SftpConnection,
+  WebStudio.SftpForm, WebStudio.SftpInventory, WebStudio.DeploymentReview, WebStudio.DeploymentReviewForm;
 
 var
   DirectoryName, KeyName, HostsName: string;
@@ -15,8 +15,36 @@ var
   Receipt: TSftpTransferReceipt;
   Review: TDeploymentReview;
   Path: string;
+  ReviewDialog: TDeploymentReviewForm;
+  Deadline: UInt64;
 begin
   try
+    if ParamCount = 13 then begin
+      Application.Initialize;
+      ReviewDialog := TDeploymentReviewForm.Create(nil);
+      try
+        ReviewDialog.WebsiteEdit.Text := ParamStr(1);
+        ReviewDialog.ScanEdit.Text := ParamStr(2);
+        ReviewDialog.BackupEdit.Text := ParamStr(3);
+        ReviewDialog.ReviewButton.Click;
+        Deadline := GetTickCount64 + 30000;
+        while not ReviewDialog.ReviewButton.Enabled and (GetTickCount64 < Deadline) do begin
+          Application.ProcessMessages;
+          CheckSynchronize(0);
+          Sleep(10);
+        end;
+        if not ReviewDialog.ReviewButton.Enabled or
+           (Pos('Review complete', ReviewDialog.StatusLabel.Caption) = 0) or
+           (Pos('New files: 1', ReviewDialog.ResultsMemo.Text) = 0) or
+           (Pos('Changed files: 1', ReviewDialog.ResultsMemo.Text) = 0) or
+           (Pos('Only on destination: 1', ReviewDialog.ResultsMemo.Text) = 0) then
+          raise Exception.Create('Native review dialog did not show the expected results.');
+        ReviewDialog.WebsiteEdit.Text := 'changed input';
+        if ReviewDialog.ResultsMemo.Text <> '' then raise Exception.Create('Changed inputs did not clear the review.');
+        Writeln('Native review dialog passed.');
+      finally ReviewDialog.Free end;
+      Exit;
+    end;
     if ParamCount = 12 then begin
       Review := ReviewDeployment(ParamStr(1), ParamStr(2), ParamStr(3));
       for Path in Review.Added do Writeln('A:', Path);

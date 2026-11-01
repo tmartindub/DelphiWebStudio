@@ -33,6 +33,7 @@ type
     ScanButton: TButton;
     BackupButton: TButton;
     BackupSaveDialog: TSaveDialog;
+    ReviewButton: TButton;
     procedure KeyBrowseClick(Sender: TObject);
     procedure HostsBrowseClick(Sender: TObject);
     procedure TestButtonClick(Sender: TObject);
@@ -40,13 +41,14 @@ type
     procedure DownloadButtonClick(Sender: TObject);
     procedure ScanButtonClick(Sender: TObject);
     procedure BackupButtonClick(Sender: TObject);
+    procedure ReviewButtonClick(Sender: TObject);
   private
     FChecking: Boolean;
   end;
 
 implementation
 
-uses System.SysUtils, WebStudio.SftpConnection, WebStudio.SftpInventory;
+uses System.SysUtils, WebStudio.SftpConnection, WebStudio.SftpInventory, WebStudio.DeploymentReviewForm;
 
 {$R *.dfm}
 
@@ -58,6 +60,17 @@ end;
 procedure TSftpForm.HostsBrowseClick(Sender: TObject);
 begin
   if HostsDialog.Execute then HostsEdit.Text := HostsDialog.FileName;
+end;
+
+procedure TSftpForm.ReviewButtonClick(Sender: TObject);
+var Dialog: TDeploymentReviewForm;
+begin
+  Dialog := TDeploymentReviewForm.Create(Self);
+  try
+    Dialog.DestinationLabel.Caption := 'Entered destination (not checked during local review): ' +
+      Trim(HostEdit.Text) + ':' + Trim(PortEdit.Text) + ' ' + Trim(FolderEdit.Text);
+    Dialog.ShowModal;
+  finally Dialog.Free end;
 end;
 
 procedure TSftpForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -83,6 +96,7 @@ begin
   DownloadButton.Enabled := False;
   ScanButton.Enabled := False;
   BackupButton.Enabled := False;
+  ReviewButton.Enabled := False;
   CloseButton.Enabled := False;
   StatusLabel.Caption := 'Testing connection...';
   TThread.CreateAnonymousThread(procedure
@@ -102,6 +116,7 @@ begin
       DownloadButton.Enabled := True;
       ScanButton.Enabled := True;
       BackupButton.Enabled := True;
+      ReviewButton.Enabled := True;
       CloseButton.Enabled := True;
     end);
   end).Start;
@@ -128,6 +143,7 @@ begin
   DownloadButton.Enabled := False;
   ScanButton.Enabled := False;
   BackupButton.Enabled := False;
+  ReviewButton.Enabled := False;
   CloseButton.Enabled := False;
   StatusLabel.Caption := 'Downloading saved snapshot...';
   TThread.CreateAnonymousThread(procedure
@@ -147,6 +163,7 @@ begin
       DownloadButton.Enabled := True;
       ScanButton.Enabled := True;
       BackupButton.Enabled := True;
+      ReviewButton.Enabled := True;
       CloseButton.Enabled := True;
     end);
   end).Start;
@@ -173,6 +190,7 @@ begin
   DownloadButton.Enabled := False;
   ScanButton.Enabled := False;
   BackupButton.Enabled := False;
+  ReviewButton.Enabled := False;
   CloseButton.Enabled := False;
   StatusLabel.Caption := 'Scanning destination; this reads files without changing them...';
   TThread.CreateAnonymousThread(procedure
@@ -195,6 +213,7 @@ begin
       DownloadButton.Enabled := True;
       ScanButton.Enabled := True;
       BackupButton.Enabled := True;
+      ReviewButton.Enabled := True;
       CloseButton.Enabled := True;
     end);
   end).Start;
@@ -221,6 +240,7 @@ begin
   DownloadButton.Enabled := False;
   ScanButton.Enabled := False;
   BackupButton.Enabled := False;
+  ReviewButton.Enabled := False;
   CloseButton.Enabled := False;
   StatusLabel.Caption := 'Backing up destination without changing it...';
   TThread.CreateAnonymousThread(procedure
@@ -240,6 +260,7 @@ begin
       DownloadButton.Enabled := True;
       ScanButton.Enabled := True;
       BackupButton.Enabled := True;
+      ReviewButton.Enabled := True;
       CloseButton.Enabled := True;
     end);
   end).Start;
