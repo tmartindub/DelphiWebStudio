@@ -4,7 +4,7 @@ program SftpConnectionSmoke;
 
 uses
   Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils, Vcl.Forms, WebStudio.SftpConnection,
-  WebStudio.SftpForm, WebStudio.SftpInventory, WebStudio.DeploymentReview, WebStudio.DeploymentPreflight, WebStudio.DeploymentReviewForm;
+  WebStudio.SftpForm, WebStudio.SftpInventory, WebStudio.DeploymentReview, WebStudio.DeploymentPreflight, WebStudio.DeploymentReviewForm, WebStudio.DeploymentJournal;
 
 var
   DirectoryName, KeyName, HostsName: string;
@@ -18,8 +18,65 @@ var
   Path: string;
   ReviewDialog: TDeploymentReviewForm;
   Deadline: UInt64;
+  Journal: TDeploymentJournal;
+  OperationId, SecondId: TGUID;
 begin
   try
+    if ParamCount = 19 then begin
+      OperationId := StringToGUID(ParamStr(9));
+      Receipt := ReplaceSftpFileWithId('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(5), ParamStr(6), StrToUInt64(ParamStr(7)), ParamStr(8), OperationId);
+      Writeln(Receipt.Path, '|', Receipt.Size, '|', Receipt.Sha256, '|', Receipt.PreviousPath);
+      Exit;
+    end;
+    if ParamCount = 18 then begin
+      Review := ReviewDeployment(ParamStr(1), ParamStr(2), ParamStr(3));
+      if Length(Review.Transfers) <> 2 then raise Exception.Create('Unexpected journal test plan.');
+      OperationId := StringToGUID('{11111111-1111-1111-1111-111111111111}');
+      SecondId := StringToGUID('{22222222-2222-2222-2222-222222222222}');
+      Journal := TDeploymentJournal.CreateNew(ParamStr(4), 'example.test', '/site', 22, Review);
+      try
+        Rejected := False;
+        try Journal.Finish except on E: Exception do Rejected := True end;
+        if not Rejected then raise Exception.Create('Journal accepted an incomplete plan.');
+        Rejected := False;
+        try Journal.RecordDirectoryIntent('unrelated') except on E: Exception do Rejected := True end;
+        if not Rejected then raise Exception.Create('Journal accepted an unrelated directory.');
+        Journal.BeginTransfer(0, OperationId);
+        Receipt.Path := '/site/wrong'; Receipt.Size := Review.Transfers[0].DesiredSize;
+        Receipt.Sha256 := Review.Transfers[0].DesiredSha256; Receipt.PreviousPath := '';
+        Rejected := False;
+        try Journal.CompleteTransfer(Receipt) except on E: Exception do Rejected := True end;
+        if not Rejected then raise Exception.Create('Journal accepted an unrelated receipt.');
+        Receipt.Path := '/site/' + Review.Transfers[0].Path;
+        Journal.CompleteTransfer(Receipt);
+        Rejected := False;
+        try Journal.BeginTransfer(1, OperationId) except on E: Exception do Rejected := True end;
+        if not Rejected then raise Exception.Create('Journal accepted a reused identifier.');
+        Journal.BeginTransfer(1, SecondId);
+        Receipt.Path := '/site/' + Review.Transfers[1].Path;
+        Receipt.Size := Review.Transfers[1].DesiredSize;
+        Receipt.Sha256 := Review.Transfers[1].DesiredSha256;
+        Receipt.PreviousPath := '/site/.webstudio-original-' + GUIDToString(SecondId) + '.bak';
+        Journal.CompleteTransfer(Receipt);
+        Journal.Finish;
+      finally Journal.Free end;
+      Rejected := False;
+      try
+        Journal := TDeploymentJournal.CreateNew(ParamStr(4), 'example.test', '/site', 22, Review);
+        Journal.Free;
+      except on E: Exception do Rejected := True end;
+      if not Rejected then raise Exception.Create('Journal replaced an existing file.');
+      Journal := TDeploymentJournal.CreateNew(ParamStr(5), 'example.test', '/site', 22, Review);
+      try
+        Journal.BeginTransfer(0, OperationId);
+        Journal.FailTransfer('synthetic failure');
+        Rejected := False;
+        try Journal.Finish except on E: Exception do Rejected := True end;
+        if not Rejected then raise Exception.Create('Journal finished after a failure.');
+      finally Journal.Free end;
+      Writeln('Journal checks passed.');
+      Exit;
+    end;
     if ParamCount = 9 then begin
       for Path in EnsureSftpDirectories('127.0.0.1', 'testuser', ParamStr(2), ParamStr(3), StrToInt(ParamStr(1)), ParamStr(4), ParamStr(5)) do
         Writeln('D:', Path);

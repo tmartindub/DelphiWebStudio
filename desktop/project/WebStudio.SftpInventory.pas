@@ -28,9 +28,15 @@ procedure BackupSftpDestination(const Host, UserName, KeyFile, KnownHostsFile: s
   Do not expose it without the required review and explicit confirmation. }
 function UploadNewSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
   Port: Word; const RemoteDirectory, RemoteName, LocalFile: string): TSftpTransferReceipt;
+function UploadNewSftpFileWithId(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RemoteName, LocalFile: string;
+  const OperationId: TGUID): TSftpTransferReceipt;
 function ReplaceSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
   Port: Word; const RemoteDirectory, RemoteName, LocalFile: string;
   ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
+function ReplaceSftpFileWithId(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RemoteName, LocalFile: string;
+  ExpectedSize: UInt64; const ExpectedSha256: string; const OperationId: TGUID): TSftpTransferReceipt;
 { Replacement is also internal. The caller must first review the full diff,
   back up the destination, and obtain explicit publication confirmation. The
   original is retained under the receipt's PreviousPath; it is never deleted. }
@@ -70,7 +76,8 @@ type
     procedure Initialize;
     procedure RenameNoReplace(const OldPath, NewPath: string);
     function UploadFile(const RemoteDirectory, RemoteName: string; Source: TStream;
-      Replacing: Boolean; ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
+      Replacing: Boolean; ExpectedSize: UInt64; const ExpectedSha256: string;
+      const OperationId: TGUID): TSftpTransferReceipt;
     function RestoreOriginal(const RemoteDirectory, RemoteName, PreviousName: string;
       CurrentSize: UInt64; const CurrentSha256: string; OriginalSize: UInt64;
       const OriginalSha256: string): TSftpTransferReceipt;
@@ -475,11 +482,11 @@ begin
 end;
 
 function TSftpScanner.UploadFile(const RemoteDirectory, RemoteName: string; Source: TStream;
-  Replacing: Boolean; ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
+  Replacing: Boolean; ExpectedSize: UInt64; const ExpectedSha256: string;
+  const OperationId: TGUID): TSftpTransferReceipt;
 var
   Root, Part, TempPath, TargetPath, PreviousPath, LocalHash, RemoteHash: string;
   Index, ReadCount: Integer;
-  UniqueId: TGUID;
   Packet, Extra: TBytesStream;
   Handle, RequestData, Bytes: TBytes;
   Kind: Byte;
@@ -510,9 +517,10 @@ begin
   Root := RemoteDirectory;
   if not Root.EndsWith('/') then Root := Root + '/';
   TargetPath := Root + RemoteName;
-  if CreateGUID(UniqueId) <> 0 then raise EInvalidOpException.Create('Could not create a staging filename.');
-  TempPath := Root + '.webstudio-upload-' + GUIDToString(UniqueId) + '.tmp';
-  PreviousPath := Root + '.webstudio-original-' + GUIDToString(UniqueId) + '.bak';
+  if GUIDToString(OperationId) = '{00000000-0000-0000-0000-000000000000}' then
+    raise EArgumentException.Create('A unique transfer identifier is required.');
+  TempPath := Root + '.webstudio-upload-' + GUIDToString(OperationId) + '.tmp';
+  PreviousPath := Root + '.webstudio-original-' + GUIDToString(OperationId) + '.bak';
   Initialize;
   Created := False;
   Renamed := False;
@@ -850,24 +858,44 @@ end;
 
 function UploadNewSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
   Port: Word; const RemoteDirectory, RemoteName, LocalFile: string): TSftpTransferReceipt;
+var OperationId: TGUID;
+begin
+  if CreateGUID(OperationId) <> 0 then raise EInvalidOpException.Create('Could not create a transfer identifier.');
+  Result := UploadNewSftpFileWithId(Host, UserName, KeyFile, KnownHostsFile, Port,
+    RemoteDirectory, RemoteName, LocalFile, OperationId);
+end;
+
+function UploadNewSftpFileWithId(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RemoteName, LocalFile: string;
+  const OperationId: TGUID): TSftpTransferReceipt;
 var Scanner: TSftpScanner; Source: TFileStream;
 begin
   Source := TFileStream.Create(LocalFile, fmOpenRead or fmShareDenyWrite);
   try
     Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
-    try Result := Scanner.UploadFile(RemoteDirectory, RemoteName, Source, False, 0, '') finally Scanner.Free end;
+    try Result := Scanner.UploadFile(RemoteDirectory, RemoteName, Source, False, 0, '', OperationId) finally Scanner.Free end;
   finally Source.Free end;
 end;
 
 function ReplaceSftpFile(const Host, UserName, KeyFile, KnownHostsFile: string;
   Port: Word; const RemoteDirectory, RemoteName, LocalFile: string;
   ExpectedSize: UInt64; const ExpectedSha256: string): TSftpTransferReceipt;
+var OperationId: TGUID;
+begin
+  if CreateGUID(OperationId) <> 0 then raise EInvalidOpException.Create('Could not create a transfer identifier.');
+  Result := ReplaceSftpFileWithId(Host, UserName, KeyFile, KnownHostsFile, Port,
+    RemoteDirectory, RemoteName, LocalFile, ExpectedSize, ExpectedSha256, OperationId);
+end;
+
+function ReplaceSftpFileWithId(const Host, UserName, KeyFile, KnownHostsFile: string;
+  Port: Word; const RemoteDirectory, RemoteName, LocalFile: string;
+  ExpectedSize: UInt64; const ExpectedSha256: string; const OperationId: TGUID): TSftpTransferReceipt;
 var Scanner: TSftpScanner; Source: TFileStream;
 begin
   Source := TFileStream.Create(LocalFile, fmOpenRead or fmShareDenyWrite);
   try
     Scanner := TSftpScanner.Create(Host, UserName, KeyFile, KnownHostsFile, Port);
-    try Result := Scanner.UploadFile(RemoteDirectory, RemoteName, Source, True, ExpectedSize, ExpectedSha256) finally Scanner.Free end;
+    try Result := Scanner.UploadFile(RemoteDirectory, RemoteName, Source, True, ExpectedSize, ExpectedSha256, OperationId) finally Scanner.Free end;
   finally Source.Free end;
 end;
 

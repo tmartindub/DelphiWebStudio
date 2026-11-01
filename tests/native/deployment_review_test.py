@@ -30,6 +30,18 @@ dialog = subprocess.run([str(exe), str(desired), str(scan), str(backup)] + ['tes
 if dialog.returncode or 'Native review dialog passed.' not in dialog.stdout:
     raise SystemExit('Native review dialog failed: ' + dialog.stdout + dialog.stderr)
 
+journal = work / 'transfer receipt.jsonl'
+failed_journal = work / 'failed transfer receipt.jsonl'
+journal_result = subprocess.run([str(exe), str(desired), str(scan), str(backup), str(journal), str(failed_journal)] + ['test'] * 13, capture_output=True, text=True, timeout=30)
+if journal_result.returncode or 'Journal checks passed.' not in journal_result.stdout:
+    raise SystemExit('Native journal test failed: ' + journal_result.stdout + journal_result.stderr)
+records = [json.loads(line) for line in journal.read_text(encoding='utf8').splitlines()]
+assert [record['event'] for record in records] == ['reviewed', 'transfer-started', 'transfer-verified', 'transfer-started', 'transfer-verified', 'complete']
+assert records[0]['onlyAtDestination'] == ['assets/image.png']
+assert records[1]['stagedPath'] == '/site/.webstudio-upload-{11111111-1111-1111-1111-111111111111}.tmp'
+assert records[3]['originalPath'] == '/site/.webstudio-original-{22222222-2222-2222-2222-222222222222}.bak'
+assert [json.loads(line)['event'] for line in failed_journal.read_text(encoding='utf8').splitlines()] == ['reviewed', 'transfer-started', 'transfer-failed']
+
 changed_input = work / 'website changed after review.zip'
 changed_input.write_bytes(desired.read_bytes())
 changed_result = subprocess.run([str(exe), '1', 'unused-key', 'unused-hosts', '/site', str(changed_input), str(scan), str(backup)] + ['test'] * 10, capture_output=True, text=True, timeout=30)
