@@ -49,7 +49,7 @@ function ImageCard({ image, tall, responsive, viewer }: { image: GalleryImage; t
   )
 }
 
-export function GalleryBlock({ block }: { block: BlockConfig }) {
+export function GalleryBlock({ block, editable = false }: { block: BlockConfig; editable?: boolean }) {
   const { variant, props } = block
   const title = props.title as string | undefined
   const viewer = props.enablePhotoViewer === true
@@ -69,8 +69,9 @@ export function GalleryBlock({ block }: { block: BlockConfig }) {
       <div className={responsive ? 'flex flex-wrap items-start gap-3' : `grid grid-cols-2 @lg:grid-cols-3 gap-3${masonry ? ' auto-rows-[160px]' : ''}`}>
         {images.map((img, i) => (
           <div key={i} data-ws-item-field="images" data-ws-item-index={i}
-            className={responsive ? 'min-w-0 max-w-full [&[draggable=true]]:cursor-grab [&[draggable=true]:active]:cursor-grabbing' : `reveal-scale reveal-d${Math.min(i + 2, 8)}`}>
+            className={`relative ${responsive ? 'min-w-0 max-w-full [&[draggable=true]]:cursor-grab [&[draggable=true]:active]:cursor-grabbing' : `reveal-scale reveal-d${Math.min(i + 2, 8)}`}`}>
             <ImageCard image={img} responsive={responsive} tall={masonry && i % 3 === 0} viewer={viewer} />
+            {editable && <span data-gallery-position={i + 1} aria-label={`Photo position ${i + 1}`} className="pointer-events-none absolute left-1.5 top-1.5 z-10 rounded border border-slate-400 bg-white/95 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-slate-800 shadow-sm">{i + 1}</span>}
           </div>
         ))}
       </div>

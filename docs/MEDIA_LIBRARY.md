@@ -74,3 +74,9 @@ The editor PDF Viewer block also searches extracted PDF text, reports the first 
 ## Gallery export performance
 
 Website ZIP export can generate smaller WebP copies for large local JPEG, PNG, and WebP gallery images. The gallery grid loads those copies as visitors scroll, while the enlarged viewer uses the original. Source photos and saved projects retain their original bytes. Export falls back to the original for small images or if the browser cannot create a smaller copy.
+
+## Moving a gallery photo to a numbered position
+
+Gallery photos show small position numbers while editing. Right-click a photo and choose **Properties** to open its own settings. Enter its destination in **Position**, then press **Enter** or click **Move**. For example, moving photo 49 to position 10 inserts it there and shifts photos 10–48 one place later; it does not swap or replace their images. The selected photo's settings follow it to its new position.
+
+Positions run from 1 through the gallery's photo count. Drag-and-drop and the existing arrow controls remain available. Reordering keeps the photo's caption and media reference together, can be undone, and is retained when the project is saved. Position labels are editing aids and do not appear in Preview or the exported website. This works for existing and new galleries without changing their saved format.

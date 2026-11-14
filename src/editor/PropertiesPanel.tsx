@@ -656,6 +656,7 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
     case 'array-items': {
       const items = (Array.isArray(value) ? value : []) as Array<Record<string, string>>
       const staffDirectory = block.type === 'team' && block.variant === 'directory' && field.key === 'members'
+      const galleryPhotos = block.type === 'gallery' && field.key === 'images'
 
       // Infer new item shape from existing items, or use sensible defaults per field key
       function createEmptyItem(): Record<string, string> {
@@ -807,7 +808,7 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
               {!onlyItemId && <div className="flex items-center justify-between mb-1.5">
                 <button type="button" draggable aria-label={`Drag ${field.label} item ${i + 1}`} title="Drag to reorder" className="cursor-grab rounded border border-border-default px-1.5 py-0.5 text-[10px] text-text-1 active:cursor-grabbing" onDragStart={event => {
                   event.dataTransfer.setData('application/x-webstudio-property-item', JSON.stringify({ block: block.id, field: field.key, index: i })); event.dataTransfer.effectAllowed = 'move'
-                }}>{staffDirectory ? item.name?.trim() || `Portrait ${i + 1}` : `Item ${i + 1}`} ↕</button>
+                }}>{staffDirectory ? item.name?.trim() || `Portrait ${i + 1}` : galleryPhotos ? `Photo ${i + 1} of ${items.length}` : `Item ${i + 1}`} ↕</button>
                 <div className="flex gap-1">
                 {([-1, 1] as const).map(delta => <button key={delta} type="button" aria-label={`Move ${field.label} item ${i + 1} ${delta < 0 ? 'up' : 'down'}`} disabled={i + delta < 0 || i + delta >= items.length} className="rounded border border-border-default px-1 text-[10px] disabled:opacity-40" onClick={() => {
                   try { useConfigStore.getState().editBlockItems(block.id, field.key, i, i + delta) } catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be moved.') }
@@ -822,6 +823,24 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
                 </button>
                 </div>
               </div>}
+              {galleryPhotos && <form aria-label={`Move photo ${i + 1}`} className="mb-2 flex items-end gap-2" onSubmit={event => {
+                event.preventDefault()
+                const position = Number(new FormData(event.currentTarget).get('position'))
+                if (!Number.isInteger(position) || position < 1 || position > items.length || position === i + 1) return
+                try {
+                  useConfigStore.getState().editBlockItems(block.id, field.key, i, position - 1)
+                  if (onlyItemIndex !== undefined) {
+                    useEditorStore.getState().selectCompositeItem({ blockId: block.id, field: field.key, index: position - 1 })
+                    useEditorStore.getState().selectImage(position - 1)
+                  }
+                } catch (error) { toast.error(error instanceof Error ? error.message : 'The photo could not be moved.') }
+              }}>
+                <label className="text-[11px] text-text-2">Position
+                  <input key={`${i}:${items.length}`} name="position" aria-label={`Photo ${i + 1} position`} type="number" min={1} max={items.length} step={1} required defaultValue={i + 1} className="mt-1 block w-20 rounded border border-border-default bg-bg-3 px-2 py-1 text-xs text-text-0" />
+                </label>
+                <span className="pb-1 text-xs text-text-3">of {items.length}</span>
+                <button type="submit" className="rounded border border-border-default px-3 py-1 text-xs text-text-0 hover:bg-bg-3">Move</button>
+              </form>}
               {block.type === 'collage' && <div className="mb-2 flex gap-1">
                 {(['Send to back', 'Bring to front'] as const).map(direction => <button key={direction} type="button" className="rounded border border-border-default px-2 py-1 text-[10px]" onClick={() => {
                   const order = items.map((value, index) => ({ index, layer: Math.max(1, Math.min(1000, Number(value.layer) || index + 1)) })).sort((a, b) => a.layer - b.layer || a.index - b.index).filter(entry => entry.index !== i)
