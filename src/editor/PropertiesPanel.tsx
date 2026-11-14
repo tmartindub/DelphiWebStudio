@@ -1023,6 +1023,10 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
         <div className="text-xs font-semibold text-text-0">{label} Properties</div>
         <div className="mt-1 text-[10px] text-text-3">Section {selectedObject.section}</div>
         <button type="button" className="mt-2 rounded border border-border-default px-2 py-1 text-xs" onClick={() => useEditorStore.getState().selectSectionObject(null)}>Section / Block Properties</button>
+        {block.type === 'gallery' && selectedObject.section === 1 && type === 'image' && !object.parentId && <button type="button" className="mt-2 block rounded border border-border-default px-3 py-1.5 text-xs" onClick={() => {
+          const index = useConfigStore.getState().addGalleryImages(block.id, [], true)
+          useEditorStore.getState().selectCompositeItem({ blockId: block.id, field: 'images', index })
+        }}>Include placed photos in gallery</button>}
       </div>
       <div className="px-3.5 py-3"><PropertyField key={selectedObject.id} block={block} onlyItemId={selectedObject.id} field={{ key: objectKey, label: `${label} properties`, type: 'array-items' }} /></div>
     </div>

@@ -204,7 +204,12 @@ export function MediaPanel({ picker = false, manage = false, onAdded, onSelect, 
     if (accept && !asset.mime.startsWith(accept)) { toast.error('Choose a supported image.'); return }
     if (onSelect) { onSelect(asset); onAdded?.(); return }
     if (asset.mime.startsWith('image/')) {
-      useEditorStore.getState().setMediaPlacement({ projectId, pageId: useConfigStore.getState().activePageId, id: asset.id, path: asset.path, name: asset.name, width: asset.width, height: asset.height })
+      const editor = useEditorStore.getState(), store = useConfigStore.getState()
+      const gallery = store.getActivePageBlocks().find(block => block.id === editor.selectedBlockId && block.type === 'gallery')
+      if (gallery && !editor.selectedSectionObject && !editor.selectedPlacedMedia) {
+        const index = store.addGalleryImages(gallery.id, [{ src: asset.path, assetId: asset.id, alt: asset.name, caption: '' }])
+        editor.selectCompositeItem({ blockId: gallery.id, field: 'images', index })
+      } else editor.setMediaPlacement({ projectId, pageId: store.activePageId, id: asset.id, path: asset.path, name: asset.name, width: asset.width, height: asset.height })
     } else {
       const id = `block-${crypto.randomUUID()}`
       const type = asset.mime === 'application/pdf' ? 'pdfViewer' : asset.mime.startsWith('audio/') ? 'audio' : asset.mime.startsWith('video/') ? 'mediaVideo' : 'document'
@@ -410,6 +415,12 @@ export function MediaPanel({ picker = false, manage = false, onAdded, onSelect, 
             const blockElement = element?.closest<HTMLElement>('[data-webstudio-block-id]')
             const blockId = blockElement?.getAttribute('data-webstudio-block-id')
             const block = useConfigStore.getState().getActivePageBlocks().find(item => item.id === blockId)
+            if (block?.type === 'gallery' && (!section || number === 1) && !element?.closest('[data-ws-object-type="panel"],[data-ws-parented="true"]')) {
+              const index = useConfigStore.getState().addGalleryImages(block.id, [{ src: asset.path, assetId: asset.id, alt: asset.name, caption: '' }])
+              useEditorStore.getState().selectBlock(block.id)
+              useEditorStore.getState().selectCompositeItem({ blockId: block.id, field: 'images', index })
+              return
+            }
             if (section && block && number >= 1 && number <= 4) {
               const bounds = section.getBoundingClientRect()
               if (!bounds.width) return

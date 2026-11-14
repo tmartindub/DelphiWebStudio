@@ -110,6 +110,11 @@ export function Canvas() {
           const blockId = section?.closest('[data-webstudio-block-id]')?.getAttribute('data-webstudio-block-id')
           const block = useConfigStore.getState().getActivePageBlocks().find(item => item.id === blockId)
           const area = section?.querySelector<HTMLElement>(`[data-section-object-area="${number}"]`)
+          if (block?.type === 'gallery' && (!section || number === 1) && !(event.target instanceof Element && event.target.closest('[data-ws-object-type="panel"],[data-ws-parented="true"]'))) {
+            const index = useConfigStore.getState().addGalleryImages(block.id, [{ src: mediaPlacement.path, assetId: mediaPlacement.id, alt: mediaPlacement.name, caption: '' }])
+            selectBlock(block.id); editor.selectCompositeItem({ blockId: block.id, field: 'images', index })
+            return
+          }
           if (block && area && number >= 1 && number <= 4) {
             const bounds = area.getBoundingClientRect(), key = `section${number}Objects`
             const items = Array.isArray(block.props[key]) ? block.props[key] as Array<Record<string, unknown>> : []
@@ -442,8 +447,15 @@ export function Canvas() {
       const sectionNumber = Number(sectionElement?.dataset.editorSection)
       const sectionBounds = sectionElement?.getBoundingClientRect()
       const sectionDestination = sectionElement && sectionBounds?.width && sectionNumber >= 1 && sectionNumber <= 4 && blockId ? { sectionNumber, blockId, width: sectionBounds.width, x: Math.max(0, Math.min(70, (event.clientX - sectionBounds.left) / sectionBounds.width * 100)), y: Math.max(0, event.clientY - sectionBounds.top) } : null
+      const galleryDestination = blockId && (!sectionElement || sectionNumber === 1) && !(event.target instanceof Element && event.target.closest('[data-ws-object-type="panel"],[data-ws-parented="true"]')) && blocks.find(block => block.id === blockId)?.type === 'gallery' ? blockId : null
       const placeAsset = (asset: MediaAsset, offset: number) => {
         if (useEditorStore.getState().activeProjectId !== activeProjectId || useConfigStore.getState().activePageId !== activePageId) throw new Error('The project or page changed; select the intended page and try again.')
+        if (galleryDestination && asset.mime.startsWith('image/')) {
+          const index = useConfigStore.getState().addGalleryImages(galleryDestination, [{ src: asset.path, assetId: asset.id, alt: asset.name, caption: '' }])
+          useEditorStore.getState().selectBlock(galleryDestination)
+          useEditorStore.getState().selectCompositeItem({ blockId: galleryDestination, field: 'images', index })
+          return
+        }
         if (sectionDestination && asset.mime.startsWith('image/')) {
           const block = useConfigStore.getState().getActivePageBlocks().find(item => item.id === sectionDestination.blockId)
           if (!block) throw new Error('The selected block no longer exists.')

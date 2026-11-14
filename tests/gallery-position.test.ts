@@ -46,4 +46,37 @@ describe('gallery photo positions', () => {
     useConfigStore.getState().undo()
     expect(useConfigStore.getState().config.pages![0].blocks[0].props.images).toEqual(images)
   })
+
+  it('adds new photos as gallery entries with the same position and caption properties', () => {
+    useConfigStore.getState().setConfig({ name: 'Photos', blocks: [structuredClone(block)] })
+    const photo = { src: '/new-photo.jpg', assetId: 'new-photo', alt: 'New photo', caption: 'New caption' }
+    expect(useConfigStore.getState().addGalleryImages(block.id, [photo])).toBe(49)
+    const updated = useConfigStore.getState().getActivePageBlocks()[0]
+    expect(updated.props.images).toEqual([...images, photo])
+    expect(updated.props.section1Objects).toBeUndefined()
+    useEditorStore.getInitialState().selectedCompositeItem = { blockId: block.id, field: 'images', index: 49 }
+    const html = renderToStaticMarkup(createElement(PropertiesPanel, { block: updated }))
+    expect(html).toContain('Photo 50 position')
+    expect(html).toContain('New caption')
+  })
+
+  it('includes older unparented gallery images without losing captions, links, or media, and restores placement on undo', () => {
+    const loose = { id: 'loose', type: 'image', src: '/loose.jpg', assetId: 'loose-asset', alt: 'Loose photo', caption: 'Old caption', url: '#history', x: 30, y: 400, width: 25, height: 160 }
+    const panel = { id: 'panel', type: 'panel', text: 'Keep panel' }
+    const child = { ...loose, id: 'child', parentId: panel.id }
+    const placed = { id: 'legacy', mime: 'image/jpeg', src: '/legacy.jpg', name: 'Legacy photo', assetId: 'legacy-asset', x: 20, y: 50 }
+    const pdf = { id: 'pdf', mime: 'application/pdf', src: '/document.pdf' }
+    const original = { ...structuredClone(block), props: { ...block.props, section1Objects: [loose, panel, child], placedMedia: [placed, pdf] } }
+    useConfigStore.getState().setConfig({ name: 'Photos', blocks: [original] })
+    expect(useConfigStore.getState().addGalleryImages(block.id, [], true)).toBe(49)
+    const updated = useConfigStore.getState().getActivePageBlocks()[0]
+    expect(updated.props.images).toEqual([...images,
+      { src: '/loose.jpg', assetId: 'loose-asset', alt: 'Loose photo', caption: 'Old caption', url: '#history' },
+      { src: '/legacy.jpg', alt: 'Legacy photo', assetId: 'legacy-asset' },
+    ])
+    expect(updated.props.section1Objects).toEqual([panel, child])
+    expect(updated.props.placedMedia).toEqual([pdf])
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().getActivePageBlocks()[0]).toEqual(original)
+  })
 })

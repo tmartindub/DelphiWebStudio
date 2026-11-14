@@ -2,6 +2,10 @@ import { ImageIcon } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import type { BlockConfig } from '../types'
 import { connectGalleryViewer } from './gallery-viewer.js'
+import { useConfigStore } from '@/store/configStore'
+import { useEditorStore } from '@/store/editorStore'
+import { toast } from 'sonner'
+import type { MediaAsset } from '@/media/media-library'
 
 interface GalleryImage {
   src?: string
@@ -63,9 +67,29 @@ export function GalleryBlock({ block, editable = false }: { block: BlockConfig; 
 
   const masonry = variant === 'masonry'
   const responsive = variant === 'responsive'
+  const loosePhotos = (Array.isArray(props.section1Objects) ? props.section1Objects as Record<string, unknown>[] : []).filter(item => item.type === 'image' && !item.parentId && typeof item.src === 'string' && item.src).length +
+    (Array.isArray(props.placedMedia) ? props.placedMedia as Record<string, unknown>[] : []).filter(item => typeof item.mime === 'string' && item.mime.startsWith('image/') && typeof item.src === 'string' && item.src).length
   return (
-    <div ref={gallery} data-ws-gallery-viewer={viewer ? true : undefined} className="px-6 py-12 @lg:px-16 @lg:py-16">
+    <div ref={gallery} data-ws-gallery-viewer={viewer ? true : undefined} className="relative px-6 py-12 @lg:px-16 @lg:py-16">
       {title && <h2 className="reveal-fade-up reveal-d1 text-2xl font-display font-semibold mb-6 text-center">{title}</h2>}
+      {editable && <div className="absolute right-6 top-2 z-20 flex flex-wrap gap-2" data-gallery-tools>
+        <button type="button" className="rounded border border-slate-400 bg-white px-3 py-1.5 text-xs text-slate-800 hover:bg-slate-100" onClick={() => {
+          const projectId = useEditorStore.getState().activeProjectId, pageId = useConfigStore.getState().activePageId
+          window.dispatchEvent(new CustomEvent('webstudio.media', { detail: { accept: 'image/', onSelect: (asset: MediaAsset) => {
+            if (useEditorStore.getState().activeProjectId !== projectId || useConfigStore.getState().activePageId !== pageId) { toast.error('The project or page changed. Select the gallery again.'); return }
+            try {
+              const index = useConfigStore.getState().addGalleryImages(block.id, [{ src: asset.path, assetId: asset.id, alt: asset.name, caption: '' }])
+              useEditorStore.getState().selectBlock(block.id)
+              useEditorStore.getState().selectCompositeItem({ blockId: block.id, field: 'images', index })
+            } catch (error) { toast.error(error instanceof Error ? error.message : 'The photo could not be added.') }
+          } } }))
+        }}>Add photos</button>
+        {loosePhotos > 0 && <button type="button" className="rounded border border-slate-400 bg-white px-3 py-1.5 text-xs text-slate-800 hover:bg-slate-100" onClick={() => {
+          const index = useConfigStore.getState().addGalleryImages(block.id, [], true)
+          useEditorStore.getState().selectBlock(block.id)
+          useEditorStore.getState().selectCompositeItem({ blockId: block.id, field: 'images', index })
+        }}>Include {loosePhotos} placed photo{loosePhotos === 1 ? '' : 's'} in gallery</button>}
+      </div>}
       <div className={responsive ? 'flex flex-wrap items-start gap-3' : `grid grid-cols-2 @lg:grid-cols-3 gap-3${masonry ? ' auto-rows-[160px]' : ''}`}>
         {images.map((img, i) => (
           <div key={i} data-ws-item-field="images" data-ws-item-index={i}
