@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
@@ -43,6 +43,21 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
     return () => window.clearTimeout(timer)
   }, [newTextObjectId, objects, block.id, section])
   const [menu, setMenu] = useState<{ id: string; x: number; y: number; layers: string[] } | null>(null)
+  const menuElement = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const element = menuElement.current
+    if (!menu || !element) return
+    const place = () => {
+      element.style.maxHeight = 'calc(100vh - 24px)'
+      const bounds = element.getBoundingClientRect()
+      element.style.left = `${Math.max(12, Math.min(menu.x, window.innerWidth - bounds.width - 12))}px`
+      element.style.top = `${Math.max(12, Math.min(menu.y, (window.innerHeight - bounds.height) / 2))}px`
+    }
+    place()
+    const observer = new ResizeObserver(place); observer.observe(element)
+    window.addEventListener('resize', place)
+    return () => { observer.disconnect(); window.removeEventListener('resize', place) }
+  }, [menu])
   const [destination, setDestination] = useState<{ id: string; kind: 'anchor' | 'link'; value: string; error: string; x: number; y: number } | null>(null)
   const [guides, setGuides] = useState<{ vertical?: { x: number; top: number; height: number }; horizontal?: { y: number; left: number; width: number } }>({})
   const drag = useRef<{ id: string; startX: number; startY: number; grabX: number; grabY: number; x: number; y: number; width: number; height: number; parentWidth: number; resize: false | string; imageAspect?: number; group?: string[]; editOnClick?: boolean } | null>(null)
@@ -287,7 +302,7 @@ export function SectionObjects({ block, section, editable }: { block: BlockConfi
     {guides.vertical && <div style={{ position: 'fixed', left: guides.vertical.x, top: guides.vertical.top, height: guides.vertical.height, width: 1, background: '#1683e5' }} />}
     {guides.horizontal && <div style={{ position: 'fixed', left: guides.horizontal.left, top: guides.horizontal.y, width: guides.horizontal.width, height: 1, background: '#1683e5' }} />}
   </div>, document.body)}
-  {editable && menu && createPortal(<div role="menu" aria-label="Object actions" style={{ position: 'fixed', left: Math.max(0, Math.min(menu.x, window.innerWidth - 190)), top: Math.max(8, Math.min(menu.y, window.innerHeight - 340)), maxHeight: 'calc(100vh - 16px)', overflowY: 'auto', zIndex: 10001 }} className="rounded border border-gray-400 bg-white p-1 text-sm text-black shadow-lg" onClick={event => event.stopPropagation()} onMouseLeave={() => setMenu(null)} onKeyDown={event => { if (event.key === 'Escape') setMenu(null) }}>
+  {editable && menu && createPortal(<div ref={menuElement} role="menu" aria-label="Object actions" style={{ position: 'fixed', left: Math.max(0, Math.min(menu.x, window.innerWidth - 190)), top: Math.max(8, Math.min(menu.y, window.innerHeight - 340)), maxHeight: 'calc(100vh - 16px)', overflowY: 'auto', zIndex: 10001 }} className="rounded border border-gray-400 bg-white p-1 text-sm text-black shadow-lg" onClick={event => event.stopPropagation()} onMouseLeave={() => setMenu(null)} onKeyDown={event => { if (event.key === 'Escape') setMenu(null) }}>
     <button type="button" role="menuitem" className="block w-full rounded px-3 py-1 text-left hover:bg-blue-100" onClick={() => {
       const item = objects.find(value => value.id === menu.id)
       if (item?.type === 'text') {

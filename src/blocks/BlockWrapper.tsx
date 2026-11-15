@@ -79,10 +79,12 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   useLayoutEffect(() => {
     if (!contextMenu || !menuRef.current) return
     const menu = menuRef.current
+    menu.style.maxHeight = 'calc(100vh - 24px)'
+    menu.style.overflowY = 'auto'
     const bounds = menu.getBoundingClientRect()
-    menu.style.left = `${Math.max(0, Math.min(contextMenu.x, window.innerWidth - bounds.width))}px`
-    menu.style.top = `${Math.max(0, Math.min(contextMenu.y, window.innerHeight - bounds.height))}px`
-    menu.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()
+    menu.style.left = `${Math.max(12, Math.min(contextMenu.x, window.innerWidth - bounds.width - 12))}px`
+    menu.style.top = `${Math.max(12, Math.min(contextMenu.y, (window.innerHeight - bounds.height) / 2))}px`
+    menu.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus({ preventScroll: true })
   }, [contextMenu])
 
   useEffect(() => {
