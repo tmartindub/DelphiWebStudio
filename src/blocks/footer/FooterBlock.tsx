@@ -141,7 +141,7 @@ export function FooterBlock({ block }: { block: BlockConfig }) {
           })}
         </div>
         <div className="mt-10 flex flex-wrap justify-center gap-3">
-          {(Array.isArray(props.resourceButtons) ? props.resourceButtons : []).map((item, index) => item && typeof item.url === 'string' && /^(https?:\/\/|\/(?!\/)|#)/i.test(item.url) && item.label ? <a key={index} href={item.url} className="rounded border border-current px-5 py-2 text-center">{item.label}</a> : null)}
+          {(Array.isArray(props.resourceButtons) ? props.resourceButtons : []).map((item, index) => item && typeof item.url === 'string' && /^(https?:\/\/|\/(?!\/)|#)/i.test(item.url) && item.label ? <a data-ws-block-button key={index} href={item.url} className="rounded border border-current px-5 py-2 text-center">{item.label}</a> : null)}
         </div>
       </footer>
     case 'multi-column':

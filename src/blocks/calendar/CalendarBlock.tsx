@@ -37,9 +37,9 @@ export function CalendarBlock({ block, editable = false }: { block: BlockConfig;
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 data-ws-calendar-label aria-live="polite" className="text-lg font-semibold" />
           <div className="flex gap-1.5">
-            <button type="button" data-ws-calendar-step="-1" aria-label="Previous month" className={controlClass}>‹</button>
-            <button type="button" data-ws-calendar-step="0" className={controlClass}>This month</button>
-            <button type="button" data-ws-calendar-step="1" aria-label="Next month" className={controlClass}>›</button>
+            <button data-ws-block-button type="button" data-ws-calendar-step="-1" aria-label="Previous month" className={controlClass}>‹</button>
+            <button data-ws-block-button type="button" data-ws-calendar-step="0" className={controlClass}>This month</button>
+            <button data-ws-block-button type="button" data-ws-calendar-step="1" aria-label="Next month" className={controlClass}>›</button>
           </div>
         </div>
         <table aria-label="Month calendar" className="w-full table-fixed text-center text-sm">

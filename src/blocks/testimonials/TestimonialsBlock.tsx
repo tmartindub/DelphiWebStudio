@@ -124,7 +124,7 @@ function TestimonialsCarousel({ props }: { props: TestimonialsProps }) {
 
           {/* Navigation */}
           <div className="flex items-center justify-center gap-4 mt-6">
-            <button
+            <button data-ws-block-button
               onClick={() => goTo(safeIndex - 1)}
               className="w-8 h-8 rounded-full border border-border-default bg-bg-2 flex items-center justify-center text-text-2 hover:text-text-0 hover:border-border-hover transition-colors"
             >
@@ -132,7 +132,7 @@ function TestimonialsCarousel({ props }: { props: TestimonialsProps }) {
             </button>
             <div className="flex gap-1.5">
               {items.map((_, i) => (
-                <button
+                <button data-ws-block-button
                   key={i}
                   onClick={() => goTo(i)}
                   className={`w-2 h-2 rounded-full transition-colors ${
@@ -141,7 +141,7 @@ function TestimonialsCarousel({ props }: { props: TestimonialsProps }) {
                 />
               ))}
             </div>
-            <button
+            <button data-ws-block-button
               onClick={() => goTo(safeIndex + 1)}
               className="w-8 h-8 rounded-full border border-border-default bg-bg-2 flex items-center justify-center text-text-2 hover:text-text-0 hover:border-border-hover transition-colors"
             >

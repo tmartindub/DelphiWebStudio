@@ -30,7 +30,7 @@ export function NewsletterBlock({ block }: { block: BlockConfig }) {
             placeholder="you@example.com"
             className="min-w-0 flex-1 px-4 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 transition-colors"
           />
-          <button
+          <button data-ws-block-button
             className="px-5 py-2.5 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all shrink-0"
           >
             {props.buttonText || 'Subscribe'}

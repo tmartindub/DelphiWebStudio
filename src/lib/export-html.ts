@@ -54,12 +54,13 @@ function escapeHtml(str: string): string {
 function renderLink(text: string, url?: string, className?: string): string {
   const cls = className ? ` class="${escapeHtml(className)}"` : ''
   const escaped = escapeHtml(text)
+  const button = className && /\brounded(?:-lg)?\b/.test(className) ? ' data-ws-block-button' : ''
   const destination = url?.trim() ?? ''
   if (destination && !/[\\\p{Cc}]/u.test(destination) && !destination.startsWith('//') &&
     (!/^[a-z][a-z\d+.-]*:/i.test(destination) || /^(https?:|mailto:|tel:)/i.test(destination))) {
-    return `<a href="${escapeHtml(destination)}"${cls}>${escaped}</a>`
+    return `<a${button} href="${escapeHtml(destination)}"${cls}>${escaped}</a>`
   }
-  return `<span${cls}>${escaped}</span>`
+  return `<span${button}${cls}>${escaped}</span>`
 }
 
 function initials(name: string): string {
@@ -532,7 +533,7 @@ ${descHtml}
           <ul class="space-y-2 mb-6 flex-1">
 ${features}
           </ul>
-          <button class="${btnClass}">${escapeHtml(tier.cta)}</button>
+          <button data-ws-block-button class="${btnClass}">${escapeHtml(tier.cta)}</button>
         </div>`
     })
     .join('\n')
@@ -958,7 +959,7 @@ function renderFaq(block: BlockConfig): string {
   const accordionItems = items
     .map(
       (item, i) => `        <div class="border-b border-border-subtle">
-          <button onclick="toggleFaq(this)" class="w-full flex items-center justify-between py-4 text-left group" aria-expanded="${i === 0 ? 'true' : 'false'}">
+          <button data-ws-block-button onclick="toggleFaq(this)" class="w-full flex items-center justify-between py-4 text-left group" aria-expanded="${i === 0 ? 'true' : 'false'}">
             <span class="text-[13.5px] font-medium text-text-0 group-hover:text-green transition-colors">${escapeHtml(item.question)}</span>
             <span class="faq-chevron text-text-3 shrink-0 ml-4 transition-transform duration-200${i === 0 ? ' rotate-180 text-green' : ''}">${SVG_CHEVRON_DOWN}</span>
           </button>
@@ -1060,7 +1061,7 @@ ${subtitleHtml}
             <textarea name="message" required maxlength="4000" rows="4" placeholder="How can we help?" class="w-full px-3 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 resize-y transition-colors"></textarea></label>
           </div>
           ${consent ? `<label class="flex gap-2 text-sm text-text-1"><input type="checkbox" name="consent" value="yes" required /> <span>${escapeHtml(consent)}</span></label>` : ''}
-          <button type="submit" class="w-full py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all flex items-center justify-center gap-2">
+          <button data-ws-block-button type="submit" class="w-full py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all flex items-center justify-center gap-2">
             ${SVG_SEND}
             Send Message
           </button>
@@ -1102,7 +1103,7 @@ function renderNewsletter(block: BlockConfig): string {
         <p class="text-text-2 text-sm mb-6">${subtitle}</p>
         <form onsubmit="return false"><fieldset disabled class="flex gap-2 max-w-sm mx-auto">
           <input type="email" placeholder="you@example.com" class="min-w-0 flex-1 px-4 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 transition-colors" />
-          <button type="submit" class="px-5 py-2.5 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all shrink-0">${buttonText}</button>
+          <button data-ws-block-button type="submit" class="px-5 py-2.5 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all shrink-0">${buttonText}</button>
         </fieldset></form>
         <p class="text-text-1 text-sm mt-3">This form is not connected yet.</p>
         ${proofText}
@@ -1284,7 +1285,8 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
     const heroHeight = block.type === 'hero' && Number.isFinite(requestedHeroHeight) && requestedHeroHeight > 0 ? Math.max(40, Math.min(2000, requestedHeroHeight)) : undefined
     const heroHeightStyle = heroHeight ? `${selector}{min-height:${heroHeight}px}${Number(block.props.sectionCount) > 1 ? `${selector}>:first-child,${selector}>:first-child>:first-child,${selector}>:first-child>:first-child>:first-child{min-height:${heroHeight}px}` : ''}${backgroundTarget}{min-height:${heroHeight}px;box-sizing:border-box}${selector} section{padding-block:8px!important}` : ''
     const otherHeight = !['image', 'navbar', 'panel', 'hero'].includes(block.type) && Number.isFinite(requestedHeroHeight) && requestedHeroHeight > 0 ? Math.max(40, block.type === 'divider' ? Math.min(2000, requestedHeroHeight) : requestedHeroHeight) : undefined
-    const customStyle = (backgroundColor ? `${blockSelector},${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label):not([data-rich-run]){${textRules}}` : '') + individualTextRules + imageRules + heroHeightStyle + (otherHeight ? `${selector}{min-height:100%}` : '') + (block.type === 'panel' ? `@container (max-width:600px){${blockSelector}{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
+    const buttonRules = ([['buttonBackgroundColor', 'background-color'], ['buttonTextColor', 'color'], ['buttonBorderColor', 'border-color']] as const).flatMap(([key, property]) => typeof block.props[key] === 'string' && /^#[0-9a-f]{6}$/i.test(block.props[key]) ? [`${property}:${block.props[key]}!important`, ...(key === 'buttonBorderColor' ? ['border-style:solid', 'border-width:1px'] : [])] : []).join(';')
+    const customStyle = (backgroundColor ? `${blockSelector},${selector},${backgroundTarget}{background-color:${backgroundColor}!important}` : '') + (textRules ? `${selector} :is(h1,h2,h3,h4,h5,h6,p,span,a,li,label):not([data-rich-run]):not([data-ws-block-button]):not([data-ws-object-button]){${textRules}}` : '') + (buttonRules ? `${selector} [data-ws-block-button]{${buttonRules}}` : '') + individualTextRules + imageRules + heroHeightStyle + (otherHeight ? `${selector}{min-height:100%}` : '') + (block.type === 'panel' ? `@container (max-width:600px){${blockSelector}{width:100%!important;margin-left:0!important;margin-top:0!important;z-index:auto!important}}` : '')
     if (imageRules) {
       let imageIndex = 0
       html = html.replace(/<img\b/g, () => `<img data-ws-image-index="${imageIndex++}"`)
@@ -1607,7 +1609,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
       return { title: page.name, href: encodeURI(paths[pageIndex]), text: text.join(' ') }
     })
     const searchData = JSON.stringify(searchIndex).replace(/</g, '\\u003c')
-    const searchContent = `<main id="main-content" tabindex="-1" class="@container"><div class="max-w-3xl mx-auto px-6 py-12"><h1 class="text-3xl font-bold mb-4">Search</h1><form id="site-search-form"><label for="site-search-query" class="block mb-2">Search this site</label><input id="site-search-query" type="search" maxlength="200" class="w-full px-3 py-2 rounded-lg border border-border-default bg-bg-2 text-text-0" /><button type="submit" class="mt-3 px-4 py-2 rounded-lg bg-green text-black font-semibold">Search</button></form><p id="site-search-status" role="status" class="mt-4"></p><ul id="site-search-results" class="mt-4 space-y-2"></ul><noscript>JavaScript is required for site search.</noscript></div></main>`
+    const searchContent = `<main id="main-content" tabindex="-1" class="@container"><div class="max-w-3xl mx-auto px-6 py-12"><h1 class="text-3xl font-bold mb-4">Search</h1><form id="site-search-form"><label for="site-search-query" class="block mb-2">Search this site</label><input id="site-search-query" type="search" maxlength="200" class="w-full px-3 py-2 rounded-lg border border-border-default bg-bg-2 text-text-0" /><button data-ws-block-button type="submit" class="mt-3 px-4 py-2 rounded-lg bg-green text-black font-semibold">Search</button></form><p id="site-search-status" role="status" class="mt-4"></p><ul id="site-search-results" class="mt-4 space-y-2"></ul><noscript>JavaScript is required for site search.</noscript></div></main>`
     const searchScript = `<script type="application/json" id="site-search-data">${searchData}</script><script>
       document.getElementById('site-search-form').addEventListener('submit', function(event) {
         event.preventDefault();

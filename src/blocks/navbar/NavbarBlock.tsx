@@ -73,7 +73,7 @@ function NavbarDefault({ props, editable }: { props: NavbarProps; editable: bool
 
       {/* CTA + mobile menu */}
       <div className="flex items-center gap-3">
-        {ctaText && <a href={ctaUrl || undefined} className="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors">
+        {ctaText && <a data-ws-block-button href={ctaUrl || undefined} className="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors">
           {ctaText}
         </a>}
       </div>
@@ -113,7 +113,7 @@ function NavbarCentered({ props, editable }: { props: NavbarProps; editable: boo
             {link}
           </span>
         ))}
-        {ctaText && <a href={ctaUrl || undefined} className="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors ml-2">
+        {ctaText && <a data-ws-block-button href={ctaUrl || undefined} className="px-4 py-2 rounded-lg bg-green text-black text-[13px] font-semibold hover:bg-green-dim transition-colors ml-2">
           {ctaText}
         </a>}
       </div>

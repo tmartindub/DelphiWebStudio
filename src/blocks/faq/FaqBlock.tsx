@@ -18,7 +18,7 @@ const defaultFaqs: FaqItem[] = []
 function AccordionItem({ item, isOpen, onToggle }: { item: FaqItem; isOpen: boolean; onToggle: () => void }) {
   return (
     <div className="border-b border-border-subtle">
-      <button
+      <button data-ws-block-button
         onClick={onToggle}
         className="w-full flex items-center justify-between py-4 text-left group"
       >

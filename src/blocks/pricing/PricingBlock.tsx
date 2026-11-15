@@ -97,7 +97,7 @@ function PricingSimple({ props }: { props: PricingProps }) {
               ))}
             </ul>
 
-            <button
+            <button data-ws-block-button
               className={`w-full py-2.5 rounded-lg text-sm font-semibold transition-all ${
                 tier.featured
                   ? 'bg-green text-black hover:bg-green-dim hover:accent-glow-lg'

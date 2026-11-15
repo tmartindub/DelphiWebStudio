@@ -52,12 +52,12 @@ function HeroCentered({ props }: { props: HeroProps }) {
 
       {/* CTAs */}
       <div className="reveal-fade-up reveal-d4 flex flex-wrap items-center justify-center gap-3">
-        {props.primaryCta && <a href={props.primaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl flex items-center gap-2">
+        {props.primaryCta && <a data-ws-block-button href={props.primaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl flex items-center gap-2">
           {props.primaryCta}
           <ArrowRight size={16} />
         </a>}
         {props.secondaryCta && (
-          <a href={props.secondaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 hover:border-border-hover transition-all">
+          <a data-ws-block-button href={props.secondaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 hover:border-border-hover transition-all">
             {props.secondaryCta}
           </a>
         )}
@@ -84,12 +84,12 @@ function HeroSplit({ props }: { props: HeroProps }) {
           {!props.subheadlineHidden && <RichText blockId={props._blockId} field="subheadline" text={props.subheadline || ''} value={props._subheadlineRich} alignment={props.subheadlineAlign} editable={props._editable} position={{ x: Number(props.subheadlineOffsetX) || 0, y: Number(props.subheadlineOffsetY) || 0, width: Number(props.subheadlineWidth) || undefined, height: Number(props.subheadlineHeight) || undefined }} />}
         </p>
         <div className="reveal-fade-up reveal-d4 flex flex-wrap items-center gap-3">
-          {props.primaryCta && <a href={props.primaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all flex items-center gap-2">
+          {props.primaryCta && <a data-ws-block-button href={props.primaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all flex items-center gap-2">
             {props.primaryCta}
             <ArrowRight size={16} />
           </a>}
           {props.secondaryCta && (
-            <a href={props.secondaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 transition-all">
+            <a data-ws-block-button href={props.secondaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 transition-all">
               {props.secondaryCta}
             </a>
           )}
@@ -133,12 +133,12 @@ function HeroGradient({ props }: { props: HeroProps }) {
         </p>
 
         <div className="reveal-fade-up reveal-d4 flex flex-wrap items-center justify-center gap-3">
-          {props.primaryCta && <a href={props.primaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl flex items-center gap-2">
+          {props.primaryCta && <a data-ws-block-button href={props.primaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl flex items-center gap-2">
             {props.primaryCta}
             <ArrowRight size={16} />
           </a>}
           {props.secondaryCta && (
-            <a href={props.secondaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 transition-all">
+            <a data-ws-block-button href={props.secondaryCtaUrl || undefined} className="px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 transition-all">
               {props.secondaryCta}
             </a>
           )}
@@ -158,7 +158,7 @@ function HeroMinimal({ props }: { props: HeroProps }) {
         {!props.subheadlineHidden && <RichText blockId={props._blockId} field="subheadline" text={props.subheadline || ''} value={props._subheadlineRich} alignment={props.subheadlineAlign} editable={props._editable} position={{ x: Number(props.subheadlineOffsetX) || 0, y: Number(props.subheadlineOffsetY) || 0, width: Number(props.subheadlineWidth) || undefined, height: Number(props.subheadlineHeight) || undefined }} />}
       </p>
       {props.primaryCta && <div className="reveal-fade-up reveal-d3">
-        <a href={props.primaryCtaUrl || undefined} className="px-8 py-4 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl inline-flex items-center gap-2 mx-auto">
+        <a data-ws-block-button href={props.primaryCtaUrl || undefined} className="px-8 py-4 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-xl inline-flex items-center gap-2 mx-auto">
           {props.primaryCta}
           <ArrowRight size={16} />
         </a>

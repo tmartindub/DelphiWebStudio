@@ -66,7 +66,7 @@ export function ContactBlock({ block }: { block: BlockConfig }) {
             </label>
           </div>
           {consent && <label className="flex gap-2 text-sm text-text-1"><input type="checkbox" name="consent" value="yes" required /> <span>{consent}</span></label>}
-          <button
+          <button data-ws-block-button
             className="w-full py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-lg flex items-center justify-center gap-2"
           >
             <Send size={14} />
