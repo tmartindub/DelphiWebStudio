@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$PackageStudioRoot = 'C:\New Delphi Projects\Package Studio Pro'
 )
 $ErrorActionPreference = 'Stop'
@@ -7,6 +7,8 @@ $builder = Join-Path $PackageStudioRoot 'bin\WIPBuild.exe'
 if (-not (Test-Path -LiteralPath $builder)) { throw 'Build the repaired Package Studio Pro first.' }
 $releaseFolder = Join-Path $projectRoot 'export\release-1.0.0.1'
 New-Item -ItemType Directory -Path $releaseFolder -Force | Out-Null
+$savedProjects = Join-Path $PackageStudioRoot 'MySetups\DelphiWebStudioPro-1.0.0.1'
+New-Item -ItemType Directory -Path $savedProjects -Force | Out-Null
 $workRoot = Join-Path $projectRoot ('test-results\package-release-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $workRoot | Out-Null
 try {
@@ -31,6 +33,15 @@ try {
     foreach ($name in @('PRIVACY.md', 'RECOVERY.md', 'KNOWN_LIMITATIONS.md', 'COMPATIBILITY.md', 'RELEASE_1_0_REVIEW.md', 'THIRD_PARTY_LICENSE_TEXTS.txt', 'WEBVIEW2_SDK_LICENSE.txt')) {
       Copy-Item -LiteralPath (Join-Path $projectRoot "docs\$name") -Destination $docs
     }
+    # Retain complete build inputs as deliverables, independently of temporary output.
+    $savedPayload = Join-Path $savedProjects "$platform\payload"
+    $packageFiles = @(foreach ($source in Get-ChildItem -LiteralPath $payload -File -Recurse | Sort-Object FullName) {
+      $relative = $source.FullName.Substring($payload.Length + 1)
+      $destination = Join-Path $savedPayload $relative
+      New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
+      Copy-Item -LiteralPath $source.FullName -Destination $destination -Force
+      $destination
+    })
     $requirements = @(
       'Windows 10 or 11|Windows10|https://www.microsoft.com/windows',
       'Microsoft Edge WebView2 Runtime|WebView2|https://developer.microsoft.com/microsoft-edge/webview2/',
@@ -44,14 +55,14 @@ try {
       version = '1.0.0.1'
       installFolder = "{localappdata}\Programs\Delphi Web Studio Pro\$platform"
       licenseText = [IO.File]::ReadAllText((Join-Path $projectRoot 'LICENSE'))
-      files = @(Get-ChildItem -LiteralPath $payload -File -Recurse | Sort-Object FullName | Select-Object -ExpandProperty FullName)
+      files = $packageFiles
       shortcuts = @("StartMenu|Delphi Web Studio Pro ($bits-bit)|DelphiWebStudioPro.exe", "StartMenu|Delphi Web Studio Pro User Guide ($bits-bit)|docs\pdf\Delphi Web Studio Pro User Guide.pdf", "Desktop|Delphi Web Studio Pro ($bits-bit)|DelphiWebStudioPro.exe")
       registry = @(); environment = @(); pathEntries = @(); fileAssociations = @()
       prerequisites = $requirements
       features = @('Core|Required|Windows editor, SFTP tools, guides and notices')
       signingEnabled = $false; signingCertificatePath = ''; signToolPath = ''; timestampUrl = ''
     }
-    $projectFile = Join-Path $workRoot "$platform\release.wiproj"
+    $projectFile = Join-Path $savedProjects "DelphiWebStudioPro-1.0.0.1-$platform.wiproj"
     $config | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $projectFile -Encoding utf8
     $output = Join-Path $workRoot "$platform\output"
     & $builder $projectFile $output
@@ -63,6 +74,7 @@ try {
     $hash = Get-FileHash -LiteralPath $destination -Algorithm SHA256
     "$($hash.Hash.ToLower())  $([IO.Path]::GetFileName($destination))" | Set-Content -LiteralPath "$destination.sha256" -Encoding ascii
     Copy-Item -LiteralPath (Join-Path $output 'build-report.txt') -Destination (Join-Path $releaseFolder "$platform-build-report.txt") -ErrorAction SilentlyContinue
+    Write-Output "Saved Package Studio project: $projectFile"
     Write-Output "Prepared $destination"
   }
 } finally {

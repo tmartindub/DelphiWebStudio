@@ -44,7 +44,7 @@ npm run build
 
 Vite starts at http://localhost:5173; build includes TypeScript checking. Vite alone does not run Vercel API functions. Cloud AI/publishing are optional services; do not enter production credentials or publish sites during ordinary checks.
 
-Run `tools/build-release.ps1 -NodeExe <full-node-path>` to rebuild and stage both architectures, then `tools/package-release.ps1` to assemble the installers with Package Studio Pro. Native development uses RAD Studio 37.0. The VCL WebView2 host is built for Win32 and Win64. Node is required for editor development and building the web bundle. Running the staged Windows app requires the WebView2 Runtime.
+Run `tools/build-release.ps1 -NodeExe <full-node-path>` to rebuild and stage both architectures, then `tools/package-release.ps1` to assemble the installers with Package Studio Pro. The packaging script also retains complete authoring projects and their payloads under `Package Studio Pro/MySetups/DelphiWebStudioPro-1.0.0.1`; open the Win32 or Win64 `.wiproj` there to build it directly in Package Studio Pro. Native development uses RAD Studio 37.0. The VCL WebView2 host is built for Win32 and Win64. Node is required for editor development and building the web bundle. Running the staged Windows app requires the WebView2 Runtime.
 
 ## Attribution
 
