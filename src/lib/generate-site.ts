@@ -57,10 +57,10 @@ export async function generateSiteConfig(prompt: string, signal?: AbortSignal): 
 
 async function callGeminiDirect(prompt: string, apiKey: string, signal?: AbortSignal): Promise<SiteConfig> {
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       signal,
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: `Generate a website configuration for: ${prompt}` }] }],

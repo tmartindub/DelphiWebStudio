@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{F5A2C8F1-C21D-4A40-B13E-8BBE62C19212}</ProjectGuid>
         <ProjectVersion>20.4</ProjectVersion>
@@ -30,10 +30,14 @@
         <DCC_DcuOutput>..\..\dcu\$(Platform)</DCC_DcuOutput>
         <DCC_UnitSearchPath>..\ai;..\bridge;..\project;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
-        <VerInfo_Keys>FileDescription=Delphi Web Studio Pro;InternalName=DelphiWebStudioPro;OriginalFilename=DelphiWebStudioPro.exe;ProductName=Delphi Web Studio Pro</VerInfo_Keys>
+        <VerInfo_MajorVer>1</VerInfo_MajorVer>
+        <VerInfo_MinorVer>0</VerInfo_MinorVer>
+        <VerInfo_Release>0</VerInfo_Release>
+        <VerInfo_Build>1</VerInfo_Build>
+        <VerInfo_Keys>FileVersion=1.0.0.1;ProductVersion=1.0.0.1;FileDescription=Delphi Web Studio Pro;InternalName=DelphiWebStudioPro;OriginalFilename=DelphiWebStudioPro.exe;ProductName=Delphi Web Studio Pro</VerInfo_Keys>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
-        <BT_BuildType>Debug</BT_BuildType>
+        <BT_BuildType>Release</BT_BuildType>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <Icon_MainIcon>..\..\images and icons\DelphiWebStudio-app-icon.ico</Icon_MainIcon>
         <UWP_DelphiLogo44>..\..\images and icons\DelphiWebStudio-app-icon.png</UWP_DelphiLogo44>
@@ -42,13 +46,19 @@
         <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
-        <BT_BuildType>Debug</BT_BuildType>
+        <BT_BuildType>Release</BT_BuildType>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <Icon_MainIcon>..\..\images and icons\DelphiWebStudio-app-icon.ico</Icon_MainIcon>
         <Manifest_File>(None)</Manifest_File>
         <AppDPIAwarenessMode>none</AppDPIAwarenessMode>
         <UWP_DelphiLogo44>..\..\images and icons\DelphiWebStudio-app-icon.png</UWP_DelphiLogo44>
         <UWP_DelphiLogo150>..\..\images and icons\DelphiWebStudio-app-icon.png</UWP_DelphiLogo150>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Config)'=='Release'">
+        <DCC_DebugInformation>0</DCC_DebugInformation>
+        <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
+        <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
+        <DCC_Optimize>true</DCC_Optimize>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
@@ -66,6 +76,10 @@
         <DCCReference Include="WebStudio.DeploymentReviewForm.pas">
             <Form>DeploymentReviewForm</Form>
         </DCCReference>
+        <BuildConfiguration Include="Release">
+            <Key>Release</Key>
+            <CfgParent>Base</CfgParent>
+        </BuildConfiguration>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

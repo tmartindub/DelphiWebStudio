@@ -1,4 +1,4 @@
-# Delphi Web Studio Pro (experimental)
+# Delphi Web Studio Pro 1.0
 
 Delphi Web Studio Pro is an offline-first visual website editor for Windows. The desktop application hosts a React and TypeScript editor in an IDE-editable Delphi WebView2 form. It extends [OpenPage](https://github.com/buildingopen/openpage). The original license and attribution remain in the repository.
 
@@ -20,13 +20,19 @@ Project repository: [DelphiWebStudio/DelphiWebstudio](https://github.com/DelphiW
 
 The editor supports local multi-page projects, reusable sections, independent objects and responsive layout, imported media, and portable JSON or ZIP project files. The Windows host validates project replacements and distinguishes saving a project from exporting a website. For a walkthrough, see [project files](docs/PROJECT_FILES.md), [editor experience](docs/EDITOR_EXPERIENCE.md), and [media library](docs/MEDIA_LIBRARY.md).
 
-The Win32 and Win64 release builds are staged locally under `bin/Win32` and `bin/Win64`. Each executable uses the `editor` folder and matching WebView2 loader beside it. GitHub stores the source and documentation. This is experimental software; test a copy of important projects and review exported pages on your target devices. Local exports do not publish a site.
+The Win32 and Win64 release builds are staged locally under `bin/Win32` and `bin/Win64`. Each executable uses the `editor` folder and matching WebView2 loader beside it. GitHub stores the source and documentation. Version 1.0.0 build 1 uses Windows file version 1.0.0.1. Review exported pages on your target devices and keep verified project backups. Local exports do not publish a site.
 
 The [upstream baseline](docs/UPSTREAM_BASELINE.md) and [milestone handoff](docs/WEBSTUDIO_CODEX_HANDOFF.md) record earlier implementation requirements and evidence.
 
+## Installing and checking the release
+
+Separate Win32 and Win64 installers are prepared locally under `export/release-1.0.0.1`. Choose Win64 for a Windows x64 computer. Setup requires Windows 10 or 11 and the Microsoft Edge WebView2 Runtime; if the Runtime is absent, follow the official download address in Setup and retry. SFTP tools are included in both editions and use the Windows OpenSSH Client optional feature. Ordinary local editing needs neither Node.js nor a cloud account.
+
+The installers preserve saved projects and the separate local profile. They are unsigned. Clean-Windows installation acceptance remains unverified; see [release review](docs/RELEASE_1_0_REVIEW.md) for exact evidence and limits. Building or installing this software does not publish a website.
+
 ## Development
 
-Baseline verified with Node 24.19.0 and npm 11.6.2:
+Release checks used Node 24.22.1 and npm 12.2.2:
 
 ```sh
 npm ci
@@ -38,7 +44,7 @@ npm run build
 
 Vite starts at http://localhost:5173; build includes TypeScript checking. Vite alone does not run Vercel API functions. Cloud AI/publishing are optional services; do not enter production credentials or publish sites during ordinary checks.
 
-Native development uses RAD Studio 37.0. The VCL WebView2 host is built for Win32 and Win64. Node is required for editor development and building the web bundle. Running the staged Windows app requires the WebView2 Runtime.
+Run `tools/build-release.ps1 -NodeExe <full-node-path>` to rebuild and stage both architectures, then `tools/package-release.ps1` to assemble the installers with Package Studio Pro. Native development uses RAD Studio 37.0. The VCL WebView2 host is built for Win32 and Win64. Node is required for editor development and building the web bundle. Running the staged Windows app requires the WebView2 Runtime.
 
 ## Attribution
 

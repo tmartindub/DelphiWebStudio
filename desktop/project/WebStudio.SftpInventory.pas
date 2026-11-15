@@ -173,6 +173,7 @@ var
   Startup: TStartupInfo;
   Limits: JOBOBJECT_EXTENDED_LIMIT_INFORMATION;
   ChildInput, ChildOutput, NullOutput: THandle;
+  {$IFNDEF WIN64}Wow64Process: BOOL;{$ENDIF}
 begin
   inherited Create;
   FEntries := TList<TSftpInventoryEntry>.Create;
@@ -197,6 +198,14 @@ begin
   for I := 1 to Length(HostsPath) do if HostsPath[I] < #32 then raise EArgumentException.Create('Invalid trusted hosts path.');
   if GetSystemDirectory(SystemFolder, Length(SystemFolder)) = 0 then RaiseLastOSError;
   SshPath := TPath.Combine(string(SystemFolder), 'OpenSSH\ssh.exe');
+  {$IFNDEF WIN64}
+  Wow64Process := False;
+  if not IsWow64Process(GetCurrentProcess, Wow64Process) then RaiseLastOSError;
+  if Wow64Process then begin
+    if GetWindowsDirectory(SystemFolder, Length(SystemFolder)) = 0 then RaiseLastOSError;
+    SshPath := TPath.Combine(string(SystemFolder), 'Sysnative\OpenSSH\ssh.exe');
+  end;
+  {$ENDIF}
   if not TFile.Exists(SshPath) then raise EInvalidOpException.Create('Windows OpenSSH is not installed.');
   ChildInput := 0; ChildOutput := 0; NullOutput := 0;
   try

@@ -1,7 +1,15 @@
 # Security
 
-Experimental software, not production-ready. See known limitations and baseline dependency audit.
+Last reviewed November 15, 2026 for version 1.0.0 build 1.
 
-Never commit credentials, private documents, model weights or generated personal sites. Do not put secrets in public issues. Use GitHub private vulnerability reporting if enabled; otherwise request a private channel from the owner without revealing exploit details publicly.
+The release is a Windows desktop editor with local files and an embedded WebView2 editor. The bridge checks the editor origin and uses narrow, session-scoped capabilities for native operations. The host blocks navigation away from the local editor, cancels child-frame navigation and unsolicited new windows, and denies permission requests apart from the explicitly allowed local download case. Imports and project paths are validated; custom code and external media still deserve review before use.
 
-Required boundaries include safe local paths/URLs, sandboxed imports, unprivileged preview, origin-checked allowlisted IPC, protected native credentials and explicit publishing approval. They are not all present in the baseline. Do not use production credentials or publish sites during ordinary development checks.
+Google keys saved through the Windows UI use Credential Manager for the current account. New project files and website exports do not carry that credential. Google requests now use the authentication header rather than putting the key in the URL. Legacy browser/project credentials can remain until explicitly removed; see [privacy](docs/PRIVACY.md).
+
+SFTP uses SSH keys, a user-supplied trusted hosts file and strict host-key checking. Native child processes have bounded waits and are terminated with their owning job. Transfers require a destination scan, backup, reviewed file changes and confirmation; the journal and receipts support recovery when an operation fails partway. Local loopback tests passed for Win32 and Win64. No production destination was contacted or published during release checks.
+
+The final dependency audit reported zero known vulnerabilities in production and development dependencies. This is a dated dependency result, not a guarantee against future findings. Package Studio installer checks cover extraction paths, file ownership, upgrade rollback, durable uninstall and preservation of unrelated or modified files. Microsoft signatures on both WebView2 loaders were valid. The application and installers are currently unsigned.
+
+The optional legacy `api` serverless handlers are not included in desktop installers or exported websites. Deploying those endpoints is outside this desktop release: hosting operators must separately configure authentication, authorization, quotas and service credentials. Do not expose service-backed endpoints merely by copying this repository onto a public server.
+
+Never commit credentials, private projects, keys, model weights or personal site exports. Report vulnerabilities privately to the repository owner; avoid including secrets or private project files in public issues. Clean-machine Windows installation, certificate-backed signing and provider-specific live deployment remain unverified.

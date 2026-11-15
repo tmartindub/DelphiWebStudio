@@ -1,6 +1,6 @@
-# Project backup and recovery (experimental)
+# Project backup and recovery
 
-Last changed: 2026-11-01
+Last changed: 2026-11-15
 
 Keep separate project files and backups. Local drafts and revisions are useful working copies, but they are not a substitute for a verified backup. Save a project, then reopen it as a separate copy and check its pages and media. Keep another copy on a separate drive.
 

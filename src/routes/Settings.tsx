@@ -178,7 +178,8 @@ function ApiPanel({ settings }: { settings: ReturnType<typeof useSettingsState> 
     setTesting(true)
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${geminiKey}`,
+        'https://generativelanguage.googleapis.com/v1beta/models',
+        { headers: { 'x-goog-api-key': geminiKey } },
       )
       if (res.ok) {
         toast.success('API key is valid')

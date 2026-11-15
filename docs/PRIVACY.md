@@ -1,14 +1,14 @@
-# Delphi Web Studio Pro privacy notice (experimental)
+# Delphi Web Studio Pro privacy notice
 
-Last changed: 2026-11-08
+Last changed: 2026-11-15
 
-Delphi Web Studio Pro is experimental. This notice describes the current local desktop build. Third-party services, browser builds, and future versions fall outside its scope.
+This notice describes Delphi Web Studio Pro 1.0.0 build 1 for Windows. Third-party services, browser builds, and future versions fall outside its scope.
 
 ## Information kept on this computer
 
 The editor stores local project drafts and settings in its WebView browser storage. Imported media and local revisions are stored in local browser databases. A project saved to a file contains its project content and, when applicable, packaged media. WordPress and HTML imports can retain their original XML, HTML and CSS as inactive project data; those files may include private author details or other information. Backup and recovery files may also contain private project content. Protect the computer and any files you share or back up.
 
-Gemini and Deploy Access Keys entered in Settings are held in memory for the current session. On Windows, **Save key** also stores the Gemini key in Windows Credential Manager for the current Windows account so it can be reused across projects and restarts. **Remove saved key** removes the Windows copy. Older keys saved in browser storage or project settings remain until removed with the corresponding legacy-key control. The Windows credential is separate from project files and website exports. The deployment key is excluded from portable project files. Testing a Gemini key sends the key and a test request to Google.
+Gemini and Deploy Access Keys entered in Settings are held in memory for the current session. On Windows, **Save key** also stores the Gemini key in Windows Credential Manager for the current Windows account so it can be reused across projects and restarts. **Remove saved key** removes the Windows copy. Older keys saved in browser storage or project settings remain until removed with the corresponding legacy-key control. The Windows credential is separate from project files and website exports. The deployment key is excluded from portable project files. Testing a Gemini key sends the key and a test request to Google. Authentication is sent in a request header, rather than in the request URL.
 
 ## Network use
 
@@ -18,4 +18,4 @@ The optional local AI feature runs the selected model as a local process bound t
 
 ## Retention and removal
 
-Uninstalling the experimental application preserves saved projects, the WebView profile, local revisions, the Windows credential, and optional AI files. Dashboard → **Local Storage** lets you review local media and revision sizes and explicitly remove local revisions or media left by a removed draft. Removing browser/profile data may permanently remove local drafts and media. First save and verify separate project files and backups.
+Uninstalling the application preserves saved projects, the WebView profile, local revisions, the Windows credential, and optional AI files. Dashboard → **Local Storage** lets you review local media and revision sizes and explicitly remove local revisions or media left by a removed draft. Removing browser/profile data may permanently remove local drafts and media. First save and verify separate project files and backups.

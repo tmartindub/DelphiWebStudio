@@ -1,14 +1,11 @@
 # Compatibility contract
 
-Last changed: 2026-10-29.
+Reviewed November 15, 2026 for version 1.0.0 build 1.
 
-- Preserve MIT history and legacy one-page JSON. Reuse current pages model; localStorage version is not a file format version.
-- Migrations preserve recoverable originals, unknown blocks/properties and empty pages.
-- Legacy blocks must have a documented Home meaning; active selection must not change export semantics.
-- Save/open/preview never publish. Publish requires reviewed destination/file diff and explicit confirmation.
-- Export must eventually work without Node, accounts or remote fonts/scripts, at root and nested hosting paths. Baseline fails this requirement.
-- Windows 10/11 x64 and RAD Studio 37.0 are the desktop target; WebView2 binding is unverified.
-- Native forms remain IDE-editable. React canvas is the owner-approved runtime exception.
-- Add standard folders without moving upstream src/api/public/tests.
-- Manual editing must work without AI. Exclude commerce/financial features from creation UI.
-- GTranslate deferred until core application is written; no translation helper is added now.
+The Windows desktop targets are Win32 and Win64 on Windows 10/11, with the Microsoft WebView2 Runtime. The release checks exercised both architectures on Windows x64; clean-machine installation is a separate acceptance step. Native forms remain editable in RAD Studio 37.0. The React canvas is the owner-approved runtime interface.
+
+Portable projects preserve the existing pages model, legacy one-page JSON and supported unknown data. Asset identity is independent of media folders. Gallery normalization gives old and newly added photos the same identity-based editing commands; supported loose gallery photos are absorbed without duplicating the rendered entry, while panel children keep their parent. Save/open/Preview do not publish.
+
+Complete website export produces independent HTML pages and referenced assets without a build server on the destination. Keep the generated structure intact and review root and nested hosting paths. External links, media, forms, translation services or user custom code can still need network access. Optional AI and service-backed endpoints have separate requirements.
+
+Preserve the upstream MIT license and attribution. New features must keep editor, Preview, saved project and exported-site behavior consistent. See the current guides and release review for specific tested evidence and limits.

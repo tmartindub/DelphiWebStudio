@@ -134,7 +134,7 @@ def serve():
 
 thread = threading.Thread(target=serve, daemon=True)
 thread.start()
-exe = base / 'm6-sftp-build' / 'SftpConnectionSmoke.exe'
+exe = pathlib.Path(os.environ.get('WEBSTUDIO_SFTP_EXE', str(base / 'm6-sftp-build' / 'SftpConnectionSmoke.exe')))
 result = subprocess.run([str(exe), str(port), str(key_path), str(hosts_path)], capture_output=True, text=True, timeout=30)
 wrong_key = paramiko.RSAKey.generate(2048)
 wrong_hosts = work / 'wrong_known_hosts'

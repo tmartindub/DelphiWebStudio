@@ -27,6 +27,7 @@ var
   InputRead, InputWrite, NullOutput, Job: THandle;
   Written, WaitResult, ExitCode, ErrorCode: Cardinal;
   FileData: TWin32FileAttributeData;
+  {$IFNDEF WIN64}Wow64Process: BOOL;{$ENDIF}
 begin
   if (Host = '') or (UserName = '') or (Port = 0) then
     raise EArgumentException.Create('Enter a host, username and port from 1 to 65535.');
@@ -53,6 +54,14 @@ begin
     raise EArgumentException.Create('Choose an existing private key and trusted known_hosts file.');
   if GetSystemDirectory(SystemFolder, Length(SystemFolder)) = 0 then RaiseLastOSError;
   SftpPath := TPath.Combine(string(SystemFolder), 'OpenSSH\sftp.exe');
+  {$IFNDEF WIN64}
+  Wow64Process := False;
+  if not IsWow64Process(GetCurrentProcess, Wow64Process) then RaiseLastOSError;
+  if Wow64Process then begin
+    if GetWindowsDirectory(SystemFolder, Length(SystemFolder)) = 0 then RaiseLastOSError;
+    SftpPath := TPath.Combine(string(SystemFolder), 'Sysnative\OpenSSH\sftp.exe');
+  end;
+  {$ENDIF}
   if not TFile.Exists(SftpPath) then
     raise EInvalidOpException.Create('Windows OpenSSH sftp.exe is not installed.');
 

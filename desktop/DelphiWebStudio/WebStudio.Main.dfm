@@ -1,7 +1,7 @@
 object MainForm: TMainForm
   Left = 0
   Top = 0
-  Caption = 'Delphi Web Studio Pro (experimental)'
+  Caption = 'Delphi Web Studio Pro 1.0.0 (build 1)'
   ClientHeight = 800
   ClientWidth = 1200
   Constraints.MinHeight = 480

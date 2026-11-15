@@ -19,7 +19,8 @@ describe('Gemini session key', () => {
     geminiSession.cloudEnabled = true
     await expect(generateSiteConfig('fictional brief')).rejects.toMatchObject({ name: 'AbortError' })
     expect(getItem).not.toHaveBeenCalled()
-    expect(fetch.mock.calls[0][0]).toContain('new-synthetic-key')
+    expect(fetch.mock.calls[0][0]).not.toContain('new-synthetic-key')
+    expect(fetch.mock.calls[0][1].headers['x-goog-api-key']).toBe('new-synthetic-key')
   })
 
   it('keeps an existing saved key usable until the user changes or removes it', async () => {
@@ -30,7 +31,8 @@ describe('Gemini session key', () => {
     geminiSession.cloudEnabled = true
     await expect(generateSiteConfig('fictional brief')).rejects.toMatchObject({ name: 'AbortError' })
     expect(getItem).toHaveBeenCalledWith('openpage-gemini-key')
-    expect(fetch.mock.calls[0][0]).toContain('old-synthetic-key')
+    expect(fetch.mock.calls[0][0]).not.toContain('old-synthetic-key')
+    expect(fetch.mock.calls[0][1].headers['x-goog-api-key']).toBe('old-synthetic-key')
   })
 
   it('uses a local template without accessing a key or making a request by default', async () => {

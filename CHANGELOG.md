@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0 build 1 — 2026-11-15
+
+- Added Windows file/product version 1.0.0.1, release build settings and a reproducible two-architecture staging script; retained the existing seven-size application icon.
+- Corrected Win32 lookup of native OpenSSH for connection and inventory/transfer operations.
+- Removed unused Vercel development tooling, updated lint tooling and pinned its safe glob matcher. Dependency audit is clear. Google credentials now travel in authentication headers.
+- Prepared Package Studio Pro installers with checked prerequisites, installed uninstall metadata and preservation of project data.
+- Updated the seven illustrated guides and their PDF companions, real dotted-leader TOCs, gallery controls and release instructions.
+
+
 ## Unreleased - 2026-11-06
 
 - Group the editor commands into menus, standardize floating windows, and add visual text presets, project previews, and selected object tools.

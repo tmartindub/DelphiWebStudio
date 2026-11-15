@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node'
+import type { ApiRequest, ApiResponse } from './lib/http-types.js'
 import { createHash, timingSafeEqual } from 'node:crypto'
 import {
   extractUpstreamError,
@@ -25,7 +25,7 @@ const recentDeploysByFingerprint = new Map<
   { url: string; projectUrl: string; deploymentId: string; readyState: string; expiresAt: number }
 >()
 
-function getClientIp(req: VercelRequest): string {
+function getClientIp(req: ApiRequest): string {
   const forwarded = req.headers['x-forwarded-for']
   if (typeof forwarded === 'string' && forwarded.length > 0) {
     return forwarded.split(',')[0].trim()
@@ -50,11 +50,11 @@ function isRateLimited(ip: string): boolean {
   return false
 }
 
-function isOriginAllowed(req: VercelRequest): boolean {
+function isOriginAllowed(req: ApiRequest): boolean {
   return isRequestOriginAllowed(req.headers, OPENPAGE_ALLOWED_ORIGINS)
 }
 
-function isDeployKeyValid(req: VercelRequest): boolean {
+function isDeployKeyValid(req: ApiRequest): boolean {
   if (!OPENPAGE_DEPLOY_KEY) return false
   const requestKey = req.headers['x-openpage-deploy-key']
   if (typeof requestKey !== 'string' || requestKey.length === 0) return false
@@ -80,7 +80,7 @@ function getCachedDeploy(fingerprint: string) {
   return cached
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: ApiRequest, res: ApiResponse) {
   res.setHeader('Cache-Control', 'no-store')
 
   if (req.method !== 'POST') {
