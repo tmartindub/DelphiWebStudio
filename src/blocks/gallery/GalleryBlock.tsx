@@ -165,7 +165,7 @@ export function GalleryBlock({ block, editable = false }: { block: BlockConfig; 
           <div className="flex min-w-0 items-center justify-center rounded-md bg-slate-100">
             <img data-ws-gallery-expanded alt="" className="block h-auto max-h-[70dvh] w-auto max-w-full object-contain" />
           </div>
-          <figcaption hidden className="self-center whitespace-pre-wrap rounded-md bg-slate-50 p-4 text-base leading-relaxed [overflow-wrap:anywhere]" />
+          <figcaption hidden className="self-center whitespace-pre-wrap rounded-md bg-slate-50 p-4 text-[22px] leading-relaxed [overflow-wrap:anywhere]" />
         </figure>
       </dialog>}
     </div>
