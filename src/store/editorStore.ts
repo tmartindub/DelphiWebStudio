@@ -20,7 +20,7 @@ interface EditorState {
   setFileLocation: (projectId: string, path: string, savedAt?: string) => void
   setSavedProjectSnapshot: (value: EditorState['savedProjectSnapshot']) => void
   selectSectionObject: (value: EditorState['selectedSectionObject']) => void
-  selectedCompositeItem: { blockId: string; field: string; index: number } | null
+  selectedCompositeItem: { blockId: string; field: string; index: number; id?: string } | null
   selectCompositeItem: (value: EditorState['selectedCompositeItem']) => void
   selectedPlacedMedia: { blockId: string; id: string } | null
   selectPlacedMedia: (value: EditorState['selectedPlacedMedia']) => void

@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 import type { BlockConfig, SiteConfig, ThemeConfig, PageConfig } from '@/blocks/types'
 import { validateProjectConfig } from '@/project/project-file'
 import { pageLinkPath, visitBlockLinks } from '@/project/page-links'
+import { normalizeGalleryBlock, normalizeGalleryConfig } from '@/blocks/gallery/gallery-photos'
+import { useEditorStore } from './editorStore'
 
 export let configDraftReadFailed = false
 
@@ -39,7 +41,7 @@ interface ConfigState {
   updateBlockProps: (id: string, props: Record<string, unknown>) => void
   updateMultipleBlockProps: (changes: Array<{ id: string; props: Record<string, unknown> }>) => void
   editBlockItems: (id: string, field: string, from: number, to: number, operation?: 'move' | 'remove' | 'duplicate') => void
-  addGalleryImages: (id: string, images: Record<string, unknown>[], includePlaced?: boolean) => number
+  addGalleryImages: (id: string, images: Record<string, unknown>[]) => number
   movePlacedMedia: (fromId: string, toId: string, itemId: string, x: number, y: number, width: number) => void
   moveSectionObject: (fromId: string, fromSection: number, toId: string, toSection: number, itemId: string, x: number, y: number, width: number, height: number) => void
   moveCollageBlockToSection: (fromId: string, toId: string, section: number, x: number, y: number) => void
@@ -119,12 +121,13 @@ export const useConfigStore = create<ConfigState>()(
       redoStack: [],
 
       setConfig: (config) => {
+        config = normalizeGalleryConfig(config)
         const pages = ensurePages(config)
         set({ config: { ...config, pages }, activePageId: pages[0]?.id ?? 'page-home', undoStack: [], redoStack: [] })
       },
       replaceConfig: (config, label = 'Edit project JSON') => set(state => ({
         ...pushUndo(state, label),
-        config,
+        config: normalizeGalleryConfig(config),
         activePageId: config.pages?.some(page => page.id === state.activePageId) ? state.activePageId : config.pages?.[0]?.id ?? 'page-home',
       })),
 
@@ -162,7 +165,10 @@ export const useConfigStore = create<ConfigState>()(
             if (block) {
               const sharedId = block.webstudioSharedSectionId
               for (const item of draft.pages!.flatMap(item => item.blocks)) {
-                if (item === block || (sharedId && item.webstudioSharedSectionId === sharedId)) Object.assign(item.props, structuredClone(props))
+                if (item === block || (sharedId && item.webstudioSharedSectionId === sharedId)) {
+                  Object.assign(item.props, structuredClone(props))
+                  if (item.type === 'gallery') item.props = normalizeGalleryBlock(item).props
+                }
               }
             }
             draft.blocks = (draft.pages!.find(p => p.path === '/') ?? draft.pages![0]).blocks
@@ -184,25 +190,12 @@ export const useConfigStore = create<ConfigState>()(
         }),
       })),
 
-      addGalleryImages: (id, images, includePlaced = false) => {
+      addGalleryImages: (id, images) => {
         const block = get().getActivePageBlocks().find(item => item.id === id)
         if (block?.type !== 'gallery') throw new Error('The gallery is no longer available.')
         if (images.some(image => typeof image.src !== 'string' || !image.src.trim())) throw new Error('Choose an image for the gallery.')
         const existing = Array.isArray(block.props.images) ? block.props.images : []
-        const objects = (Array.isArray(block.props.section1Objects) ? block.props.section1Objects : []) as Record<string, unknown>[]
-        const placed = (Array.isArray(block.props.placedMedia) ? block.props.placedMedia : []) as Record<string, unknown>[]
-        const includedObjects = includePlaced ? objects.filter(item => item.type === 'image' && !item.parentId && typeof item.src === 'string' && item.src) : []
-        const includedMedia = includePlaced ? placed.filter(item => typeof item.mime === 'string' && item.mime.startsWith('image/') && typeof item.src === 'string' && item.src) : []
-        const included = [...includedObjects, ...includedMedia].map(item => ({
-          ...Object.fromEntries(Object.entries(item).filter(([key]) => !['id', 'type', 'parentId', 'x', 'y', 'width', 'height', 'layer', 'name', 'mime'].includes(key))),
-          alt: typeof item.alt === 'string' ? item.alt : typeof item.name === 'string' ? item.name : '',
-        }))
-        if (!images.length && !included.length) return existing.length
-        get().updateBlockProps(id, {
-          images: [...existing, ...images, ...included],
-          ...(includedObjects.length ? { section1Objects: objects.filter(item => !includedObjects.includes(item)) } : {}),
-          ...(includedMedia.length ? { placedMedia: placed.filter(item => !includedMedia.includes(item)) } : {}),
-        })
+        if (images.length) get().updateBlockProps(id, { images: [...existing, ...images.map(image => ({ ...image, id: `photo-${crypto.randomUUID()}` }))] })
         return existing.length
       },
 
@@ -215,6 +208,7 @@ export const useConfigStore = create<ConfigState>()(
         if (operation === 'remove') updated.splice(from, 1)
         else if (operation === 'duplicate') {
           const copy = structuredClone(updated[from])
+          if (block.type === 'gallery' && field === 'images') copy.id = `photo-${crypto.randomUUID()}`
           if (/^section[1-4]Objects$/.test(field) && copy && typeof copy === 'object') {
             const object = copy as Record<string, unknown>
             object.id = `object-${crypto.randomUUID()}`
@@ -259,6 +253,16 @@ export const useConfigStore = create<ConfigState>()(
           if (Object.keys(images).length) changes.imageAdjustments = Object.fromEntries(Object.entries(images).flatMap(([key, value]) => (imageMap[key] ?? []).map(next => [next, value])))
         }
         get().updateBlockProps(id, changes)
+        if (block.type === 'gallery' && field === 'images') {
+          const editor = useEditorStore.getState(), selected = editor.selectedCompositeItem
+          if (selected?.blockId === id && selected.field === field) {
+            const selectedId = selected.id ?? items[selected.index]?.id
+            const nextId = operation === 'duplicate' && selectedId === items[from]?.id ? updated[from + 1].id : selectedId
+            const index = updated.findIndex(item => item.id === nextId)
+            editor.selectCompositeItem(index < 0 ? null : { blockId: id, field, index, id: nextId })
+            if (index >= 0) editor.selectImage(index)
+          }
+        }
       },
 
       movePlacedMedia: (fromId, toId, itemId, x, y, width) => set(state => {
@@ -359,11 +363,11 @@ export const useConfigStore = create<ConfigState>()(
           ...pushUndo(state, 'Add block'),
           config: mutateActivePageBlocks(withPages(state.config), state.activePageId, (blocks) => {
             if (block.type === 'navbar') {
-              blocks.unshift(block)
+              blocks.unshift(normalizeGalleryBlock(block))
             } else if (index !== undefined) {
-              blocks.splice(index, 0, block)
+              blocks.splice(index, 0, normalizeGalleryBlock(block))
             } else {
-              blocks.push(block)
+              blocks.push(normalizeGalleryBlock(block))
             }
             return blocks
           }),
@@ -656,6 +660,10 @@ export const useConfigStore = create<ConfigState>()(
         }
       }),
       version: 2,
+      merge: (persisted, current) => {
+        const saved = persisted as Partial<ConfigState> | undefined
+        return { ...current, ...saved, ...(saved?.config ? { config: normalizeGalleryConfig(saved.config) } : {}) }
+      },
       partialize: (state) => ({ config: state.config, activePageId: state.activePageId }),
       migrate: (persisted, version) => {
         const data = persisted as Record<string, unknown>

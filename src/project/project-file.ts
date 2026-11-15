@@ -1,6 +1,7 @@
 import type { BlockConfig, PageConfig, SiteConfig } from '@/blocks/types'
 import type JSZip from 'jszip'
 import crc32 from 'jszip/lib/crc32.js'
+import { normalizeGalleryConfig } from '@/blocks/gallery/gallery-photos'
 
 export const portableProjectsEnabled = import.meta.env.VITE_WEBSTUDIO_PROJECTS !== 'false'
 
@@ -180,7 +181,7 @@ export function validateProjectConfig(value: unknown): SiteConfig {
     }
   }
   const home = pages.find(page => page.path === '/')!
-  return { ...structuredClone(source), name: source.name as string, pages, blocks: home.blocks } as SiteConfig
+  return normalizeGalleryConfig({ ...structuredClone(source), name: source.name as string, pages, blocks: home.blocks } as SiteConfig)
 }
 
 export function createProjectFile(config: SiteConfig, projectId: string): SiteProjectFile {

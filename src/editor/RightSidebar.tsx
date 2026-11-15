@@ -23,7 +23,7 @@ export function RightSidebar({ collapsed = false, onClose }: { collapsed?: boole
     return page.blocks
   })
   const selectedBlock = blocks.find((b) => b.id === selectedBlockId)
-  const objectKey = selectedObject ? `${selectedObject.blockId}:${selectedObject.section}:${selectedObject.id}` : selectedCompositeItem ? `${selectedCompositeItem.blockId}:${selectedCompositeItem.field}:${selectedCompositeItem.index}` : selectedPlacedMedia ? `${selectedPlacedMedia.blockId}:${selectedPlacedMedia.id}` : ''
+  const objectKey = selectedObject ? `${selectedObject.blockId}:${selectedObject.section}:${selectedObject.id}` : selectedCompositeItem ? `${selectedCompositeItem.blockId}:${selectedCompositeItem.field}:${selectedCompositeItem.id ?? selectedCompositeItem.index}` : selectedPlacedMedia ? `${selectedPlacedMedia.blockId}:${selectedPlacedMedia.id}` : ''
   const [selection, setSelection] = useState<{ blockId: string | null; objectKey: string; tab: Tab }>({
     blockId: null, objectKey: '', tab: mode === 'designer' ? 'design' : 'properties',
   })

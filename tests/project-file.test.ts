@@ -39,7 +39,7 @@ describe('portable project files', () => {
     const props = { title: 'Gallery', images: [{ src: 'https://example.test/a.png', alt: 'A' }, { src: 'https://example.test/b.png', alt: 'B' }], imageAdjustments: { '1': { width: '140', left: '-25' } }, textAdjustments: { 'h2-0': { size: '34', color: '#123456' } }, textSize: '20', textColor: '#654321' }
     const config = validateProjectConfig({ name: 'Site', blocks: [{ id: 'gallery', type: 'gallery', variant: 'grid', props }] })
     const reopened = parseProjectFile(serializeProjectFile(createProjectFile(config, 'project'))).project.config
-    expect(reopened.blocks[0].props).toEqual(props)
+    expect(reopened.blocks[0].props).toEqual({ ...props, images: props.images.map((image, index) => ({ ...image, id: `gallery-photo-${index + 1}`, caption: '' })) })
   })
   it('preserves image positioning, size and layering when saving and reopening', () => {
     const props = { src: 'https://example.test/photo.png', alt: 'Photo', layoutWidth: 45, layoutHeight: 280, layoutLeft: 35, layoutTop: -100, layoutLayer: 2 }

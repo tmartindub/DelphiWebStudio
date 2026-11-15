@@ -11,10 +11,13 @@ try {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('https://webstudio.local/index.html');
+  const png = await page.evaluate(() => { const canvas = document.createElement('canvas'); canvas.width = 100; canvas.height = 80; const context = canvas.getContext('2d'); context.fillStyle = '#1769ca'; context.fillRect(0, 0, 100, 80); return canvas.toDataURL('image/png').split(',')[1]; });
+  const bytes = Buffer.from(png, 'base64');
+  await page.route('https://gallery.test/**', route => route.fulfill({ contentType: 'image/png', body: bytes }));
   await page.evaluate(() => {
     const existing = JSON.parse(localStorage.getItem('openpage-projects') || '{"state":{"projects":[]}}').state.projects;
     if (existing.some(project => project.id !== 'gallery-additions-fixture')) throw new Error('Refusing to replace non-test projects.');
-    const src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="100"><rect width="160" height="100" fill="#dce8f3"/><text x="20" y="55" fill="#172033">Gallery photo</text></svg>');
+    const src = 'https://gallery.test/photo.png';
     const images = Array.from({ length: 36 }, (_, i) => ({ src, alt: `Photo ${i + 1}`, caption: `Caption ${i + 1}` }));
     const loose = Array.from({ length: 4 }, (_, i) => ({ id: `loose-${i}`, type: 'image', src, alt: `Placed photo ${i + 1}`, caption: `Placed caption ${i + 1}`, x: i * 22, y: 1100, width: 20, height: 100, layer: 1 }));
     const block = { id: 'addition-gallery', type: 'gallery', variant: 'responsive', props: { title: 'Addition check', images, section1Objects: loose } };
@@ -24,21 +27,18 @@ try {
   });
   await page.reload();
   await page.getByText('Gallery addition check', { exact: true }).click();
-  await page.locator('[data-gallery-position="36"]').waitFor();
-  await page.locator('[data-section-object="loose-0"]').click({ button: 'right' });
+  await page.locator('[data-gallery-position="40"]').waitFor();
+  await page.locator('[data-ws-gallery-photo-id="loose-0"]').click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Properties', exact: true }).click();
-  await page.getByRole('button', { name: 'Include placed photos in gallery', exact: true }).click();
   await page.getByRole('spinbutton', { name: 'Photo 37 position', exact: true }).waitFor();
   assert(await page.locator('[data-gallery-position]').count() === 40, 'All four placed photos should receive gallery positions.');
   assert(await page.locator('[data-section-object]').count() === 0, 'Included photos should no longer remain as duplicate section images.');
   const storedImages = () => page.evaluate(() => JSON.parse(localStorage.getItem('openpage-projects')).state.projects[0].config.pages[0].blocks[0].props.images);
-  assert((await storedImages())[36].caption === 'Placed caption 1', 'Existing caption should be preserved.');
+  assert(await page.getByRole('textbox', { name: 'Photo 37 caption', exact: true }).inputValue() === 'Placed caption 1', 'Existing caption should be preserved.');
   await page.getByRole('button', { name: 'Close settings', exact: true }).click();
   await page.getByRole('button', { name: 'Add photos', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Project media library', exact: true });
   await dialog.getByText('Import files and folders', { exact: true }).click();
-  const png = await page.evaluate(() => { const canvas = document.createElement('canvas'); canvas.width = 100; canvas.height = 80; const context = canvas.getContext('2d'); context.fillStyle = '#1769ca'; context.fillRect(0, 0, 100, 80); return canvas.toDataURL('image/png').split(',')[1]; });
-  const bytes = Buffer.from(png, 'base64');
   await dialog.getByLabel('Import media files', { exact: true }).setInputFiles({ name: 'new-gallery.png', mimeType: 'image/png', buffer: bytes });
   await dialog.getByRole('button', { name: 'Select new-gallery.png', exact: true }).click();
   await dialog.getByRole('button', { name: 'Choose file', exact: true }).click();
@@ -78,12 +78,61 @@ try {
   await target.click();
   await page.locator('[data-gallery-position="44"]').waitFor();
   assert(await page.locator('[data-section-object]').count() === 0, 'Click-to-place on the gallery must create a gallery entry.');
+
+  // Exercise the same commands on an original, an upgraded and a newly imported photo.
+  for (const id of [(await storedImages())[0].id, 'loose-0', moved.id]) {
+    const photo = page.locator(`[data-ws-gallery-photo-id="${id}"]`);
+    const original = (await storedImages()).find(image => image.id === id);
+    await photo.click();
+    assert(await photo.evaluate(element => element.style.outline.includes('solid')), 'Single click must select the photo itself.');
+    await photo.click({ button: 'right' });
+    const menu = page.getByRole('menu', { name: 'Photo actions', exact: true });
+    assert(await menu.getByRole('menuitem').count() === 4, 'Every photo should have the same four commands.');
+    await menu.getByRole('menuitem', { name: 'Duplicate', exact: true }).click();
+    await page.locator('[data-gallery-position="45"]').waitFor();
+    const all = await storedImages(), index = all.findIndex(image => image.id === id), copy = all[index + 1];
+    assert(copy.id !== id && copy.src === original.src && copy.caption === original.caption, 'Duplicate must preserve content and get its own permanent identity.');
+    const duplicate = page.locator(`[data-ws-gallery-photo-id="${copy.id}"]`);
+    await duplicate.click({ button: 'right' });
+    await menu.getByRole('menuitem', { name: 'Delete', exact: true }).click();
+    await page.waitForFunction(() => document.querySelectorAll('[data-gallery-position]').length === 44);
+    await page.keyboard.press('Control+z');
+    await page.locator(`[data-ws-gallery-photo-id="${copy.id}"]`).waitFor();
+    await page.locator(`[data-ws-gallery-photo-id="${copy.id}"]`).click();
+    await page.keyboard.press('Delete');
+    await page.waitForFunction(() => document.querySelectorAll('[data-gallery-position]').length === 44);
+    await photo.click({ button: 'right' });
+    await menu.getByRole('menuitem', { name: 'Move to position', exact: true }).click();
+    const position = page.locator('#editor-right-panel input[name="position"]');
+    await position.fill('3');
+    await position.press('Enter');
+    await page.getByRole('spinbutton', { name: 'Photo 3 position', exact: true }).waitFor();
+    assert((await storedImages())[2].id === id, 'Position command must act on the selected permanent identity.');
+    await page.getByRole('textbox', { name: 'Photo 3 caption', exact: true }).fill(`${original.caption} edited`);
+    await page.getByRole('button', { name: 'Delete photo 3', exact: true }).click();
+    await page.waitForFunction(() => document.querySelectorAll('[data-gallery-position]').length === 43);
+    await page.getByRole('button', { name: 'Close settings', exact: true }).click();
+    await page.keyboard.press('Control+z');
+    await page.locator(`[data-ws-gallery-photo-id="${id}"]`).waitFor();
+    assert((await storedImages()).find(image => image.id === id).caption === `${original.caption} edited`, 'Undo deletion must restore the edited caption.');
+  }
+  const beforeDrag = await storedImages();
+  await page.locator(`[data-ws-gallery-photo-id="${beforeDrag[0].id}"]`).dragTo(page.locator(`[data-ws-gallery-photo-id="${beforeDrag[1].id}"]`));
+  assert((await storedImages())[1].id === beforeDrag[0].id, 'Dragging a gallery photo must move its full record.');
+  // Reopen the persisted test project and check identity, metadata and order.
+  const beforeReopen = await storedImages();
+  assert(new Set(beforeReopen.map(photo => photo.id)).size === 44, 'Each photo must have one unique identity.');
+  await page.reload();
+  await page.goto('https://webstudio.local/index.html');
+  await page.getByText('Gallery addition check', { exact: true }).click();
+  await page.locator('[data-gallery-position="44"]').waitFor();
+  assert(JSON.stringify(await storedImages()) === JSON.stringify(beforeReopen), 'Reopening must retain photo identity, metadata and order.');
   await page.getByRole('button', { name: 'Toggle preview mode', exact: true }).click();
   await page.waitForFunction(() => document.querySelectorAll('[data-gallery-position]').length === 0);
   assert(await page.getByRole('button', { name: 'Add photos', exact: true }).count() === 0, 'Gallery authoring commands must not appear in Preview.');
   assert(await page.locator('[data-ws-item-field="images"] img').count() === 44, 'Preview should include the repaired and newly added photos.');
   assert(errors.length === 0, errors.join('\n'));
-  console.log('PASS: four placed photos included once; picker, Add to page, file drop and click placement create numbered gallery photos with normal properties and Preview.');
+  console.log('PASS: automatic upgrade, all four addition routes, identical selection/properties/reorder/duplicate/menu-delete/key-delete/properties-delete/undo for old and new photos, persisted reopen and clean Preview.');
 } finally {
   await browser.close();
 }

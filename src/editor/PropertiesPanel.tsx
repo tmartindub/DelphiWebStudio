@@ -810,16 +810,17 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
                   event.dataTransfer.setData('application/x-webstudio-property-item', JSON.stringify({ block: block.id, field: field.key, index: i })); event.dataTransfer.effectAllowed = 'move'
                 }}>{staffDirectory ? item.name?.trim() || `Portrait ${i + 1}` : galleryPhotos ? `Photo ${i + 1} of ${items.length}` : `Item ${i + 1}`} ↕</button>
                 <div className="flex gap-1">
+                {galleryPhotos && <button type="button" aria-label={`Duplicate photo ${i + 1}`} className="rounded border border-border-default px-1 text-[10px]" onClick={() => useConfigStore.getState().editBlockItems(block.id, field.key, i, i, 'duplicate')}>Duplicate</button>}
                 {([-1, 1] as const).map(delta => <button key={delta} type="button" aria-label={`Move ${field.label} item ${i + 1} ${delta < 0 ? 'up' : 'down'}`} disabled={i + delta < 0 || i + delta >= items.length} className="rounded border border-border-default px-1 text-[10px] disabled:opacity-40" onClick={() => {
                   try { useConfigStore.getState().editBlockItems(block.id, field.key, i, i + delta) } catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be moved.') }
                 }}>{delta < 0 ? '↑' : '↓'}</button>)}
-                <button
+                <button type="button" aria-label={galleryPhotos ? `Delete photo ${i + 1}` : undefined}
                   onClick={() => {
                     try { useConfigStore.getState().editBlockItems(block.id, field.key, i, i, 'remove') } catch (error) { toast.error(error instanceof Error ? error.message : 'The item could not be removed.') }
                   }}
                   className="text-[10px] text-text-3 hover:text-status-red transition-colors"
                 >
-                  {staffDirectory ? 'Remove portrait' : 'Remove'}
+                  {staffDirectory ? 'Remove portrait' : galleryPhotos ? 'Delete' : 'Remove'}
                 </button>
                 </div>
               </div>}
@@ -830,7 +831,7 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
                 try {
                   useConfigStore.getState().editBlockItems(block.id, field.key, i, position - 1)
                   if (onlyItemIndex !== undefined) {
-                    useEditorStore.getState().selectCompositeItem({ blockId: block.id, field: field.key, index: position - 1 })
+                    useEditorStore.getState().selectCompositeItem({ blockId: block.id, field: field.key, index: position - 1, id: item.id })
                     useEditorStore.getState().selectImage(position - 1)
                   }
                 } catch (error) { toast.error(error instanceof Error ? error.message : 'The photo could not be moved.') }
@@ -864,9 +865,9 @@ function PropertyField({ field, block, onlyItemId, onlyItemIndex }: { field: Fie
                   onChange(updated)
                 }}>Remove</button></div>)}
               </div>}
-              <div className={onlyItemId ? 'grid grid-cols-2 gap-x-2' : undefined}>{Object.entries(staffDirectory ? { name: item.name ?? '', role: item.role ?? '', avatar: item.avatar ?? '' } : onlyItemId ? { ...({ text: ['text', 'fontSize', 'textColor'], image: ['src', 'alt'], button: ['text', 'textColor', 'fontSize'], panel: ['text', 'src', 'alt', 'color', 'textColor', 'fontSize'], collage: [], divider: ['lineOrientation', 'lineStyle', 'lineThickness', 'textColor'] } as Record<string, string[]>)[item.type || '']?.reduce<Record<string, string>>((values, key) => ({ ...values, [key]: item[key] ?? (key === 'lineOrientation' ? 'horizontal' : key === 'lineStyle' ? 'solid' : key === 'lineThickness' ? '1' : '') }), {}), x: item.x ?? '0', y: item.y ?? '0', width: item.width ?? '30', height: item.height ?? '80', layer: item.layer ?? '1' } : mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(block.type === 'gallery' && key === 'caption') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type' || key === 'parentId' || key === 'images' || key === 'sourceCollageProps'))).map(([key, val]) => (
+              <div className={onlyItemId ? 'grid grid-cols-2 gap-x-2' : undefined}>{Object.entries(galleryPhotos ? { src: item.src ?? '', alt: item.alt ?? '' } : staffDirectory ? { name: item.name ?? '', role: item.role ?? '', avatar: item.avatar ?? '' } : onlyItemId ? { ...({ text: ['text', 'fontSize', 'textColor'], image: ['src', 'alt'], button: ['text', 'textColor', 'fontSize'], panel: ['text', 'src', 'alt', 'color', 'textColor', 'fontSize'], collage: [], divider: ['lineOrientation', 'lineStyle', 'lineThickness', 'textColor'] } as Record<string, string[]>)[item.type || '']?.reduce<Record<string, string>>((values, key) => ({ ...values, [key]: item[key] ?? (key === 'lineOrientation' ? 'horizontal' : key === 'lineStyle' ? 'solid' : key === 'lineThickness' ? '1' : '') }), {}), x: item.x ?? '0', y: item.y ?? '0', width: item.width ?? '30', height: item.height ?? '80', layer: item.layer ?? '1' } : mediaItems && !(imageKey in item) ? { ...item, [imageKey]: '' } : item).filter(([key]) => !(mediaItems && key === 'assetId') && !(block.type === 'gallery' && key === 'caption') && !(/^section[1-4]Objects$/.test(field.key) && (key === 'id' || key === 'type' || key === 'parentId' || key === 'images' || key === 'sourceCollageProps'))).map(([key, val]) => (
                 <div key={key} className={`mb-1 min-w-0 ${onlyItemId && !['x', 'y', 'width', 'height', 'layer', 'fontSize'].includes(key) ? 'col-span-2' : ''}`}>
-                  <label className="block text-[10px] text-text-3 mb-0.5">{staffDirectory ? ({ name: 'Name', role: 'Role', avatar: 'Photo path or URL' } as Record<string, string>)[key] : block.type === 'collage' || /^section[1-4]Objects$/.test(field.key) ? ({ src: 'Image', alt: 'Image description', text: 'Text', url: 'Link', anchorName: 'Anchor name (jump destination)', color: 'Panel background color', textColor: item.type === 'divider' ? 'Line color' : 'Text color', lineOrientation: 'Direction', lineStyle: 'Line style', lineThickness: 'Thickness (px)', fontSize: 'Font size (px)', x: 'Left (%)', y: 'Top (px)', width: 'Width (%)', height: 'Height (px)', layer: 'Layer order' } as Record<string, string>)[key] ?? key : key}</label>
+                  <label className="block text-[10px] text-text-3 mb-0.5">{galleryPhotos ? key === 'src' ? 'Image' : 'Image description' : staffDirectory ? ({ name: 'Name', role: 'Role', avatar: 'Photo path or URL' } as Record<string, string>)[key] : block.type === 'collage' || /^section[1-4]Objects$/.test(field.key) ? ({ src: 'Image', alt: 'Image description', text: 'Text', url: 'Link', anchorName: 'Anchor name (jump destination)', color: 'Panel background color', textColor: item.type === 'divider' ? 'Line color' : 'Text color', lineOrientation: 'Direction', lineStyle: 'Line style', lineThickness: 'Thickness (px)', fontSize: 'Font size (px)', x: 'Left (%)', y: 'Top (px)', width: 'Width (%)', height: 'Height (px)', layer: 'Layer order' } as Record<string, string>)[key] ?? key : key}</label>
                   {item.type === 'divider' && (key === 'lineOrientation' || key === 'lineStyle') ? <select aria-label={key === 'lineOrientation' ? 'Line direction' : 'Line style'} value={String(val)} onChange={event => { const updated = [...items]; updated[i] = { ...updated[i], [key]: event.target.value }; onChange(updated) }} className="w-full rounded border border-border-default bg-bg-3 px-1.5 py-1 text-xs">{(key === 'lineOrientation' ? ['horizontal', 'vertical'] : ['solid', 'dashed', 'dotted', 'double']).map(option => <option key={option} value={option}>{option.charAt(0).toUpperCase() + option.slice(1)}</option>)}</select> : <input
                     type="text"
                     aria-label={`${field.label} item ${i + 1} ${key}`}
@@ -1023,20 +1024,18 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
         <div className="text-xs font-semibold text-text-0">{label} Properties</div>
         <div className="mt-1 text-[10px] text-text-3">Section {selectedObject.section}</div>
         <button type="button" className="mt-2 rounded border border-border-default px-2 py-1 text-xs" onClick={() => useEditorStore.getState().selectSectionObject(null)}>Section / Block Properties</button>
-        {block.type === 'gallery' && selectedObject.section === 1 && type === 'image' && !object.parentId && <button type="button" className="mt-2 block rounded border border-border-default px-3 py-1.5 text-xs" onClick={() => {
-          const index = useConfigStore.getState().addGalleryImages(block.id, [], true)
-          useEditorStore.getState().selectCompositeItem({ blockId: block.id, field: 'images', index })
-        }}>Include placed photos in gallery</button>}
       </div>
       <div className="px-3.5 py-3"><PropertyField key={selectedObject.id} block={block} onlyItemId={selectedObject.id} field={{ key: objectKey, label: `${label} properties`, type: 'array-items' }} /></div>
     </div>
   }
 
-  if (selectedCompositeItem?.blockId === block.id && Array.isArray(block.props[selectedCompositeItem.field]) && (block.props[selectedCompositeItem.field] as unknown[])[selectedCompositeItem.index]) {
+  const compositeItems = selectedCompositeItem?.blockId === block.id && Array.isArray(block.props[selectedCompositeItem.field]) ? block.props[selectedCompositeItem.field] as Record<string, unknown>[] : []
+  const compositeIndex = selectedCompositeItem?.id ? compositeItems.findIndex(item => item.id === selectedCompositeItem.id) : selectedCompositeItem?.index ?? -1
+  if (selectedCompositeItem?.blockId === block.id && compositeItems[compositeIndex]) {
     return <div data-selected-composite-properties={selectedCompositeItem.field} className="px-3.5 py-3">
-      <div className="mb-2 text-xs font-semibold">Item properties</div>
+      <div className="mb-2 text-xs font-semibold">{block.type === 'gallery' ? `Photo ${compositeIndex + 1} properties` : 'Item properties'}</div>
       <button type="button" className="mb-3 rounded border border-border-default px-2 py-1 text-xs" onClick={() => useEditorStore.getState().selectCompositeItem(null)}>Block properties</button>
-      <PropertyField block={block} onlyItemIndex={selectedCompositeItem.index} field={{ key: selectedCompositeItem.field, label: 'Selected item', type: 'array-items' }} />
+      <PropertyField key={block.type === 'gallery' ? String(compositeItems[compositeIndex].id) : undefined} block={block} onlyItemIndex={compositeIndex} field={{ key: selectedCompositeItem.field, label: 'Selected item', type: 'array-items' }} />
     </div>
   }
 
