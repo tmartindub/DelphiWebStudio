@@ -38,6 +38,8 @@ type
     SftpItem: TMenuItem;
     DiagnosticsItem: TMenuItem;
     DiagnosticsDialog: TTaskDialog;
+    SpellingPopupMenu: TPopupMenu;
+    AddDictionaryItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -59,12 +61,14 @@ type
     procedure LocalAIItemClick(Sender: TObject);
     procedure SftpItemClick(Sender: TObject);
     procedure DiagnosticsItemClick(Sender: TObject);
+    procedure AddDictionaryItemClick(Sender: TObject);
     function Invoke(const Sender: ICoreWebView2; const Args: ICoreWebView2ContextMenuRequestedEventArgs): HResult; stdcall;
   private
     FTextContextToken: EventRegistrationToken;
     FTextContextRegistered: Boolean;
     FTextContextRequest: string;
     FTextContextRequestedAt: UInt64;
+    FSpellingWord: string;
     FDownloadPending: Boolean;
     FActiveProjectSaves: Integer;
     FCloseWarningShown: Boolean;
@@ -89,7 +93,7 @@ var MainForm: TMainForm;
 implementation
 
 uses Winapi.ActiveX, Winapi.ShellAPI, System.IOUtils, System.Zip, System.JSON, System.UITypes, System.RegularExpressions,
-  Vcl.Graphics,
+  Vcl.Graphics, Winapi.SpellCheck, System.Win.ComObj,
   WebStudio.ProjectSave, WebStudio.LocalAIForm, WebStudio.LocalAIHost, WebStudio.SftpForm,
   WebStudio.Credentials;
 
@@ -116,6 +120,36 @@ procedure TMainForm.SaveProjectAsItemClick(Sender: TObject);
 begin
   if EditorBrowser.DefaultInterface <> nil then
     EditorBrowser.ExecuteScript('document.querySelector(''[data-project-command="save-as"]'')?.click();');
+end;
+
+procedure TMainForm.AddDictionaryItemClick(Sender: TObject);
+var
+  Factory: ISpellCheckerFactory;
+  Checker: ISpellChecker;
+  Locale: array[0..LOCALE_NAME_MAX_LENGTH - 1] of WideChar;
+  Language, Word: string;
+begin
+  Word := FSpellingWord;
+  FSpellingWord := '';
+  AddDictionaryItem.Enabled := False;
+  if not TRegEx.IsMatch(Word, '^[\p{L}\p{M}][\p{L}\p{M}''\x{2019}-]{0,63}$') then Exit;
+  try
+    Language := EditorBrowser.Language;
+    if Language = '' then begin
+      if GetUserDefaultLocaleName(Locale, Length(Locale)) = 0 then
+        RaiseLastOSError;
+      Language := string(Locale);
+    end;
+    OleCheck(CoCreateInstance(CLSID_SpellCheckerFactory, nil, CLSCTX_INPROC_SERVER,
+      ISpellCheckerFactory, Factory));
+    OleCheck(Factory.CreateSpellChecker(PWideChar(Language), Checker));
+    OleCheck(Checker.Add(PWideChar(Word)));
+    EditorBrowser.ExecuteScript('document.querySelectorAll(''[data-rich-editor]'').forEach(e => { e.spellcheck = false; e.spellcheck = true; });');
+    StatusLabel.Caption := 'Added "' + Word + '" to the Windows spelling dictionary.';
+    StatusLabel.Hint := 'The word is remembered across sessions. If an existing paragraph retains a cached underline, reopen the editor to refresh it.';
+  except
+    on E: Exception do MessageDlg('Windows could not add this word to its dictionary. ' + E.Message, mtError, [mbOK], 0);
+  end;
 end;
 
 procedure TMainForm.DiagnosticsItemClick(Sender: TObject);
@@ -542,12 +576,14 @@ var
   Item: ICoreWebView2ContextMenuItem;
   Count, Index: SYSUINT;
   Editable: Integer;
-  Name: PWideChar;
+  Name, SelectedText: PWideChar;
   NativeSpelling: Boolean;
   RequestId: string;
   Reply: TJSONObject;
 begin
   Result := S_OK;
+  FSpellingWord := '';
+  AddDictionaryItem.Enabled := False;
   RequestId := FTextContextRequest;
   FTextContextRequest := '';
   if (RequestId = '') or (GetTickCount64 - FTextContextRequestedAt > 2000) then Exit;
@@ -566,6 +602,14 @@ begin
       finally CoTaskMemFree(Name) end;
       if NativeSpelling then Break;
     end;
+  end;
+  if NativeSpelling then begin
+    SelectedText := nil;
+    try
+      if Succeeded(Target.Get_SelectionText(SelectedText)) and (SelectedText <> nil) then
+        FSpellingWord := string(SelectedText).Trim;
+    finally CoTaskMemFree(SelectedText) end;
+    AddDictionaryItem.Enabled := TRegEx.IsMatch(FSpellingWord, '^[\p{L}\p{M}][\p{L}\p{M}''\x{2019}-]{0,63}$');
   end;
   // Keep WebView2's own spelling commands and dictionary behavior for flagged words.
   // Other rich-text clicks retain the editor's compact formatting menu.

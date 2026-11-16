@@ -10,6 +10,7 @@ Current release review November 15, 2026 — version 1.0.0 build 1.
 - Optional local AI needs a compatible runtime and model supplied separately. Cloud AI requires its own key/account and session consent.
 - Imported source, custom code and external media need independent review. The lightweight site checker does not certify accessibility, every external link, or overall site safety.
 - Portable project/save size and SFTP scan/backup limits are documented in the guides. Retained legacy credentials require explicit removal.
+- Add to dictionary saves the selected word in the current Windows user's spelling dictionary. WebView2 can retain a cached spelling result for an already checked paragraph; reopen the editor if that paragraph continues to underline a newly accepted word. Newly checked text and subsequent editor sessions recognize the saved word. Project text and formatting are not changed by this command.
 
 ## Historical M0 findings
 

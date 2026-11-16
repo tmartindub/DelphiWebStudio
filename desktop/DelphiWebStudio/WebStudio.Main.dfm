@@ -45,6 +45,8 @@ object MainForm: TMainForm
     Width = 1200
     Height = 768
     Align = alClient
+    PopupMenu = SpellingPopupMenu
+    PopupMenuMode = MergeTop
     UserDataFolder = '%LOCALAPPDATA%\DelphiWebStudio\WebView'
     OnCreateWebViewCompleted = EditorBrowserCreateWebViewCompleted
     OnNavigationStarting = EditorBrowserNavigationStarting
@@ -187,5 +189,16 @@ object MainForm: TMainForm
     Title = 'Local diagnostics'
     Left = 936
     Top = 48
+  end
+  object SpellingPopupMenu: TPopupMenu
+    AutoPopup = False
+    Left = 488
+    Top = 112
+    object AddDictionaryItem: TMenuItem
+      Caption = 'Add to &dictionary'
+      Enabled = False
+      Hint = 'Remember this word in the Windows spelling dictionary'
+      OnClick = AddDictionaryItemClick
+    end
   end
 end
