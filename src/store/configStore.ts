@@ -38,7 +38,7 @@ interface ConfigState {
   setActivePage: (id: string) => void
   getActivePageBlocks: () => BlockConfig[]
   updateBlock: (id: string, updates: Partial<BlockConfig>) => void
-  updateBlockProps: (id: string, props: Record<string, unknown>) => void
+  updateBlockProps: (id: string, props: Record<string, unknown>, historyLabel?: string) => void
   updateMultipleBlockProps: (changes: Array<{ id: string; props: Record<string, unknown> }>) => void
   editBlockItems: (id: string, field: string, from: number, to: number, operation?: 'move' | 'remove' | 'duplicate') => void
   addGalleryImages: (id: string, images: Record<string, unknown>[]) => number
@@ -155,9 +155,9 @@ export const useConfigStore = create<ConfigState>()(
           }),
         })),
 
-      updateBlockProps: (id, props) =>
+      updateBlockProps: (id, props, historyLabel) =>
         set((state) => ({
-          ...pushUndo(state, 'Update properties'),
+          ...pushUndo(state, historyLabel || 'Update properties'),
           config: produce(withPages(state.config), (draft) => {
             const page = draft.pages!.find((p) => p.id === state.activePageId)
             if (!page) return

@@ -1,6 +1,6 @@
 # Delphi Web Studio Pro privacy notice
 
-Last changed: 2026-11-15
+Last changed: 2026-11-16
 
 This notice describes Delphi Web Studio Pro 1.0.0 build 1 for Windows. Third-party services, browser builds, and future versions fall outside its scope.
 
@@ -11,6 +11,8 @@ The editor stores local project drafts and settings in its WebView browser stora
 Gemini and Deploy Access Keys entered in Settings are held in memory for the current session. On Windows, **Save key** also stores the Gemini key in Windows Credential Manager for the current Windows account so it can be reused across projects and restarts. **Remove saved key** removes the Windows copy. Older keys saved in browser storage or project settings remain until removed with the corresponding legacy-key control. The Windows credential is separate from project files and website exports. The deployment key is excluded from portable project files. Testing a Gemini key sends the key and a test request to Google. Authentication is sent in a request header, rather than in the request URL.
 
 ## Network use
+
+The optional **Help with selected text** command sends only the highlighted passage and the user's writing instruction to Google after explicit consent and confirmation that the key's project has billing disabled. It reads the saved Windows credential, uses Gemini 3.5 Flash-Lite, and keeps previews in memory. Apply changes only the selected text through the editor's undoable project state; it does not publish or send other pages or media. Google may use free-tier content to improve its products. Free tier is determined by the Google project's billing status, which the application cannot verify from an API key. See [Gemini text assistance](GEMINI_TEXT_ASSISTANCE.md) for controls and limits.
 
 The optional local AI feature runs the selected model as a local process bound to the computer's loopback interface. Downloading its runtime or model opens a browser and contacts the selected download provider. The separate cloud-generation path is off by default; if enabled for the current session, it can send a generation brief to Google when a key is available or to a configured server endpoint. The setting resets on reload. Do not include private content unless you intend to send it. The optional SFTP functions connect to the configured server when requested. Opening, saving, previewing and exporting a project do not publish a website. Review any links, custom code, external media or configured third-party services in a project: these may contact external services when used or viewed.
 

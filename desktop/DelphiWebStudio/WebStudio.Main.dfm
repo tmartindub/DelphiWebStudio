@@ -200,5 +200,11 @@ object MainForm: TMainForm
       Hint = 'Remember this word in the Windows spelling dictionary'
       OnClick = AddDictionaryItemClick
     end
+    object GeminiTextItem: TMenuItem
+      Caption = 'Help with selected text...'
+      Enabled = False
+      Hint = 'Preview a Gemini writing suggestion for the selected text'
+      OnClick = GeminiTextItemClick
+    end
   end
 end

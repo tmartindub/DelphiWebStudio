@@ -40,6 +40,7 @@ type
     DiagnosticsDialog: TTaskDialog;
     SpellingPopupMenu: TPopupMenu;
     AddDictionaryItem: TMenuItem;
+    GeminiTextItem: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -62,6 +63,7 @@ type
     procedure SftpItemClick(Sender: TObject);
     procedure DiagnosticsItemClick(Sender: TObject);
     procedure AddDictionaryItemClick(Sender: TObject);
+    procedure GeminiTextItemClick(Sender: TObject);
     function Invoke(const Sender: ICoreWebView2; const Args: ICoreWebView2ContextMenuRequestedEventArgs): HResult; stdcall;
   private
     FTextContextToken: EventRegistrationToken;
@@ -120,6 +122,12 @@ procedure TMainForm.SaveProjectAsItemClick(Sender: TObject);
 begin
   if EditorBrowser.DefaultInterface <> nil then
     EditorBrowser.ExecuteScript('document.querySelector(''[data-project-command="save-as"]'')?.click();');
+end;
+
+procedure TMainForm.GeminiTextItemClick(Sender: TObject);
+begin
+  if EditorBrowser.DefaultInterface <> nil then
+    EditorBrowser.ExecuteScript('document.dispatchEvent(new Event("webstudio-ai-text"));');
 end;
 
 procedure TMainForm.AddDictionaryItemClick(Sender: TObject);
@@ -585,6 +593,7 @@ begin
   FSpellingWord := '';
   AddDictionaryItem.Enabled := False;
   RequestId := FTextContextRequest;
+  GeminiTextItem.Enabled := False;
   FTextContextRequest := '';
   if (RequestId = '') or (GetTickCount64 - FTextContextRequestedAt > 2000) then Exit;
   NativeSpelling := False;
@@ -610,6 +619,7 @@ begin
         FSpellingWord := string(SelectedText).Trim;
     finally CoTaskMemFree(SelectedText) end;
     AddDictionaryItem.Enabled := TRegEx.IsMatch(FSpellingWord, '^[\p{L}\p{M}][\p{L}\p{M}''\x{2019}-]{0,63}$');
+    GeminiTextItem.Enabled := FSpellingWord <> '';
   end;
   // Keep WebView2's own spelling commands and dictionary behavior for flagged words.
   // Other rich-text clicks retain the editor's compact formatting menu.

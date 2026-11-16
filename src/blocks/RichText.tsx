@@ -6,6 +6,8 @@ import { markdownBlockClasses, markdownListClass, renderMarkdown } from '@/lib/m
 import { chooseWindowsFont } from '@/desktop/native-bridge'
 import { WindowsColorInput } from '@/editor/WindowsColorInput'
 import { resolveTheme } from '@/lib/theme-presets'
+import { GeminiTextAssistant } from '@/editor/GeminiTextAssistant'
+import type { TextSegment } from '@/lib/gemini-text'
 
 type MarkdownTag = keyof typeof markdownBlockClasses
 type SpellingHost = { webstudioNativeSpellingMenu?: boolean; chrome?: { webview?: { postMessage(message: unknown): void; addEventListener(type: 'message', listener: (event: MessageEvent) => void): void; removeEventListener(type: 'message', listener: (event: MessageEvent) => void): void } } }
@@ -32,6 +34,8 @@ export function RichText({ blockId, field, text, value, editable = false, multil
   const pastePlain = useRef(false)
   const [paragraph, setParagraph] = useState({ align: 'left', lineHeight: 1.5, spaceBefore: 0, spaceAfter: 0, indentLeft: 0, indentRight: 0, firstLineIndent: 0 })
   const [clipboardError, setClipboardError] = useState('')
+  const [aiSelection, setAiSelection] = useState<{ start: number; end: number; fragment: DocumentFragment; segments: TextSegment[]; html: string; pageId: string; fieldSnapshot: string } | null>(null)
+  const appliedAiConfig = useRef<ReturnType<typeof useConfigStore.getState>['config'] | null>(null)
   const [linkEditor, setLinkEditor] = useState<{ address: string; hasLink: boolean; error?: string } | null>(null)
   const linkOpen = linkEditor !== null
   const runs = Array.isArray(value) ? value.filter((item): item is Run => !!item && typeof item === 'object' && typeof item.text === 'string') : null
@@ -50,11 +54,17 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       } else if (nativeMenuPoint.current) openTextSettings(nativeMenuPoint.current.x, nativeMenuPoint.current.y, null, false, 'context')
       nativeMenuPoint.current = null
     }
+    const assist = () => {
+      const selection = window.getSelection(), range = selection?.rangeCount ? selection.getRangeAt(0) : null
+      if (!range || range.collapsed || !root.current?.contains(range.commonAncestorContainer)) return
+      savedRange.current = range.cloneRange(); openAiAssistant()
+    }
     webview.addEventListener('message', receive)
-    return () => webview.removeEventListener('message', receive)
+    document.addEventListener('webstudio-ai-text', assist)
+    return () => { webview.removeEventListener('message', receive); document.removeEventListener('webstudio-ai-text', assist) }
   }, [editable]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function save() {
+  function save(historyLabel?: string | Event) {
     const element = root.current
     if (!element || !editable || !dirty.current) return
     const output: Run[] = []
@@ -95,7 +105,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       const href = node.tagName === 'A' ? node.getAttribute('href') : null
       if (href && !/[\\\p{Cc}]/u.test(href) && !href.startsWith('//') && (!/^[a-z][a-z\d+.-]*:/i.test(href) || /^(https?:|mailto:|tel:)/i.test(href))) {
         next.href = href
-        next.underline ??= true
+        next.underline ??= historyLabel === 'Gemini: edit selected text' ? getComputedStyle(node).textDecorationLine.includes('underline') : true
       }
       if (!markdownTag && (node.tagName === 'P' || node.tagName === 'DIV') && output.length && !output[output.length - 1].text.endsWith('\n')) output.push({ text: '\n' })
       node.childNodes.forEach(child => collect(child, next))
@@ -116,7 +126,63 @@ export function RichText({ blockId, field, text, value, editable = false, multil
     const measuredHeight = object ? Math.ceil(Math.max(object.scrollHeight, element.scrollHeight)) : 0
     const needsHeight = items.some(item => item.id === object?.dataset.sectionObject && measuredHeight > (Number(item.height) || 80))
     if (!needsHeight && current.props[field] === plain && JSON.stringify(current.props[`${field}Rich`]) === JSON.stringify(output)) return
-    useConfigStore.getState().updateBlockProps(blockId, { [field]: plain, [`${field}Rich`]: output, ...(needsHeight ? { [key]: items.map(item => item.id === object?.dataset.sectionObject ? { ...item, height: measuredHeight } : item) } : {}) })
+    useConfigStore.getState().updateBlockProps(blockId, { [field]: plain, [`${field}Rich`]: output, ...(needsHeight ? { [key]: items.map(item => item.id === object?.dataset.sectionObject ? { ...item, height: measuredHeight } : item) } : {}) }, typeof historyLabel === 'string' ? historyLabel : undefined)
+  }
+
+  function textRange(start: number, end: number) {
+    const element = root.current
+    if (!element) return null
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT)
+    const range = document.createRange()
+    let node: Node | null, offset = 0, began = false
+    while ((node = walker.nextNode())) {
+      const length = node.textContent?.length ?? 0
+      if (!length) continue
+      if (!began && start < offset + length) { range.setStart(node, start - offset); began = true }
+      if (began && end <= offset + length) { range.setEnd(node, end - offset); return range }
+      offset += length
+    }
+    return null
+  }
+
+  function openAiAssistant() {
+    const element = root.current, selected = savedRange.current
+    if (!element || !selected || selected.collapsed || !element.contains(selected.commonAncestorContainer) || !selected.toString().trim()) return
+    const prefix = document.createRange(); prefix.selectNodeContents(element); prefix.setEnd(selected.startContainer, selected.startOffset)
+    const start = prefix.toString().length, end = start + selected.toString().length
+    // Commit pending typing first. Reconstruct the selection after React has normalized its runs.
+    save()
+    menuActive.current = true; setMenu(null); setLinkEditor(null)
+    requestAnimationFrame(() => {
+      const range = textRange(start, end), current = useConfigStore.getState().getActivePageBlocks().find(block => block.id === blockId)
+      if (!range || !root.current || !current) { menuActive.current = false; return }
+      const fragment = range.cloneContents(), walker = document.createTreeWalker(fragment, NodeFilter.SHOW_TEXT), segments: TextSegment[] = []
+      let node: Node | null, previousParagraph: Element | null = null
+      while ((node = walker.nextNode())) {
+        if (!node.textContent) continue
+        const paragraph = node.parentElement?.closest('p,h1,h2,h3,h4,h5,h6,li,div') ?? null
+        segments.push({ id: `s${segments.length}`, text: node.textContent, ...(segments.length && paragraph !== previousParagraph ? { breakBefore: true } : {}) })
+        previousParagraph = paragraph
+      }
+      savedRange.current = range; appliedAiConfig.current = null
+      setAiSelection({ start, end, fragment, segments, html: root.current.innerHTML, pageId: useConfigStore.getState().activePageId, fieldSnapshot: JSON.stringify([current.props[field], current.props[`${field}Rich`]]) })
+    })
+  }
+
+  function applyAiSuggestion(segments: TextSegment[]) {
+    const target = aiSelection, element = root.current, state = useConfigStore.getState()
+    const block = state.getActivePageBlocks().find(item => item.id === blockId)
+    if (!target || !element?.isConnected || !block || !editable || state.activePageId !== target.pageId || element.innerHTML !== target.html || JSON.stringify([block.props[field], block.props[`${field}Rich`]]) !== target.fieldSnapshot) throw new Error('The original text changed while the preview was open. Close this window, select the text again and request a new preview.')
+    const range = textRange(target.start, target.end)
+    if (!range || range.toString() !== target.segments.map(segment => segment.text).join('') || segments.length !== target.segments.length || segments.some((segment, index) => segment.id !== target.segments[index].id)) throw new Error('The selected passage is no longer available. Select it again before applying.')
+    if (segments.every((segment, index) => segment.text === target.segments[index].text)) throw new Error('Gemini suggested no wording changes. Your original text is already in place.')
+    const fragment = target.fragment.cloneNode(true) as DocumentFragment, walker = document.createTreeWalker(fragment, NodeFilter.SHOW_TEXT)
+    let node: Node | null, index = 0
+    while ((node = walker.nextNode())) { if (node.textContent) node.textContent = segments[index++].text }
+    if (index !== segments.length) throw new Error('The suggestion does not match the selected formatting. Your text is unchanged.')
+    range.deleteContents(); range.insertNode(fragment)
+    dirty.current = true; save('Gemini: edit selected text')
+    appliedAiConfig.current = useConfigStore.getState().config
   }
 
   useEffect(() => {
@@ -451,6 +517,12 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       }}
       onKeyDown={event => {
         event.stopPropagation()
+        if (!dirty.current && (event.ctrlKey || event.metaKey)) {
+          const state = useConfigStore.getState(), redo = event.key.toLowerCase() === 'y' || (event.key.toLowerCase() === 'z' && event.shiftKey)
+          const undo = event.key.toLowerCase() === 'z' && !event.shiftKey
+          const entry = redo ? state.redoStack.at(-1) : state.undoStack.at(-1)
+          if ((undo || redo) && entry?.label === 'Gemini: edit selected text') { event.preventDefault(); if (redo) state.redo(); else state.undo(); return }
+        }
         if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'v') pastePlain.current = event.shiftKey
         if (editable && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
           event.preventDefault()
@@ -548,6 +620,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       event.preventDefault(); items[next]?.focus()
     }}>
       {menuView === 'context' && <div className="order-first flex flex-col">
+        <button type="button" role="menuitem" disabled={!savedRange.current || savedRange.current.collapsed || !savedRange.current.toString().trim()} className="rounded px-3 py-2 text-left hover:bg-blue-50 focus:bg-blue-50 disabled:opacity-40" onMouseDown={event => event.preventDefault()} onClick={openAiAssistant}>Help with selected text…</button>
         <button type="button" role="menuitem" className="rounded px-3 py-2 text-left hover:bg-blue-50 focus:bg-blue-50" onMouseDown={event => event.preventDefault()} onClick={() => { menuMoved.current = false; setMenuView('text') }}>Text settings…</button>
         <button type="button" role="menuitem" className="rounded px-3 py-2 text-left hover:bg-blue-50 focus:bg-blue-50" onMouseDown={event => event.preventDefault()} onClick={openParagraphSettings}>Paragraph settings…</button>
         <details><summary className="cursor-pointer rounded px-3 py-2 hover:bg-blue-50">Paste options</summary><div className="ml-2 border-l border-gray-200 pl-1">{([['match', 'Match destination formatting'], ['source', 'Keep source formatting'], ['plain', 'Paste plain text   Ctrl+Shift+V']] as const).map(([mode, label]) => <button key={mode} type="button" role="menuitem" className="block w-full rounded px-2 py-2 text-left text-xs hover:bg-blue-50 focus:bg-blue-50" onMouseDown={event => event.preventDefault()} onClick={() => void pasteFromClipboard(mode)}>{label}</button>)}</div></details>
@@ -574,6 +647,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       </details>}
       {clipboardError && <p role="status" className="mb-2 text-xs">{clipboardError}</p>}
       {menuView === 'text' && <>
+      <button type="button" disabled={!savedRange.current || savedRange.current.collapsed || !savedRange.current.toString().trim()} className="order-1 mb-3 rounded border border-blue-600 px-3 py-2 text-left text-blue-900 disabled:opacity-40" onMouseDown={event => event.preventDefault()} onClick={openAiAssistant}>Help with selected text…</button>
       {linkEditor && <form aria-label="Text link" className="order-1 mb-3 space-y-2 border-b border-gray-200 pb-3" onSubmit={event => { event.preventDefault(); updateLink() }}>
         <label className="block text-xs">Link destination
           <input autoFocus value={linkEditor.address} onChange={event => setLinkEditor({ ...linkEditor, address: event.target.value, error: undefined })} placeholder="https://example.com or #anchor" className="mt-1 w-full rounded border border-gray-400 p-2 text-sm" />
@@ -651,5 +725,9 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       </form>}
 
     </div>, document.body)}
+    {aiSelection && createPortal(<GeminiTextAssistant segments={aiSelection.segments} onApply={applyAiSuggestion} onUndo={() => {
+      if (!appliedAiConfig.current || useConfigStore.getState().config !== appliedAiConfig.current) throw new Error('Other edits have been made since Apply. Close this window and use the editor’s Undo history to review them.')
+      useConfigStore.getState().undo(); appliedAiConfig.current = null
+    }} onClose={() => { setAiSelection(null); menuActive.current = false; savedRange.current = null; root.current?.focus({ preventScroll: true }) }} />, document.body)}
   </>
 }

@@ -249,7 +249,7 @@ function ApiPanel({ settings }: { settings: ReturnType<typeof useSettingsState> 
           </button>
         </div>
         <p className="text-[11px] text-text-3 mt-1.5">
-          Used for client-side AI generation. Get one at{' '}
+          Used for selected-text writing assistance and optional site generation. Get one at{' '}
           <span className="text-text-2">aistudio.google.com</span>
         </p>
         <p className="text-[11px] text-text-3 mt-1.5">{secureAvailable ? 'Save this key securely for your Windows account and reuse it in all projects.' : 'A key can be saved in Windows Credential Manager when using the desktop application.'}</p>
