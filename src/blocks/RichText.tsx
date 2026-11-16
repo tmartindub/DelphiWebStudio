@@ -8,6 +8,7 @@ import { WindowsColorInput } from '@/editor/WindowsColorInput'
 import { resolveTheme } from '@/lib/theme-presets'
 
 type MarkdownTag = keyof typeof markdownBlockClasses
+type SpellingHost = { webstudioNativeSpellingMenu?: boolean; chrome?: { webview?: { postMessage(message: unknown): void; addEventListener(type: 'message', listener: (event: MessageEvent) => void): void; removeEventListener(type: 'message', listener: (event: MessageEvent) => void): void } } }
 type Run = { text: string; font?: string; size?: number; color?: string; bold?: boolean; italic?: boolean; underline?: boolean; href?: string; align?: 'left' | 'center' | 'right' | 'justify'; tag?: MarkdownTag; line?: number; lineHeight?: number; spaceBefore?: number; spaceAfter?: number; indentLeft?: number; indentRight?: number; firstLineIndent?: number }
 type Props = { blockId: string; field: string; text: string; value: unknown; editable?: boolean; multiline?: boolean; markdown?: boolean; position?: { x: number; y: number; width?: number; height?: number }; fill?: boolean; alignment?: unknown; onDeleteBox?: () => void }
 let draggedText: { element: HTMLElement; range: Range } | null = null
@@ -17,6 +18,8 @@ export function RichText({ blockId, field, text, value, editable = false, multil
   const dirty = useRef(false)
   const savedRange = useRef<Range | null>(null)
   const menuActive = useRef(false)
+  const nativeMenuRequest = useRef<string | null>(null)
+  const nativeMenuPoint = useRef<{ x: number; y: number } | null>(null)
   const menuElement = useRef<HTMLDivElement>(null)
   const menuDrag = useRef<{ x: number; y: number; left: number; top: number } | null>(null)
   const menuMoved = useRef(false)
@@ -32,6 +35,24 @@ export function RichText({ blockId, field, text, value, editable = false, multil
   const [linkEditor, setLinkEditor] = useState<{ address: string; hasLink: boolean; error?: string } | null>(null)
   const linkOpen = linkEditor !== null
   const runs = Array.isArray(value) ? value.filter((item): item is Run => !!item && typeof item === 'object' && typeof item.text === 'string') : null
+
+  useEffect(() => {
+    const webview = (window as unknown as SpellingHost).chrome?.webview
+    if (!editable || !webview) return
+    const receive = (event: MessageEvent) => {
+      const reply = event.data
+      if (!nativeMenuRequest.current || !reply || reply.version !== 1 || reply.kind !== 'ui.text.context' || reply.requestId !== nativeMenuRequest.current || typeof reply.native !== 'boolean') return
+      nativeMenuRequest.current = null
+      if (!menuActive.current) return
+      if (reply.native) {
+        // Do not save or rebuild the editable DOM while WebView2 owns the spelling range.
+        menuActive.current = false; savedRange.current = null; setMenu(null); setLinkEditor(null)
+      } else if (nativeMenuPoint.current) openTextSettings(nativeMenuPoint.current.x, nativeMenuPoint.current.y, null, false, 'context')
+      nativeMenuPoint.current = null
+    }
+    webview.addEventListener('message', receive)
+    return () => webview.removeEventListener('message', receive)
+  }, [editable]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function save() {
     const element = root.current
@@ -251,6 +272,8 @@ export function RichText({ blockId, field, text, value, editable = false, multil
   }
 
   function close() {
+    nativeMenuRequest.current = null
+    nativeMenuPoint.current = null
     menuActive.current = false
     savedRange.current = null
     setMenu(null)
@@ -336,7 +359,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       element.style.top = `${Math.max(gap, Math.min(y, viewportHeight - bounds.height - gap))}px`
     }
     place()
-    if (menuView === 'context' && !element.contains(document.activeElement)) element.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus({ preventScroll: true })
+    if (menuView === 'context' && !nativeMenuRequest.current && !element.contains(document.activeElement)) element.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus({ preventScroll: true })
     const observer = new ResizeObserver(place); observer.observe(element)
     window.addEventListener('resize', place); window.visualViewport?.addEventListener('resize', place)
     return () => { observer.disconnect(); window.removeEventListener('resize', place); window.visualViewport?.removeEventListener('resize', place) }
@@ -401,7 +424,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
   const updatePosition = (nextX: number, nextY: number) => useConfigStore.getState().updateBlockProps(blockId, { [`${field}OffsetX`]: Math.round(Math.max(-2000, Math.min(2000, nextX))), [`${field}OffsetY`]: Math.round(Math.max(-2000, Math.min(2000, nextY))) })
   return <>
     <Outer data-text-position={position ? field : undefined} className={position && editable ? 'group/text relative inline-block' : undefined} style={position ? { display: 'inline-block', position: 'relative', maxWidth: '100%', overflowWrap: 'anywhere', transform: `translate(${x}px, ${y}px)`, ...(position.width && position.width > 0 ? { width: `${position.width}px` } : {}), ...(position.height && position.height > 0 ? { minHeight: `${position.height}px` } : {}), ...(textAlign ? { textAlign } : {}) } : { ...(fill && editable ? { display: 'flex', flex: '1 1 auto' } : {}), ...(textAlign ? { display: fill && editable ? 'flex' : 'block', width: '100%', textAlign } : {}) }}>
-    <Tag ref={(element: HTMLElement | null) => { root.current = element }} data-rich-text data-rich-editor={editable ? field : undefined} role={editable ? 'textbox' : undefined} aria-label={editable ? `Edit ${field}` : undefined} aria-multiline={editable && multiline ? true : undefined} contentEditable={editable || undefined} suppressContentEditableWarning style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', ...(editable ? { display: 'inline-block', minWidth: '2em', minHeight: '1em', cursor: 'text' } : {}), ...(editable && multiline ? { display: 'block', minHeight: '3em', ...(fill ? { flex: 1 } : {}) } : {}) }}
+    <Tag ref={(element: HTMLElement | null) => { root.current = element }} data-rich-text data-rich-editor={editable ? field : undefined} role={editable ? 'textbox' : undefined} aria-label={editable ? `Edit ${field}` : undefined} aria-multiline={editable && multiline ? true : undefined} contentEditable={editable || undefined} spellCheck={editable || undefined} suppressContentEditableWarning style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', ...(editable ? { display: 'inline-block', minWidth: '2em', minHeight: '1em', cursor: 'text' } : {}), ...(editable && multiline ? { display: 'block', minHeight: '3em', ...(fill ? { flex: 1 } : {}) } : {}) }}
       onBlur={() => { if (!menuActive.current && !draggedText) save() }}
       onInput={() => { dirty.current = true; requestAnimationFrame(() => { const element = root.current; const section = element?.closest<HTMLElement>('[data-editor-section]'); if (!element || !section) return; const object = element.closest<HTMLElement>('[data-section-object][data-ws-object-type="text"]'); if (object) { const bottom = object.offsetTop + Math.max(object.scrollHeight, element.scrollHeight); section.style.minHeight = `${Math.max(section.offsetHeight, bottom)}px` }; if (position) { const bounds = element.getBoundingClientRect(), area = section.getBoundingClientRect(); const correction = bounds.left < area.left ? area.left - bounds.left : bounds.right > area.right ? area.right - bounds.right : 0; if (Math.abs(correction) > 1) updatePosition(x + correction, y) } }) }}
       onCopy={event => {
@@ -441,7 +464,17 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       }}
       onContextMenu={event => {
         if (!editable) return
-        event.preventDefault(); event.stopPropagation()
+        event.stopPropagation()
+        const host = window as unknown as SpellingHost
+        nativeMenuRequest.current = null
+        if (event.isTrusted && window.location.origin === 'https://webstudio.local' && host.webstudioNativeSpellingMenu && host.chrome?.webview) {
+          const requestId = crypto.randomUUID()
+          nativeMenuRequest.current = requestId
+          nativeMenuPoint.current = { x: event.clientX, y: event.clientY }
+          menuActive.current = true
+          try { host.chrome.webview.postMessage({ version: 1, kind: 'ui.text.context', requestId }); return }
+          catch { nativeMenuRequest.current = null; nativeMenuPoint.current = null; event.preventDefault() }
+        } else event.preventDefault()
         openTextSettings(event.clientX, event.clientY, event.target instanceof Element ? event.target : null, false, 'context')
       }}
       onDragStart={event => {
@@ -612,7 +645,7 @@ export function RichText({ blockId, field, text, value, editable = false, multil
       }}>
         <p className="text-xs text-gray-600">Applies to the selected paragraphs, or the paragraph containing the cursor.</p>
         <label className="block text-xs">Alignment<select aria-label="Paragraph alignment" value={paragraph.align} onChange={event => setParagraph({ ...paragraph, align: event.target.value })} className="mt-1 w-full rounded border border-gray-400 bg-white p-2 text-black">{['left', 'center', 'right', 'justify'].map(align => <option key={align} value={align}>{align.charAt(0).toUpperCase() + align.slice(1)}</option>)}</select></label>
-        <div className="grid grid-cols-2 gap-3">{([['lineHeight', 'Line spacing', 1, 3, 0.05], ['spaceBefore', 'Space before (px)', 0, 200, 1], ['spaceAfter', 'Space after (px)', 0, 200, 1], ['indentLeft', 'Left indent (px)', 0, 400, 1], ['indentRight', 'Right indent (px)', 0, 400, 1], ['firstLineIndent', 'First line (px)', -200, 400, 1]] as const).map(([key, label, minimum, maximum, step]) => <label key={key} className="block text-xs">{label}<input required aria-label={label} type="number" min={minimum} max={maximum} step={step} value={paragraph[key]} onChange={event => setParagraph({ ...paragraph, [key]: Number(event.target.value) })} className="mt-1 w-full rounded border border-gray-400 bg-white p-2 text-black" /></label>)}</div>
+        <div className="grid grid-cols-2 gap-3">{([['lineHeight', 'Line spacing', 1, 3, 0.05], ['spaceBefore', 'Space before (px)', 0, 200, 1], ['spaceAfter', 'Space after (px)', 0, 200, 1], ['indentLeft', 'Left indent (px)', 0, 400, 1], ['indentRight', 'Right indent (px)', 0, 400, 1], ['firstLineIndent', 'First line (px)', -200, 400, 1]] as const).map(([key, label, minimum, maximum, step]) => <label key={key} className="block text-xs">{label}<input required aria-label={label} type="number" min={minimum} max={maximum} step={key === 'lineHeight' ? 'any' : step} value={paragraph[key]} onChange={event => setParagraph({ ...paragraph, [key]: Number(event.target.value) })} className="mt-1 w-full rounded border border-gray-400 bg-white p-2 text-black" /></label>)}</div>
         <p className="text-xs text-gray-600">Line spacing: 1 is single, 1.5 is one and a half, and 2 is double. A negative first-line value creates a hanging indent.</p>
         <div className="flex justify-end gap-2"><button type="button" className="rounded border border-gray-400 px-3 py-1" onClick={close}>Cancel</button><button type="submit" className="rounded bg-blue-700 px-3 py-1 text-white">Apply</button></div>
       </form>}

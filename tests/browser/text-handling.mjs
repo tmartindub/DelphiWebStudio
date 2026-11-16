@@ -41,7 +41,8 @@ try {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(native ? 'https://webstudio.local/index.html#/editor' : vite.resolvedUrls.local[0] + 'editor');
-  await page.getByRole('button', { name: /^Church/ }).click();
+  const starter = page.getByRole('button', { name: /^Church/ });
+  if (await starter.count()) await starter.click();
   await page.locator('[aria-label="Choose project file"]').setInputFiles(fixture);
   const editor = page.locator('[data-rich-editor="body"]');
   await editor.waitFor();

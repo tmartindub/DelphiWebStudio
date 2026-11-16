@@ -9,7 +9,7 @@ uses
   WebStudio.Bridge, WebStudio.WebsitePreview, System.Generics.Collections;
 
 type
-  TMainForm = class(TForm)
+  TMainForm = class(TForm, ICoreWebView2ContextMenuRequestedEventHandler)
     StatusPanel: TPanel;
     StatusLabel: TLabel;
     RecoverStageButton: TButton;
@@ -59,7 +59,12 @@ type
     procedure LocalAIItemClick(Sender: TObject);
     procedure SftpItemClick(Sender: TObject);
     procedure DiagnosticsItemClick(Sender: TObject);
+    function Invoke(const Sender: ICoreWebView2; const Args: ICoreWebView2ContextMenuRequestedEventArgs): HResult; stdcall;
   private
+    FTextContextToken: EventRegistrationToken;
+    FTextContextRegistered: Boolean;
+    FTextContextRequest: string;
+    FTextContextRequestedAt: UInt64;
     FDownloadPending: Boolean;
     FActiveProjectSaves: Integer;
     FCloseWarningShown: Boolean;
@@ -358,7 +363,10 @@ begin
 end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
+var WebView11: ICoreWebView2_11;
 begin
+  if FTextContextRegistered and Supports(EditorBrowser.DefaultInterface, ICoreWebView2_11, WebView11) then
+    WebView11.remove_ContextMenuRequested(FTextContextToken);
   FreeAndNil(FWebsitePreview);
   if FPreviewStagePath <> '' then DeleteFile(PChar(FPreviewStagePath));
   FreeAndNil(FProjectVersions);
@@ -503,7 +511,7 @@ begin
 end;
 
 procedure TMainForm.EditorBrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HResult);
-var WebView3: ICoreWebView2_3; Settings: ICoreWebView2Settings; EditorPath: string;
+var WebView3: ICoreWebView2_3; WebView11: ICoreWebView2_11; Settings: ICoreWebView2Settings; EditorPath: string;
 begin
   if Winapi.Windows.Failed(AResult) or not Supports(Sender.DefaultInterface, ICoreWebView2_3, WebView3) then begin
     StatusLabel.Caption := 'WebView2 could not start or does not support local editor files.';
@@ -519,12 +527,62 @@ begin
     StatusLabel.Caption := 'Local editor files could not be mapped.';
     Exit;
   end;
+  if Supports(Sender.DefaultInterface, ICoreWebView2_11, WebView11) and
+    Succeeded(WebView11.add_ContextMenuRequested(Self, FTextContextToken)) then begin
+    FTextContextRegistered := True;
+    EditorBrowser.InitScript.Add('window.webstudioNativeSpellingMenu = true;');
+  end;
   Sender.Navigate('https://webstudio.local/index.html');
+end;
+
+function TMainForm.Invoke(const Sender: ICoreWebView2; const Args: ICoreWebView2ContextMenuRequestedEventArgs): HResult;
+var
+  Target: ICoreWebView2ContextMenuTarget;
+  Items: ICoreWebView2ContextMenuItemCollection;
+  Item: ICoreWebView2ContextMenuItem;
+  Count, Index: SYSUINT;
+  Editable: Integer;
+  Name: PWideChar;
+  NativeSpelling: Boolean;
+  RequestId: string;
+  Reply: TJSONObject;
+begin
+  Result := S_OK;
+  RequestId := FTextContextRequest;
+  FTextContextRequest := '';
+  if (RequestId = '') or (GetTickCount64 - FTextContextRequestedAt > 2000) then Exit;
+  NativeSpelling := False;
+  if Succeeded(Args.Get_ContextMenuTarget(Target)) and (Target <> nil) and
+    Succeeded(Target.Get_IsEditable(Editable)) and (Editable <> 0) and
+    Succeeded(Args.Get_MenuItems(Items)) and (Items <> nil) and Succeeded(Items.Get_Count(Count)) then begin
+    for Index := 0 to Count do begin
+      if Index = Count then Break;
+      Item := nil;
+      if Failed(Items.GetValueAtIndex(Index, Item)) or (Item = nil) then Continue;
+      Name := nil;
+      try
+        if Succeeded(Item.Get_name(Name)) and (Name <> nil) and SameText(string(Name), 'spellCheck') then
+          NativeSpelling := True;
+      finally CoTaskMemFree(Name) end;
+      if NativeSpelling then Break;
+    end;
+  end;
+  // Keep WebView2's own spelling commands and dictionary behavior for flagged words.
+  // Other rich-text clicks retain the editor's compact formatting menu.
+  Args.Set_Handled(Ord(not NativeSpelling));
+  Reply := TJSONObject.Create;
+  try
+    Reply.AddPair('version', TJSONNumber.Create(1));
+    Reply.AddPair('kind', 'ui.text.context'); Reply.AddPair('requestId', RequestId);
+    Reply.AddPair('native', TJSONBool.Create(NativeSpelling));
+    Sender.PostWebMessageAsJson(PWideChar(Reply.ToJSON));
+  finally Reply.Free end;
 end;
 
 procedure TMainForm.EditorBrowserNavigationStarting(Sender: TCustomEdgeBrowser; Args: TNavigationStartingEventArgs);
 var Address: PWideChar; Allowed: Boolean;
 begin
+  FTextContextRequest := '';
   if Assigned(FBridgeSession) then FBridgeSession.Revoke;
   FreeAndNil(FBridgeSession);
   Address := nil;
@@ -570,6 +628,17 @@ begin
       if not (Parsed is TJSONObject) then Exit;
       Obj := TJSONObject(Parsed);
       if Obj.TryGetValue<string>('kind', Kind) then begin
+        if Kind = 'ui.text.context' then begin
+          if FTextContextRegistered and
+            ((SourceText = 'https://webstudio.local/index.html') or SourceText.StartsWith('https://webstudio.local/index.html#/')) and
+            (Obj.Count = 3) and (Obj.GetValue('version') is TJSONNumber) and (Obj.GetValue('version').Value = '1') and
+            (Obj.GetValue('requestId') is TJSONString) and Obj.TryGetValue<string>('requestId', RequestId) and
+            TRegEx.IsMatch(RequestId, '^[0-9a-f-]{36}$') then begin
+            FTextContextRequest := RequestId;
+            FTextContextRequestedAt := GetTickCount64;
+          end;
+          Exit;
+        end;
         if ((SourceText = 'https://webstudio.local/index.html') or SourceText.StartsWith('https://webstudio.local/index.html#/')) and
           (Obj.GetValue('version') is TJSONNumber) and (Obj.GetValue('version').Value = '1') then begin
           if (Kind = 'project.saveAs') and (Obj.Count = 2) then begin FSaveAsNext := True; Exit end;
