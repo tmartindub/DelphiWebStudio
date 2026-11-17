@@ -121,6 +121,114 @@ export function editTargets(config: SiteConfig, pageId: string): EditTarget[] {
   return targets
 }
 
+/** Resolve only explicit edit subjects; quoted replacement text and link destinations are not subjects. */
+export function resolveEditTarget(config: SiteConfig, scope: EditScope, instruction: string): { scope: EditScope; explicit: boolean; label?: string; conflict?: string; candidates?: { id: string; label: string }[]; backgroundRequested?: boolean; backgroundOnly?: boolean } {
+  const page = config.pages?.find(item => item.id === scope.pageId)
+  if (!page) return { scope, explicit: false, conflict: 'The selected page no longer exists. Choose a page with Change selection.' }
+  const targets = editTargets(config, scope.pageId), selected = targets.find(item => item.id === scope.target)
+  if (!selected) return { scope, explicit: false, conflict: 'The selected component no longer exists. Use Change selection.' }
+  const unchanged = { scope, explicit: false, label: selected.label }
+  const command = instruction.trim().match(/^(?:(?:please|can you|could you|would you|i (?:want|would like) you to)\s+)*(change|set|make|update|edit|recolou?r|style|resize|move|remove|delete|hide|show)\s+([\s\S]+)$/i)
+  if (!command) return unchanged
+  // The destination/replacement clause may contain component names that are only new wording.
+  const subjectWords = command[2].replace(/["“‘'`][^"”’'`]*["”’'`]/g, value => ' '.repeat(value.length))
+  const subjectEnd = subjectWords.search(/\b(?:to|with|into|using|as|by|so that|then|do not|don't|never|keep|leave)\b/i)
+  const subject = command[2].slice(0, subjectEnd < 0 ? undefined : subjectEnd)
+  const quotedName = subject.match(/\b(?:section|block|hero|banner)\s+(?:(?:called|titled|named|headed)\s+)?["“‘'`]([^"”’'`]+)["”’'`]|["“‘'`]([^"”’'`]+)["”’'`]\s+(?:section|block|hero|banner)\b/i)
+  const unquoted = subject.replace(/["“‘'`][^"”’'`]*["”’'`]/g, ' ').toLowerCase()
+  const normal = (value: string) => value.normalize('NFKC').toLowerCase().replace(/\s+/g, ' ').trim()
+  const formalName = !quotedName ? unquoted.match(/\b(?:section|block|hero|banner)\s+(?:called|titled|named|headed)\s+(.+?)(?=\s+(?:background|fill|colou?r|text|font|width|height|size|position)\b|$)/i)?.[1] : ''
+  const name = quotedName ? normal(quotedName[1] || quotedName[2]) : formalName ? normal(formalName) : ''
+  const blockTargets = targets.filter(item => item.kind === 'block')
+  let matches: EditTarget[] = [], reference = '', explicit = false
+  if (name) {
+    explicit = true; reference = 'section titled “' + (quotedName ? quotedName[1] || quotedName[2] : formalName) + '”'
+    matches = blockTargets.filter(item => {
+      const props = page.blocks.find(block => block.id === item.blockId)!.props
+      return [props.title, props.headline, props.logo, typeof props.body === 'string' ? props.body.match(/^#{1,6}\s+(.+)$/m)?.[1] : undefined].some(value => typeof value === 'string' && normal(value) === name)
+    })
+  } else {
+    const deictic = unquoted.match(/^\s*(?:(?:the )?(?:selected|current)|this|that)\s+(panel|text|image|button|collage)\b/i)
+    if (deictic && selected.kind === 'object') {
+      const objects = page.blocks.find(block => block.id === selected.blockId)?.props['section' + selected.section + 'Objects']
+      if (Array.isArray(objects) && objects.some(object => record(object) && object.id === selected.objectId && object.type === deictic[1].toLowerCase())) return unchanged
+    }
+    const subjectStart = normal(unquoted).replace(/^the\s+/, '')
+    const namedTargets = blockTargets.map(item => {
+      const props = page.blocks.find(block => block.id === item.blockId)!.props
+      const names = [props.title, props.headline, typeof props.body === 'string' ? props.body.match(/^#{1,6}\s+(.+)$/m)?.[1] : undefined].filter((value): value is string => typeof value === 'string' && normal(value).length >= 3)
+      const length = Math.max(0, ...names.filter(value => subjectStart === normal(value) || subjectStart.startsWith(normal(value) + ' ') || (' ' + subjectStart + ' ').includes(' ' + normal(value) + ' section ') || (' ' + subjectStart + ' ').includes(' ' + normal(value) + ' block ')).map(value => normal(value).length))
+      return { item, length }
+    })
+    const longestName = Math.max(0, ...namedTargets.map(item => item.length))
+    const titleMatches = namedTargets.filter(item => item.length > 0 && item.length === longestName).map(item => item.item)
+    const aliases: [RegExp, string[]][] = [
+      [/\bhero\b/i, ['hero']], [/\bbanner\b/i, ['hero', 'banner']], [/\bfooter\b/i, ['footer']],
+      [/\b(?:navbar|nav bar|navigation bar|navigation menu)\b/i, ['navbar']],
+      [/\b(?:staff directory|team(?: section)?)\b/i, ['team']], [/\b(?:photo gallery|gallery)\b/i, ['gallery']],
+      [/\b(?:photo collage|collage)\b/i, ['collage']], [/\b(?:contact form|contact section)\b/i, ['contact']],
+      [/\bcalendar\b/i, ['calendar']], [/\b(?:content section|content block)\b/i, ['content']],
+      [/\bpanel\b/i, ['panel']], [/\bfeatures\b/i, ['features']], [/\bpricing\b/i, ['pricing']],
+      [/\btestimonials\b/i, ['testimonials']], [/\b(?:statistics|stats)\b/i, ['stats']],
+      [/\b(?:faq|frequently asked questions)\b/i, ['faq']], [/\b(?:cta|call to action)\b/i, ['cta']],
+      [/\bnewsletter\b/i, ['newsletter']], [/\blogo cloud\b/i, ['logocloud']], [/\bdivider\b/i, ['divider']],
+      [/\bimage(?: block)?\b/i, ['image']], [/\bvideo\b/i, ['video', 'mediaVideo']], [/\baudio\b/i, ['audio']],
+      [/\bdocument library\b/i, ['documentLibrary']], [/\bpdf(?: viewer)?\b/i, ['pdfViewer']],
+      [/\bdocument block\b/i, ['document']],
+    ]
+    const types = aliases.filter(([pattern]) => pattern.test(unquoted)).sort(([left], [right]) => left.exec(unquoted)!.index - right.exec(unquoted)!.index)
+    const owner = types.find(([pattern]) => /\b(?:in|inside|within|of)\s+(?:(?:the|this|that|selected|current)\s+)?$/i.test(unquoted.slice(0, pattern.exec(unquoted)!.index)))
+    if (owner) types.sort((left, right) => left === owner ? -1 : right === owner ? 1 : 0)
+    // Several named edit subjects require whole-page scope, not an arbitrary first match.
+    if (!titleMatches.length && types.length > 1 && types.some(([pattern, values]) => !values.some(value => types[0][1].includes(value)) && /\band\b|\bplus\b|[,;]/i.test(unquoted.slice(types[0][0].exec(unquoted)!.index, pattern.exec(unquoted)!.index)))) {
+      return selected.kind === 'page' ? unchanged : { ...unchanged, conflict: 'This request names several components. Choose the whole page with Change selection, or request one component at a time.', candidates: [{ id: 'page:' + page.id, label: page.name + ' — whole page' }] }
+    }
+    if (titleMatches.length) { explicit = true; reference = 'named section'; matches = titleMatches }
+    else if (types.length) {
+      explicit = true; reference = types[0][0].exec(unquoted)![0]
+      const allowedTypes = types.filter(([, values]) => values.some(value => types[0][1].includes(value))).reduce((result, [, values]) => result.filter(value => values.includes(value)), types[0][1])
+      matches = blockTargets.filter(item => allowedTypes.includes(page.blocks.find(block => block.id === item.blockId)!.type))
+    } else {
+      // Unquoted names must explicitly describe a section/block, never an arbitrary body phrase.
+      if (/\b(?:section|block)\b/i.test(unquoted)) {
+        matches = blockTargets.filter(item => {
+          const props = page.blocks.find(block => block.id === item.blockId)!.props
+          return [props.title, props.headline, typeof props.body === 'string' ? props.body.match(/^#{1,6}\s+(.+)$/m)?.[1] : undefined].some(value => typeof value === 'string' && normal(value).length >= 3 && (' ' + normal(unquoted) + ' ').includes(' ' + normal(value) + ' '))
+        })
+        if (matches.length) { explicit = true; reference = 'named section' }
+        else {
+          const unknownName = normal(unquoted.match(/^\s*(?:the\s+)?(.+?)\s+(?:section|block)\b/i)?.[1] ?? '')
+          if (unknownName && !/^(?:this|that|current|selected|chosen|first|second|third|fourth|last|top|bottom|text|background|fill|colou?r|width|height|spacing)\b/i.test(unknownName) && !/\b(?:in|on|of|for|within|inside)\b/i.test(unknownName)) { explicit = true; reference = 'section named “' + unknownName + '”' }
+        }
+      }
+    }
+    const ordinal = unquoted.match(/\b(first|second|third|fourth|last|top|bottom)\s+(?:(?:hero|banner|footer|content)\s+)?(?:section|block)\b|\b(first|last|top|bottom)\s+(?:hero|banner|footer)\b|\b(?:section|block)\s*(?:number\s*|#\s*)?(\d+)\b/i)
+    if (ordinal) {
+      explicit = true; reference = ordinal[0]
+      const ordered = matches.length || types.length ? matches : blockTargets
+      const position = ordinal[1] || ordinal[2], index = position === 'last' || position === 'bottom' ? ordered.length - 1 : ordinal[3] ? Number(ordinal[3]) - 1 : ['first', 'second', 'third', 'fourth'].indexOf(position === 'top' ? 'first' : position)
+      matches = ordered[index] ? [ordered[index]] : []
+    }
+  }
+  if (!explicit) return unchanged
+  const candidates = matches.map(({ id, label }) => ({ id, label }))
+  if (!matches.length) return { ...unchanged, explicit: true, conflict: 'No matching ' + reference + ' exists on this page. Use Change selection or name an existing component.', candidates }
+  if (matches.length > 1) {
+    const sameBlock = matches.find(item => item.id === selected.id)
+    if (sameBlock) matches = [sameBlock]
+    else return { ...unchanged, explicit: true, conflict: 'More than one ' + reference + ' matches. Choose the intended component before Preview.', candidates }
+  }
+  const target = matches[0]
+  const targetProps = page.blocks.find(block => block.id === target.blockId)!.props, colorWords = normal(subjectWords)
+  const colorReference = name || [targetProps.title, targetProps.headline].find(value => typeof value === 'string' && normal(value).length >= 3 && colorWords.includes(normal(value))) || reference
+  const colorReferenceEnd = colorWords.indexOf(normal(String(colorReference)))
+  const colorValue = colorReferenceEnd < 0 ? colorWords : colorWords.slice(colorReferenceEnd + normal(String(colorReference)).length)
+  const backgroundRequested = /\b(?:background|fill)\b/i.test(unquoted) && !/\b(?:text|font|heading|headline|title|subtitle|subheading|link|button|icon)\s+(?:background|fill)\b/i.test(unquoted) || /\bcolou?r\b/i.test(unquoted) && !/\b(?:text|font|heading|headline|title|subtitle|subheading|link|button|outline|border|icon)\b/i.test(unquoted)
+  const backgroundOnly = (/\b(?:background|fill|colou?r)\b/i.test(unquoted) || /^(?:change|set|make|recolou?r|style)$/i.test(command[1]) && /\b(?:yellow|red|blue|green|orange|purple|violet|pink|brown|black|white|gr[ae]y|gold|silver|beige|navy|teal)\b|#[\da-f]{6}\b/i.test(colorValue)) && !/\b(?:text|font|heading|headline|title|subtitle|subheading|link|button|outline|border|icon|width|height|size|position|bigger|smaller|wider|narrower|taller|shorter)\b/i.test(unquoted) && !/\band\b/i.test(subjectWords.replace(/\band (?:leave|keep) (?:everything|the rest)[\s\S]*$/i, ''))
+  return { scope: { ...scope, target: target.id }, explicit: true, label: target.label, backgroundRequested: backgroundRequested || backgroundOnly, backgroundOnly,
+    ...(selected.kind !== 'page' && selected.id !== target.id ? { conflict: 'Your request names ' + target.label + ', but Editing currently selects ' + selected.label + '. Choose the requested component before Preview.', candidates: [{ id: target.id, label: target.label }] } : {}) }
+}
+
 export function editContext(config: SiteConfig, scope: EditScope, media: readonly EditMedia[] = []) {
   const targets = editTargets(config, scope.pageId), selected = targets.find(target => target.id === scope.target)
   if (!selected) throw new Error('Choose an existing component or the whole page.')
@@ -180,7 +288,10 @@ function formatText(props: Value, field: string, value: unknown, linking = false
 }
 
 /** Evaluate the entire proposal on a clone, then accept it as one undoable change. */
-export function previewEdits(config: SiteConfig, scope: EditScope, input: unknown, media: readonly EditMedia[] = []): EditPreview {
+export function previewEdits(config: SiteConfig, scope: EditScope, input: unknown, media: readonly EditMedia[] = [], instruction?: string): EditPreview {
+  const resolved = resolveEditTarget(config, scope, instruction ?? '')
+  if (resolved.conflict) throw new Error(resolved.conflict)
+  scope = resolved.scope
   if (!record(input) || Object.keys(input).some(key => !['summary', 'operations'].includes(key)) || !text(input.summary, 1500) || !Array.isArray(input.operations) || input.operations.length < 1 || input.operations.length > 50 || JSON.stringify(input).length > 150000) throw new Error('The assistant returned an invalid edit proposal.')
   const before = JSON.stringify(config), candidate = structuredClone(config), context = editContext(config, scope, media)
   const page = candidate.pages!.find(item => item.id === scope.pageId)!, changes: string[] = [], sharedChanges = new Set<string>()
@@ -196,6 +307,7 @@ export function previewEdits(config: SiteConfig, scope: EditScope, input: unknow
     if (!record(raw) || Object.keys(raw).some(key => !['action', 'target', 'field', 'value'].includes(key)) || !text(raw.action, 30) || !text(raw.target, 250) || !text(raw.field, 120)) throw new Error('Unsupported edit operation.')
     const operation = raw as unknown as EditOperation, target = context.targets.find(item => item.id === operation.target)
     if (!target) throw new Error('The proposal attempts to change a component outside the selected scope.')
+    if (resolved.backgroundOnly && (operation.action !== 'set' || operation.target !== scope.target || operation.field !== 'blockBackgroundColor')) throw new Error('This request changes only the named section’s background. The proposal changed a different property or child component.')
     const block = page.blocks.find(item => item.id === target.blockId)
     const objects = block && target.section ? block.props['section' + target.section + 'Objects'] as Value[] : undefined
     const object = objects?.find(item => item.id === target.objectId)
@@ -330,6 +442,7 @@ export function previewEdits(config: SiteConfig, scope: EditScope, input: unknow
     const actions: Record<string, string> = { textStyle: 'Format text in', addObject: 'Add a component to', addBlock: 'Add a block to', move: 'Move', remove: 'Remove', addItem: 'Add an item to', linkText: 'Link text in' }
     changes.push(operation.action === 'set' ? 'Change ' + fieldLabel + ' on ' + target.label + ' to ' + String(value).slice(0, 120) : operation.action === 'setMedia' ? 'Use ' + (media.find(asset => asset.id === value)?.name || 'approved media') + ' in ' + target.label : actions[operation.action] + ' ' + target.label)
   }
+  if (resolved.backgroundRequested && !input.operations.some(operation => record(operation) && operation.action === 'set' && operation.target === scope.target && operation.field === 'blockBackgroundColor')) throw new Error('The proposal did not change the named section’s background. A child component cannot substitute for that section.')
   for (const blockId of sharedChanges) {
     const block = page.blocks.find(item => item.id === blockId)!
     for (const other of candidate.pages!) for (const copy of other.blocks) if (copy.id !== block.id && copy.webstudioSharedSectionId === block.webstudioSharedSectionId) { copy.props = structuredClone(block.props); copy.variant = block.variant; changes.push('Update shared copy on ' + other.name) }
@@ -363,8 +476,8 @@ export function acceptEdits(current: SiteConfig, preview: EditPreview): SiteConf
   return structuredClone(preview.config)
 }
 
-export function refineEdits(current: SiteConfig, scope: EditScope, previous: EditPreview | null, plan: unknown, media: readonly EditMedia[] = []): EditPreview {
+export function refineEdits(current: SiteConfig, scope: EditScope, previous: EditPreview | null, plan: unknown, media: readonly EditMedia[] = [], instruction?: string): EditPreview {
   if (previous && JSON.stringify(current) !== previous.before) throw new Error('The project changed. Discard the old preview and request a new one.')
-  const next = previewEdits(previous?.config ?? current, scope, plan, media)
+  const next = previewEdits(previous?.config ?? current, scope, plan, media, instruction)
   return previous ? { ...next, before: previous.before, changes: [...previous.changes, ...next.changes], affectedPages: [...new Set([...previous.affectedPages, ...next.affectedPages])] } : next
 }

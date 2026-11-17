@@ -14,6 +14,14 @@ Each mode starts with a blank request and an example below it. For an existing p
 
 Recent conversation shows previewed, applied, undone and discarded results. It stays in this window. Clear conversation removes that request context without changing the project. Discard preview leaves the original untouched; Stop cancels a pending request; Close or Escape discards an unapplied proposal. Apply rejects an intervening project edit rather than overwriting it. The assistant's Undo reverses its latest applied transaction only while it remains the most recent edit; otherwise use normal editor history. Save normally after accepting changes.
 
+## Naming the section to change
+
+For a direct request such as “Change the hero section background to yellow,” the assistant checks the named section against the current page before contacting Google. When the whole page is selected, a unique matching section becomes the request's target. **Request targets** identifies it. The hero's background means the background behind its heading and introductory text, rather than a panel inside it or the section below it.
+
+If another component is selected, the assistant warns that the selection conflicts and offers a **Use …** button for the matching section. Choose that button, check **Editing**, then choose **Preview changes**. The warning makes no Google request and changes no project content. Switching targets discards any unapplied preview and its temporary conversation. If more than one section matches, choose the intended one; if none matches, change the selection or describe an existing section more precisely.
+
+Explicit component types, supported names such as hero/banner, exact section headings and first/last section references help identify targets. An ordinary follow-up such as “Make it smaller” retains the current target. Creation requests and link destinations do not by themselves select an existing section for modification. A request that changes several sections belongs under the whole-page selection. Always review the proposed changes before Apply; the app also rejects a returned operation that attempts to modify another section for a recognized named-section request.
+
 ## Existing media and structured content
 
 **Allow project media catalog** is optional. It sends names, logical folders, file types, dimensions and asset IDs—not files, blobs or local paths. Edit mode offers a folder selector; a request can use up to 500 entries. Creation can choose from approved existing images for galleries, staff portraits and card illustrations. Unknown images remain editable placeholders.
@@ -33,8 +41,8 @@ The assistant cannot execute generated code, operate arbitrary computer applicat
 ## Implementation
 
 - `src/blocks/editable-fields.ts` contains the existing property metadata shared with the Properties window.
-- `src/ai/gemini-edits.ts` builds scoped targets, checks operations, resolves approved asset IDs, preserves rich text and incoming links, and constructs immutable before/after previews.
-- `src/ai/gemini-edit-request.ts` handles the credential read, one request, bounded conversation and cancellation.
+- `src/ai/gemini-edits.ts` resolves recognized named sections locally, builds scoped targets, checks operations, resolves approved asset IDs, preserves rich text and incoming links, and constructs immutable before/after previews. Named background edits are checked against the owning block's background field.
+- `src/ai/gemini-edit-request.ts` checks the requested target before reading the credential or making its one request, and handles bounded conversation and cancellation.
 - `src/ai/GeminiEditAssistant.tsx` owns the temporary conversation and review controls. `GeminiPageAssistant.tsx` provides the neutral entry, explicit task selection, connection details and creation controls.
 - `src/ai/AIPagePreview.tsx` reuses normal BlockWrapper rendering with isolated styles and inert interaction.
 - `src/ai/gemini-pages.ts` retains the validated creation blueprint and generates ordinary components.
@@ -43,9 +51,11 @@ Local validation rejects unknown fields, prototype-related keys, unsupported ope
 
 ## Verification and preserved data
 
-The regression suite passed **429 tests** with two pre-existing integration skips. TypeScript, the production frontend build and both native builds passed. Focused checks include privacy/consent, exact rich-text preservation, panel children, list identity, real media references, dates, Navbar children, inline links, anchor/page-path repair, stale previews, atomic failure, Undo/Redo, portable serialization and static HTML export.
+The regression suite passed **443 tests** with two pre-existing integration skips. TypeScript, the production frontend build and both native builds passed. Focused checks include privacy/consent, exact rich-text preservation, panel children, list identity, real media references, dates, Navbar children, inline links, anchor/page-path repair, stale previews, atomic failure, Undo/Redo, portable serialization and static HTML export.
 
 The actual Win32 and Win64 production applications passed isolated UI checks for existing edits, follow-up previews, Apply and exact Undo, media references, staff/bulletin/calendar entries, navigation/anchors, responsive review widths, quota errors, Stop and Escape. Each also read the saved Windows credential and successfully completed two live Gemini requests using only synthetic panel content: an initial size/color change and a follow-up size refinement. No user project text or key contents were logged. Creation UI regression checks passed after task-switch integration; prior stage validation also exercised live page/section creation in both builds.
+
+The named-target correction has its own repeatable native regression, `tests/browser/gemini-targeting.mjs`. It requires an isolated WebView profile and loopback CDP connection, mocks the credential read and Google replies, and rejects live-mode opt-in. Both architectures are checked for a conflicting lower-section selection, explicit Hero selection, rejection of wrong-block and child-panel operations, a yellow Hero in the AI review, Editor and ordinary site Preview, unchanged lower content, exact Undo, whole-page narrowing and duplicate-heading choices. The targeting checks use no real key and make no live Gemini request. Existing native editing regressions also pass with the targeting safeguards in place.
 
 The pre-completion backup is `H:\Delphi Web Studio Backups\DelphiWebStudioPro-stage2-working-pre-AI-completion-20261117-011001-UTC.zip` (500 files, 198,793,489 bytes, CRC verified; SHA-256 `61ffbfa5ac1580ea06cb5eca556b963ae432d578eb30f25bc5b2a61732298b5d`). The complete pre-AI v1.0 fallback remains preserved. Saved project and Website Test hashes are checked again before final commit. Clean-machine installation and arbitrary-provider compatibility remain subject to the existing release limitations.
 

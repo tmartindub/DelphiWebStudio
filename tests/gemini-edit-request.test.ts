@@ -32,4 +32,35 @@ describe('reviewed Gemini edit requests', () => {
     await expect(generateEditPlan(config, scope, 'Make it blue', options())).rejects.toThrow('free quota')
     expect(fetch).toHaveBeenCalledTimes(1)
   })
+  it('blocks missing or conflicting named targets before reading the key or sending a request', async () => {
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch)
+    await expect(generateEditPlan(config, scope, 'Change the hero background to yellow', options())).rejects.toThrow('No matching')
+    const fixture = structuredClone(config)
+    fixture.pages![0].blocks.push({ id: 'hero', type: 'hero', variant: 'minimal', props: { headline: 'Welcome', subheadline: 'Keep me' } }); fixture.blocks = fixture.pages![0].blocks
+    await expect(generateEditPlan(fixture, scope, 'Change the hero background to yellow', options())).rejects.toThrow('currently selects')
+    expect(requestGeminiCredential).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled()
+  })
+  it('sends only the uniquely named hero from a whole-page request and rejects a response that edits the lower block', async () => {
+    const fixture = structuredClone(config)
+    fixture.pages![0].blocks.unshift({ id: 'hero', type: 'hero', variant: 'minimal', props: { headline: 'Welcome', subheadline: 'Keep me' } }); fixture.blocks = fixture.pages![0].blocks
+    vi.mocked(requestGeminiCredential).mockResolvedValue('synthetic-key')
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify({ summary: 'Color changed', operations: [{ action: 'set', target: 'block:panel', field: 'blockBackgroundColor', value: '"#ffff00"' }] }) }] } }] }))); vi.stubGlobal('fetch', fetch)
+    await expect(generateEditPlan(fixture, { pageId: 'home', target: 'page:home' }, 'Change the hero section color to yellow', options())).rejects.toThrow('outside')
+    expect(fetch).toHaveBeenCalledTimes(1)
+    const body = JSON.parse(fetch.mock.calls[0][1].body), payload = JSON.parse(body.contents[0].parts[0].text)
+    expect(payload.context.target).toBe('block:hero')
+    expect(payload.context.requestedTarget).toMatchObject({ id: 'block:hero', explicit: true, backgroundOnly: true })
+    expect(payload.context.targets.map((target: { id: string }) => target.id)).not.toContain('block:panel')
+    expect(payload.context.instructions).toContain('only set operations on requestedTarget.id')
+  })
+  it('returns a valid hero background proposal without applying it or changing lower content', async () => {
+    const fixture = structuredClone(config)
+    fixture.pages![0].blocks.unshift({ id: 'hero', type: 'hero', variant: 'minimal', props: { headline: 'Welcome', subheadline: 'Keep me' } }); fixture.blocks = fixture.pages![0].blocks
+    const original = structuredClone(fixture)
+    vi.mocked(requestGeminiCredential).mockResolvedValue('synthetic-key')
+    const response = { summary: 'Hero background changed to yellow', operations: [{ action: 'set', target: 'block:hero', field: 'blockBackgroundColor', value: '"#ffff00"' }] }
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(response) }] } }] }))); vi.stubGlobal('fetch', fetch)
+    await expect(generateEditPlan(fixture, { pageId: 'home', target: 'page:home' }, 'Change the hero background to yellow', options())).resolves.toEqual(response)
+    expect(fixture).toEqual(original)
+  })
 })

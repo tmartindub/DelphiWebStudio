@@ -2,13 +2,17 @@ import { requestGeminiCredential } from '@/desktop/native-bridge'
 import { GEMINI_TEXT_MODEL } from '@/lib/gemini-text'
 import type { SiteConfig } from '@/blocks/types'
 import { blockMetadata } from '@/lib/block-metadata'
-import { editContext, type EditScope, type EditPlan, type EditMedia } from './gemini-edits'
+import { editContext, previewEdits, resolveEditTarget, type EditScope, type EditPlan, type EditMedia } from './gemini-edits'
 
 export type EditTurn = { request: string; result: string; state: 'previewed' | 'applied' | 'undone' | 'discarded' }
 export async function generateEditPlan(config: SiteConfig, scope: EditScope, instruction: string, options: { consent: boolean; freeTierConfirmed: boolean; history: EditTurn[]; signal: AbortSignal; media?: readonly EditMedia[] }): Promise<EditPlan> {
   if (!options.consent || !options.freeTierConfirmed) throw new Error('Confirm sharing and a Free tier project with billing disabled before Preview.')
   if (!instruction.trim() || instruction.length > 3000) throw new Error('Enter a request of up to 3,000 characters.')
-  const context = editContext(config, scope, options.media), key = await requestGeminiCredential('read')
+  const resolved = resolveEditTarget(config, scope, instruction)
+  if (resolved.conflict) throw new Error(resolved.conflict)
+  const context = { ...editContext(config, resolved.scope, options.media), requestedTarget: { id: resolved.scope.target, label: resolved.label, explicit: resolved.explicit, backgroundRequested: resolved.backgroundRequested ?? false, backgroundOnly: resolved.backgroundOnly ?? false } }
+  context.instructions += ' requestedTarget is resolved locally from the edit subject. Do not substitute another component. When backgroundRequested is true, a nonempty proposal must set requestedTarget.id and its blockBackgroundColor field. When backgroundOnly is true, return only set operations on requestedTarget.id and its blockBackgroundColor field; do not recolor text or child panels.'
+  const key = await requestGeminiCredential('read')
   if (!key) throw new Error('Save your Google key in Settings first.')
   options.signal.throwIfAborted()
   const timeout = new AbortController(), timer = setTimeout(() => timeout.abort(), 90000)
@@ -29,6 +33,7 @@ export async function generateEditPlan(config: SiteConfig, scope: EditScope, ins
     if (candidate?.finishReason !== 'STOP' || !Array.isArray(candidate.content?.parts)) throw new Error('Gemini did not return a complete proposal.')
     const result = JSON.parse(candidate.content.parts.filter((part: { thought?: boolean; text?: unknown }) => !part.thought && typeof part.text === 'string').map((part: { text: string }) => part.text).join(''))
     if (!result || typeof result.summary !== 'string' || result.summary.length > 1500 || !Array.isArray(result.operations)) throw new Error('Gemini returned an invalid proposal.')
+    if (result.operations.length) previewEdits(config, resolved.scope, result, options.media, instruction)
     return result
   } catch (error) {
     if (options.signal.aborted) throw new DOMException('Cancelled', 'AbortError')

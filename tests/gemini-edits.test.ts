@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { editContext, editTargets, previewEdits, acceptEdits, refineEdits, type EditOperation } from '@/ai/gemini-edits'
+import { editContext, editTargets, resolveEditTarget, previewEdits, acceptEdits, refineEdits, type EditOperation } from '@/ai/gemini-edits'
 import type { SiteConfig } from '@/blocks/types'
 import { useConfigStore } from '@/store/configStore'
 import { createProjectFile, serializeProjectFile, parseProjectFile } from '@/project/project-file'
@@ -11,6 +11,114 @@ const config: SiteConfig = { name: 'Synthetic fixture', blocks, pages: [{ id: 'h
 const scope = { pageId: 'home', target: 'page:home' }
 const op = (action: EditOperation['action'], target: string, field: string, value: unknown): EditOperation => ({ action, target, field, value: JSON.stringify(value) })
 const plan = (...operations: EditOperation[]) => ({ summary: 'Reviewed edits', operations })
+describe('explicit AI edit subjects', () => {
+  const fixture = structuredClone(config)
+  fixture.pages![0].blocks.splice(1, 0, { id: 'body', type: 'content', variant: 'prose', props: { body: '## Parish news\n\nKeep this lower section.', blockBackgroundColor: '#ffffff' } })
+  fixture.blocks = fixture.pages![0].blocks
+  it('narrows whole-page hero and banner requests to the actual hero', () => {
+    for (const request of ['Change the hero section color to yellow', 'Please change the banner background to yellow', 'Set the background of the hero to yellow']) {
+      expect(resolveEditTarget(fixture, scope, request)).toMatchObject({ scope: { pageId: 'home', target: 'block:hero' }, explicit: true, backgroundOnly: true })
+      const preview = previewEdits(fixture, scope, plan(op('set', 'block:hero', 'blockBackgroundColor', '#ffff00')), [], request)
+      expect(preview.config.blocks[0].props.blockBackgroundColor).toBe('#ffff00')
+      expect(preview.config.blocks[1]).toEqual(fixture.blocks[1])
+      expect(() => previewEdits(fixture, scope, plan(op('set', 'block:body', 'blockBackgroundColor', '#ffff00')), [], request)).toThrow('outside')
+    }
+  })
+  it('blocks conflicting selections, including a child of the named block', () => {
+    for (const target of ['block:body', 'object:hero:1:panel', 'object:hero:1:text']) {
+      const resolved = resolveEditTarget(fixture, { pageId: 'home', target }, 'Change the hero section color to yellow')
+      expect(resolved.conflict).toContain('currently selects')
+      expect(resolved.candidates).toMatchObject([{ id: 'block:hero' }])
+      expect(() => previewEdits(fixture, { pageId: 'home', target }, plan(op('set', 'block:body', 'blockBackgroundColor', '#ffff00')), [], 'Change the hero background to yellow')).toThrow('currently selects')
+    }
+  })
+  it('requires the named section background rather than a child or automatic text recoloring', () => {
+    const request = 'Change the hero background to yellow'
+    expect(() => previewEdits(fixture, scope, plan(op('set', 'object:hero:1:panel', 'backgroundColor', '#ffff00')), [], request)).toThrow('only the named section')
+    expect(() => previewEdits(fixture, scope, plan(op('set', 'block:hero', 'blockBackgroundColor', '#ffff00'), op('set', 'block:hero', 'textColor', '#000000')), [], request)).toThrow('only the named section')
+    expect(() => previewEdits(fixture, scope, plan(op('set', 'block:hero', 'blockBackgroundColor', '#ffff00'), op('set', 'block:hero', 'textColor', '#000000')), [], 'Change the hero background to yellow and its text color to black')).not.toThrow()
+    for (const combined of ['Change the hero background to yellow and keep its text unchanged', 'Change the hero background to yellow and its text color to black']) {
+      expect(() => previewEdits(fixture, scope, plan(op('set', 'object:hero:1:panel', 'backgroundColor', '#ffff00')), [], combined)).toThrow('named section’s background')
+    }
+  })
+  it('resolves exact headings and explicit positions', () => {
+    expect(resolveEditTarget(fixture, scope, 'Change the section titled "Welcome friends" background to yellow').scope.target).toBe('block:hero')
+    expect(resolveEditTarget(fixture, scope, 'Change the "Welcome friends" section color to yellow').scope.target).toBe('block:hero')
+    expect(resolveEditTarget(fixture, scope, 'Change the Welcome friends section background to yellow').scope.target).toBe('block:hero')
+    expect(resolveEditTarget(fixture, scope, 'Make Welcome friends yellow')).toMatchObject({ scope: { target: 'block:hero' }, backgroundOnly: true })
+    expect(resolveEditTarget(fixture, scope, 'Change the block titled "Parish news" color to yellow').scope.target).toBe('block:body')
+    expect(resolveEditTarget(fixture, scope, 'Change the first section color to yellow').scope.target).toBe('block:hero')
+    expect(resolveEditTarget(fixture, scope, 'Change section 2 color to yellow').scope.target).toBe('block:body')
+    expect(resolveEditTarget(fixture, scope, 'Change the bottom block color to yellow').scope.target).toBe('block:footer')
+    const named = structuredClone(fixture)
+    named.pages![0].blocks[0].props.headline = 'Welcome to Faith and Family'
+    expect(resolveEditTarget(named, scope, 'Change the section titled "Welcome to Faith and Family" background to yellow')).toMatchObject({ scope: { target: 'block:hero' }, backgroundOnly: true })
+  })
+  it('does not guess between duplicate heroes, but accepts a matching selected hero', () => {
+    const duplicate = structuredClone(fixture)
+    duplicate.pages![0].blocks.push({ id: 'hero-two', type: 'hero', variant: 'minimal', props: { headline: 'Second hero' } }); duplicate.blocks = duplicate.pages![0].blocks
+    expect(resolveEditTarget(duplicate, scope, 'Change the hero background to yellow')).toMatchObject({ conflict: expect.stringContaining('More than one'), candidates: [{ id: 'block:hero', label: expect.any(String) }, { id: 'block:hero-two', label: expect.any(String) }] })
+    const selected = resolveEditTarget(duplicate, { pageId: 'home', target: 'block:hero-two' }, 'Change the hero background to yellow')
+    expect(selected.scope.target).toBe('block:hero-two'); expect(selected.conflict).toBeUndefined()
+    expect(resolveEditTarget(duplicate, scope, 'Change the last hero section color to yellow').scope.target).toBe('block:hero-two')
+  })
+  it('keeps creation, navigation destinations, quoted replacements and ordinary follow-ups in their selected scope', () => {
+    for (const request of ['Add a hero with a yellow background', 'Link this text to the footer', 'Change this text to "the hero section"', 'Change the link to the footer', 'Make it smaller', 'Make this panel narrower and change its background to light blue', 'Make this Panel narrower', 'Do not change the footer', 'Keep the hero unchanged']) {
+      expect(resolveEditTarget(fixture, { pageId: 'home', target: 'object:hero:1:panel' }, request)).toMatchObject({ scope: { target: 'object:hero:1:panel' }, explicit: false })
+    }
+    expect(resolveEditTarget(fixture, scope, 'Change the hero background, do not change the footer').scope.target).toBe('block:hero')
+    expect(resolveEditTarget(fixture, scope, 'Change the hero background and footer color')).toMatchObject({ scope, explicit: false })
+    expect(resolveEditTarget(fixture, { pageId: 'home', target: 'block:hero' }, 'Change the hero background and footer color').conflict).toContain('whole page')
+    expect(resolveEditTarget(fixture, { pageId: 'home', target: 'block:hero' }, 'Change the hero image to an existing photo')).toMatchObject({ scope: { target: 'block:hero' }, explicit: true })
+    const navigation = structuredClone(fixture)
+    navigation.pages![0].blocks.unshift({ id: 'nav', type: 'navbar', variant: 'default', props: { logo: 'Parish' } }); navigation.blocks = navigation.pages![0].blocks
+    expect(resolveEditTarget(navigation, { pageId: 'home', target: 'block:nav' }, 'Change the navbar logo image to an existing photo')).toMatchObject({ scope: { target: 'block:nav' }, explicit: true })
+  })
+  it('returns local conflicts for missing components without throwing during typing', () => {
+    expect(resolveEditTarget(fixture, scope, 'Change the calendar background to yellow').conflict).toContain('No matching')
+    expect(resolveEditTarget(fixture, scope, 'Change section named Missing background to yellow').conflict).toContain('No matching')
+    expect(resolveEditTarget(fixture, { pageId: 'home', target: 'block:body' }, 'Change the Missing News section background to yellow').conflict).toContain('No matching')
+    expect(resolveEditTarget(fixture, scope, 'Change the FAQ background to yellow').conflict).toContain('No matching')
+    expect(resolveEditTarget(fixture, scope, 'Change section 20 color to yellow').conflict).toContain('No matching')
+    expect(resolveEditTarget(fixture, { pageId: 'missing', target: 'page:missing' }, 'Change hero color').conflict).toContain('page no longer exists')
+    expect(resolveEditTarget(fixture, { pageId: 'home', target: 'block:missing' }, 'Change hero color').conflict).toContain('component no longer exists')
+  })
+  it('does not mistake color words in a section name for a background request', () => {
+    const named = structuredClone(fixture)
+    named.pages![0].blocks[0].props.headline = 'Black History'; named.blocks = named.pages![0].blocks
+    for (const request of ['Move Black History section down', 'Remove the Black History section', 'Make Black History section more welcoming']) {
+      expect(resolveEditTarget(named, scope, request)).toMatchObject({ scope: { target: 'block:hero' }, backgroundRequested: false, backgroundOnly: false })
+    }
+    expect(() => previewEdits(named, scope, plan(op('move', 'block:hero', '', { index: 1 })), [], 'Move Black History section down')).not.toThrow()
+    expect(() => previewEdits(named, scope, plan(op('remove', 'block:hero', '', null)), [], 'Remove the Black History section')).not.toThrow()
+    expect(resolveEditTarget(named, scope, 'Make Black History section yellow')).toMatchObject({ backgroundRequested: true, backgroundOnly: true })
+  })
+  it('resolves the complete named heading before a shorter selected prefix or generic type word', () => {
+    const named = structuredClone(fixture)
+    named.pages![0].blocks[0].props.headline = 'Welcome'
+    named.pages![0].blocks[1].props.title = 'Welcome Visitors'; named.blocks = named.pages![0].blocks
+    const longer = resolveEditTarget(named, { pageId: 'home', target: 'block:hero' }, 'Change Welcome Visitors section background to yellow')
+    expect(longer.scope.target).toBe('block:body'); expect(longer.conflict).toContain('currently selects')
+    named.pages![0].blocks[1].props.title = 'Community Hero'
+    expect(resolveEditTarget(named, scope, 'Change the background of the Community Hero section to yellow').scope.target).toBe('block:body')
+  })
+  it('uses the named block as owner when changing an image inside that block', () => {
+    const withImage = structuredClone(fixture)
+    withImage.pages![0].blocks.push({ id: 'standalone-image', type: 'image', variant: 'default', props: { src: 'assets/existing.jpg', alt: 'Separate image' } }); withImage.blocks = withImage.pages![0].blocks
+    for (const request of ['Change the image in the hero to the existing photo', 'Change the image inside the hero to the existing photo', 'Change the image within the hero to the existing photo']) {
+      const resolved = resolveEditTarget(withImage, scope, request)
+      expect(resolved.scope.target).toBe('block:hero'); expect(resolved.conflict).toBeUndefined()
+    }
+  })
+  it('validates named refinements against the proposed state while retaining earlier edits', () => {
+    const first = previewEdits(fixture, scope, plan(op('set', 'block:hero', 'headlineWidth', 500)))
+    const refined = refineEdits(fixture, scope, first, plan(op('set', 'block:hero', 'blockBackgroundColor', '#ffff00')), [], 'Change the hero background to yellow')
+    expect(refined.config.blocks[0].props).toMatchObject({ headlineWidth: 500, blockBackgroundColor: '#ffff00' })
+    expect(refined.config.blocks[1]).toEqual(fixture.blocks[1])
+    expect(() => refineEdits(fixture, scope, first, plan(op('set', 'block:body', 'blockBackgroundColor', '#ffff00')), [], 'Change the hero background to yellow')).toThrow('outside')
+  })
+})
+
 describe('Gemini editing of existing content', () => {
   it('exposes normal scalar properties and exact targets without credentials or other-page content', () => {
     const context = JSON.stringify(editContext(config, { pageId: 'home', target: 'block:hero' }))

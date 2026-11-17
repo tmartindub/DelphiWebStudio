@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
-import { acceptEdits, editTargets, refineEdits, type EditPreview, type EditScope, type EditMedia } from './gemini-edits'
+import { acceptEdits, editTargets, refineEdits, resolveEditTarget, type EditPreview, type EditScope, type EditMedia } from './gemini-edits'
 import { generateEditPlan, type EditTurn } from './gemini-edit-request'
 import { AIPagePreview } from './AIPagePreview'
 import { geminiPageSession } from './gemini-pages'
@@ -24,6 +24,7 @@ export function GeminiEditAssistant({ onClose, header }: { onClose: () => void; 
   const targets = editTargets(config, pageId), scope: EditScope = { pageId, target }
   const [instruction, setInstruction] = useState(''), [history, setHistory] = useState<EditTurn[]>([])
   const [proposal, setProposal] = useState<EditPreview | null>(null), [error, setError] = useState(''), [message, setMessage] = useState('')
+  const requestTarget = instruction.trim() ? resolveEditTarget(proposal?.config ?? config, scope, instruction) : null
   const [busy, setBusy] = useState(false), [width, setWidth] = useState(1200), [view, setView] = useState<'before' | 'after'>('after')
   const [consent, setConsent] = useState(false), [freeTier, setFreeTier] = useState(geminiPageSession.freeTierConfirmed)
   const dialog = useRef<HTMLDialogElement>(null), request = useRef<AbortController | null>(null), applied = useRef<SiteConfig | null>(null)
@@ -63,6 +64,10 @@ export function GeminiEditAssistant({ onClose, header }: { onClose: () => void; 
         </div>
       </div></details>
       <div><label className="block font-semibold">{proposal ? 'Refine this preview' : 'What would you like to change?'}<textarea aria-label="AI edit request" disabled={busy} maxLength={3000} value={instruction} onChange={event => setInstruction(event.target.value)} className={field + ' min-h-20 font-normal'} /></label><p className="mt-1 text-xs text-slate-600">Example: {proposal ? 'Make it smaller, and use a lighter blue.' : 'Make this panel narrower and change its background to light blue.'}</p></div>
+      {requestTarget && (requestTarget.explicit || requestTarget.conflict) && <div role={requestTarget.conflict ? 'alert' : 'status'} className={'space-y-2 rounded border p-3 text-sm ' + (requestTarget.conflict ? 'border-amber-400 bg-amber-50 text-amber-950' : 'border-blue-200 bg-blue-50')}>
+        <p>{requestTarget.conflict || 'Request targets: ' + requestTarget.label}</p>
+        {requestTarget.conflict && <><p>Choose the section you mean before Preview. No request has been sent for this change.</p><div className="flex flex-wrap gap-2">{requestTarget.candidates?.map(candidate => <button key={candidate.id} type="button" disabled={busy} className={button + ' max-w-full break-words bg-white text-left text-slate-900'} onClick={() => { setTarget(candidate.id); reset() }}>Use {candidate.label}</button>)}</div>{proposal && <p>Changing the selection discards this preview and its temporary conversation.</p>}</>}
+      </div>}
       {history.length > 0 && <details><summary className="cursor-pointer text-sm font-semibold">Recent conversation ({history.length})</summary><ol className="mt-2 max-h-44 space-y-2 overflow-auto rounded border border-slate-300 p-3 text-sm">{history.map((turn, index) => <li key={index}><p className="font-semibold">You: {turn.request}</p><p className="whitespace-pre-wrap">{turn.result} <span className="text-xs text-slate-500">({turn.state})</span></p></li>)}</ol><button type="button" disabled={busy} className={button + ' mt-2'} onClick={() => setHistory([])}>Clear conversation</button></details>}
       {proposal && <><ul aria-label="AI edit changes" className="max-h-36 list-inside list-disc overflow-auto rounded border border-slate-300 bg-slate-50 p-3 text-sm">{proposal.changes.map((change, index) => <li key={index}>{change}</li>)}</ul>
         <div className="flex flex-wrap gap-2">{(['before', 'after'] as const).map(item => <button type="button" key={item} aria-pressed={view === item} className={button + (view === item ? ' bg-blue-100' : '')} onClick={() => setView(item)}>{item === 'before' ? 'Current page' : 'Proposed page'}</button>)}<span className="grow" />{[[1200, 'Desktop'], [768, 'Tablet'], [390, 'Phone']].map(([size, label]) => <button type="button" key={size} className={button + (width === size ? ' bg-blue-100' : '')} onClick={() => setWidth(Number(size))}>{label}</button>)}</div>
@@ -78,7 +83,7 @@ export function GeminiEditAssistant({ onClose, header }: { onClose: () => void; 
     </div>
     <footer className="sticky bottom-0 z-20 flex flex-wrap justify-end gap-2 border-t border-slate-300 bg-white px-5 py-3">
       {proposal && <button type="button" disabled={busy} className={button} onClick={() => { setProposal(null); setHistory(old => old.map(turn => turn.state === 'previewed' ? { ...turn, state: 'discarded' } : turn)); setMessage('Preview discarded. Your project is unchanged.'); setError('') }}>Discard preview</button>}
-      {busy ? <button type="button" className={button} onClick={() => request.current?.abort()}>Stop</button> : <button type="button" className="rounded bg-blue-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40" disabled={!instruction.trim() || !consent || !freeTier || !targets.some(item => item.id === target)} onClick={async () => {
+      {busy ? <button type="button" className={button} onClick={() => request.current?.abort()}>Stop</button> : <button type="button" className="rounded bg-blue-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40" disabled={!instruction.trim() || !consent || !freeTier || !!requestTarget?.conflict || !targets.some(item => item.id === target)} onClick={async () => {
         document.querySelectorAll('[data-rich-editor]').forEach(element => element.dispatchEvent(new Event('webstudio-flush-text')))
         const current = useConfigStore.getState().config, controller = new AbortController()
         setBusy(true); setError(''); setMessage(''); request.current = controller
@@ -86,15 +91,17 @@ export function GeminiEditAssistant({ onClose, header }: { onClose: () => void; 
           if (useEditorStore.getState().activeProjectId !== projectId) throw new Error('The active project changed. Reopen the assistant.')
           if (catalog.length > 500) throw new Error('Choose a media folder with at most 500 files.')
           if (proposal && JSON.stringify(current) !== proposal.before) throw new Error('The project changed. Discard this preview first.')
-          const plan = await generateEditPlan(proposal?.config ?? current, scope, instruction, { consent, freeTierConfirmed: freeTier, history, signal: controller.signal, media: catalog })
+          const requestConfig = proposal?.config ?? current, resolvedTarget = resolveEditTarget(requestConfig, scope, instruction)
+          if (resolvedTarget.conflict) throw new Error(resolvedTarget.conflict)
+          const plan = await generateEditPlan(requestConfig, resolvedTarget.scope, instruction, { consent, freeTierConfirmed: freeTier, history, signal: controller.signal, media: catalog })
           if (controller.signal.aborted) return
           if (!plan.operations.length) { setMessage(plan.summary); setHistory(old => [...old.slice(-11), { request: instruction, result: plan.summary, state: 'discarded' }]); return }
-          const reviewed = refineEdits(current, scope, proposal, plan, catalog)
-          setProposal(reviewed); setView('after'); setHistory(old => [...old.slice(-11), { request: instruction, result: plan.summary, state: 'previewed' }]); setInstruction('')
+          const reviewed = refineEdits(current, resolvedTarget.scope, proposal, plan, catalog, instruction)
+          setTarget(resolvedTarget.scope.target); setProposal(reviewed); setView('after'); setHistory(old => [...old.slice(-11), { request: instruction, result: plan.summary, state: 'previewed' }]); setInstruction('')
         } catch (failure) { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'The proposal could not be prepared.') }
         finally { if (request.current === controller) { request.current = null; setBusy(false) } }
       }}>{proposal ? 'Refine preview' : 'Preview changes'}</button>}
-      {proposal && <button type="button" className="rounded bg-orange-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-40" disabled={busy} onClick={() => {
+      {proposal && <button type="button" className="rounded bg-orange-500 px-4 py-2 text-sm font-semibold text-slate-950 disabled:opacity-40" disabled={busy || !!requestTarget?.conflict} onClick={() => {
         if (!proposal) return
         try { if (useEditorStore.getState().activeProjectId !== projectId) throw new Error('The active project changed.'); useConfigStore.getState().replaceConfig(acceptEdits(useConfigStore.getState().config, proposal), 'Gemini: edit website'); useConfigStore.getState().setActivePage(pageId); applied.current = useConfigStore.getState().config; setCanUndo(true); setProposal(null); setHistory(old => { const changed = old.map(turn => turn.state === 'previewed' ? { ...turn, state: 'applied' as const } : turn); appliedTurns.current = new Set(changed.filter((turn, index) => turn !== old[index])); return changed }); setMessage('Applied. Continue with another request, Undo, or close and save your project.'); setError(''); useEditorStore.getState().selectBlock(null) }
         catch (failure) { setError(failure instanceof Error ? failure.message : 'Apply failed.') }
