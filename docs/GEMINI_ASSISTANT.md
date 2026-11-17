@@ -1,14 +1,16 @@
 # Gemini assistance for text, creation and existing content
 
-Last changed: 2026-11-16. Local development only; GitHub pushing and publication remain on hold.
+Last changed: 2026-11-17. Local development only; GitHub pushing and publication remain on hold.
 
 ## Using the assistant
 
 Save a Google AI Studio key in Settings → Application-wide AI connection → Save key. Windows Credential Manager retains it for the current Windows account across projects and restarts. The owner has confirmed Free tier with billing disabled. The API key cannot establish billing status; the application asks for that confirmation and never retries against a different model or paid fallback.
 
-Select wording for **Help with selected text**, or choose **AI assistant** beside Page tools for layouts and content. **Create page or section** uses one reference page and supplied facts. **Edit existing content** uses the chosen page, block, independent object or supported list item. All results are proposals until **Apply**; normal editing remains available without AI.
+Select wording for **Help with selected text**, or choose **AI assistant** beside Page tools for layouts and content. The toolbar always opens the neutral **AI Assistant** window: neither mode is selected and no request fields appear until you explicitly choose **Create** or **Edit existing content**. Both buttons remain visible, with the active mode highlighted. **Create** uses one reference page and supplied facts. **Edit existing content** takes its initial target from the editor selection only after you choose that mode. **Editing** shows the page and item; **Change selection** opens the page/component controls. Normal editing remains available without AI.
 
-For an existing panel, try: “Make this panel 50 percent wide and light blue; keep its text.” After Preview, follow with: “Make it 45 percent wide and use a paler blue.” The second request refines the proposed model, and one Apply accepts both requests as a normal undoable edit. Current page / Proposed page and Desktop / Tablet / Phone support visual review. Use the normal editor Preview after acceptance to exercise links and visitor controls; the AI review is read-only.
+Each mode starts with a blank request and an example below it. For an existing panel, enter “Make this panel 50 percent wide and light blue; keep its text,” then choose **Preview changes**. Follow with “Make it 45 percent wide and use a paler blue” and **Refine preview**. The second request adjusts the proposed version; one **Apply** accepts both as an undoable edit. **Create** uses **Preview new content**, followed by **New preview** for a fresh result. Current page / Proposed page and Desktop / Tablet / Phone support visual review. Use the normal editor Preview after acceptance to exercise links and visitor controls; the AI review is read-only. The separate selected-text assistant keeps its **Preview** action.
+
+**Connection details** contains the model and key information, with **Key saved** or **Setup needed** as the status. Confirm Free tier and sharing near the preview action. **Apply** appears when a proposal exists, **Undo** appears after acceptance, and **Close** is always available. Switching modes ends the previous mode’s temporary review.
 
 Recent conversation shows previewed, applied, undone and discarded results. It stays in this window. Clear conversation removes that request context without changing the project. Discard preview leaves the original untouched; Stop cancels a pending request; Close or Escape discards an unapplied proposal. Apply rejects an intervening project edit rather than overwriting it. The assistant's Undo reverses its latest applied transaction only while it remains the most recent edit; otherwise use normal editor history. Save normally after accepting changes.
 
@@ -33,7 +35,7 @@ The assistant cannot execute generated code, operate arbitrary computer applicat
 - `src/blocks/editable-fields.ts` contains the existing property metadata shared with the Properties window.
 - `src/ai/gemini-edits.ts` builds scoped targets, checks operations, resolves approved asset IDs, preserves rich text and incoming links, and constructs immutable before/after previews.
 - `src/ai/gemini-edit-request.ts` handles the credential read, one request, bounded conversation and cancellation.
-- `src/ai/GeminiEditAssistant.tsx` owns the temporary conversation and review controls. `GeminiPageAssistant.tsx` provides task switching and creation controls.
+- `src/ai/GeminiEditAssistant.tsx` owns the temporary conversation and review controls. `GeminiPageAssistant.tsx` provides the neutral entry, explicit task selection, connection details and creation controls.
 - `src/ai/AIPagePreview.tsx` reuses normal BlockWrapper rendering with isolated styles and inert interaction.
 - `src/ai/gemini-pages.ts` retains the validated creation blueprint and generates ordinary components.
 

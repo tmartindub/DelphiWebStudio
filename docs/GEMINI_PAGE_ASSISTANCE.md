@@ -1,6 +1,6 @@
 # Gemini page and section assistance — Stage 2 baseline
 
-Last changed: 2026-11-16
+Last changed: 2026-11-17
 
 This development is local on branch `codex/gemini-pages-stage2`. It has not been pushed to GitHub or published. Stage 1 selected-text assistance remains available.
 
@@ -8,7 +8,7 @@ This dated record describes the original creation increment. Creation now shares
 
 ## Creating something you can edit
 
-Open a project and choose **AI assistant** beside **Page tools**. Select a new page or a section on the current page, then choose an existing page as the style reference. Describe the result you want. For example:
+Open a project and choose **AI assistant** beside **Page tools**. The neutral **AI Assistant** window opens with neither mode selected and no request fields. Explicitly choose **Create**, then select a new page or a section on the current page and choose an existing page as the style reference. Both **Create** and **Edit existing content** remain visible, with the active mode highlighted. The request starts blank, with an example below it. Enter the result you want. For example:
 
 > Create a staff directory matching Home, with six portrait spaces and editable names, roles and biographies. Use clearly marked placeholders for missing details.
 
@@ -18,15 +18,15 @@ For a section, a suitable request is:
 
 Use an existing page's actual address when requesting a button destination. **Facts and wording to use** accepts the names, descriptions or other information the assistant must work from. Missing facts should become labeled placeholders. Review the result for accuracy; the model does not independently verify facts.
 
-Confirm that the saved key belongs to a Google project on **Free tier with billing disabled**, then consent to sharing the displayed context. These confirmations are remembered only for the running session. The assistant reuses the Windows-saved key; it does not ask for a key per project.
+Expand **Connection details** for the model and key information; the status is **Key saved** or **Setup needed**. Confirm that the saved key belongs to a Google project on **Free tier with billing disabled**, then consent to sharing the displayed context near the preview action. These confirmations are remembered only for the running session. The assistant reuses the Windows-saved key; it does not ask for a key per project.
 
-Choose **Preview**. The app requests a proposal, checks its structure and turns it into the same components used by the editor. The review lists the proposed changes and shows the new content at desktop, tablet and phone widths. Scroll within the content preview to see the whole result; the desktop preview also scrolls horizontally when the window is narrower than the page. The reference Navbar and Footer are copied only when the corresponding option is selected; they are not repeated in the content-only preview.
+Choose **Preview new content**. The app requests a proposal, checks its structure and turns it into the same components used by the editor. The review lists the proposed changes and shows the new content at desktop, tablet and phone widths. Scroll within the content preview to see the whole result; the desktop preview also scrolls horizontally when the window is narrower than the page. The reference Navbar and Footer are copied only when the corresponding option is selected; they are not repeated in the content-only preview.
 
-A new page's proposed name and address can be corrected before Apply without making another request. The address must be unique, such as `/staff-directory`. Choose **New preview** to request a different result.
+A new page's proposed name and address can be corrected before Apply without making another request. The address must be unique, such as `/staff-directory`. Choose **New preview** to request another result from an unchanged brief. Editing the brief clears the proposal and returns the action to **Preview new content**.
 
-**Apply** adds the reviewed page or section in one undoable edit. It never replaces an existing page or changes the global theme. A section goes after the block selected when the assistant opened, or before the footer when no block was selected. Selecting the footer also inserts before it. **Undo** in the assistant restores the previous site and page selection. After closing the assistant, the editor's normal Undo and Redo commands also work.
+**Apply** appears when a proposal exists and adds the reviewed page or section in one undoable edit. It never replaces an existing page or changes the global theme. A section goes after the block captured when you explicitly chose **Create**, or before the footer when no block was selected. Selecting the footer also inserts before it. **Undo** appears after acceptance and restores the previous site and page selection. After closing the assistant, the editor's normal Undo and Redo commands also work.
 
-**Cancel**, Escape and the window's close button discard an unapplied proposal. **Stop** cancels a request in progress. Closing after Apply keeps the addition unless it has been undone. Save the project normally to keep accepted changes in its project file.
+**Close** is always available. Close, Escape and the window's close button discard an unapplied proposal. **Stop** cancels a request in progress. Closing after Apply keeps the addition unless it has been undone. Save the project normally to keep accepted changes in its project file.
 
 ## What this phase can build
 
@@ -42,7 +42,7 @@ This phase adds content; it is not autonomous whole-site editing, code developme
 
 ## Data and free-tier boundaries
 
-Each Preview makes one standard `generateContent` request to `gemini-3.5-flash-lite`. There are no tools, search grounding, automatic retries, alternate models or paid fallback. Google controls availability and quotas.
+Each preview request makes one standard `generateContent` request to `gemini-3.5-flash-lite`. There are no tools, search grounding, automatic retries, alternate models or paid fallback. Google controls availability and quotas.
 
 The API cannot force an arbitrary key onto Free tier. Billing must remain disabled on the key's Google project. The application cannot verify or change that setting. Google says free-tier content may be used to improve its products; do not supply confidential material.
 
@@ -52,7 +52,7 @@ Limits are 3,000 instruction characters, 12,000 supporting-fact characters and 1
 
 ## Implementation
 
-`src/ai/GeminiPageAssistant.tsx` owns the review window, request cancellation, responsive content preview and Apply/Undo controls. It uses the existing React editor rather than adding native runtime-built forms.
+`src/ai/GeminiPageAssistant.tsx` owns the neutral entry, explicit mode selection, connection details, creation request cancellation, responsive content preview and Apply/Undo controls. Choosing **Edit existing content** mounts its separate editing controls and takes the initial target from the selected item; opening the neutral window alone does not select editing. It uses the existing React editor rather than adding native runtime-built forms.
 
 `src/ai/gemini-pages.ts` extracts allowlisted reference context, reads the existing Windows credential and sends the request. Google's transport schema uses simple types and enums; local validation enforces the stricter item, length, column and section limits. Nested numeric/array constraints in the transport schema exceeded Google's serving-state limit during testing, so those constraints are enforced locally instead.
 
