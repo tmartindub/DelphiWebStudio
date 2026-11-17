@@ -31,6 +31,7 @@ import { requestDesktopAction } from '@/desktop/native-bridge'
 import { PlanPages } from './PlanPages'
 import { SiteChecks } from './SiteChecks'
 import { pageLinkPath, visitBlockLinks } from '@/project/page-links'
+import { GeminiPageAssistant } from '@/ai/GeminiPageAssistant'
 
 const viewports: { value: Viewport; icon: typeof Monitor; label: string }[] = [
   { value: 'desktop', icon: Monitor, label: 'Desktop' },
@@ -241,6 +242,7 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
   const config = useConfigStore((s) => s.config)
   const [showAddPage, setShowAddPage] = useState(false)
   const [showPlanPages, setShowPlanPages] = useState(false)
+  const [showAiAssistant, setShowAiAssistant] = useState(false)
   const [showSiteChecks, setShowSiteChecks] = useState(false)
   const [deletingPage, setDeletingPage] = useState<{ id: string; projectId: string | null } | null>(null)
   const [editingPath, setEditingPath] = useState<{ id: string; projectId: string | null } | null>(null)
@@ -293,6 +295,7 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
     <>
     {showAddPage && <AddPageDialog onAdd={addPage} onClose={() => setShowAddPage(false)} />}
     {showPlanPages && <PlanPages onClose={() => setShowPlanPages(false)} />}
+    {showAiAssistant && <GeminiPageAssistant onClose={() => setShowAiAssistant(false)} />}
     {showSiteChecks && <SiteChecks onClose={() => setShowSiteChecks(false)} />}
     {pageToDelete && <DeletePageDialog page={pageToDelete} linkedPages={linkedPages} onCancel={() => setDeletingPage(null)} onConfirm={() => { removePage(pageToDelete.id); setDeletingPage(null) }} />}
     {pageToEditPath && <EditPagePathDialog page={pageToEditPath} onCancel={() => setEditingPath(null)} onSave={(path, updateLinks) => { changePagePath(pageToEditPath.id, path, updateLinks); setEditingPath(null) }} />}
@@ -372,6 +375,7 @@ export function CanvasToolbar({ settingsOpen = false, onOpenSettings }: { settin
             <button type="button" onClick={() => setShowSiteChecks(true)} className="block w-full rounded px-2 py-1 text-left text-text-1 hover:bg-bg-3">Check site</button>
           </div>
         </details>}
+        <button type="button" aria-haspopup="dialog" className="rounded border border-blue-400 px-3 py-1 text-xs text-text-0 hover:bg-bg-3" onClick={() => setShowAiAssistant(true)}>AI assistant</button>
         <label className="text-xs text-text-1 flex items-center gap-1">
           Mode
           <select aria-label="Editor mode" value={mode} onChange={event => setMode(event.target.value as EditorMode)} className="rounded bg-bg-2 border border-border-default px-1 py-1 text-text-0">
