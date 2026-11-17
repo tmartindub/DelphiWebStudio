@@ -26,6 +26,8 @@ const fileTypes: Record<string, string> = {
 export class ProjectMediaLibrary {
   private database: Promise<IDBDatabase>
 
+  close(): void { void this.database.then(database => database.close()).catch(() => undefined) }
+
   constructor() {
     this.database = new Promise((resolve, reject) => {
       const request = indexedDB.open('webstudio-media', 3)

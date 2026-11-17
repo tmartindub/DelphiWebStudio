@@ -100,6 +100,15 @@ describe('Gemini page and section creation', () => {
     await expect(generatePageBlueprint(config, options, 'Create a page', '', { consent: false, freeTierConfirmed: true })).rejects.toThrow('Confirm')
     expect(requestGeminiCredential).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled()
   })
+  it('can populate new gallery and staff sections from explicitly approved existing images', () => {
+    const media = [{ id: 'church', name: 'Church.jpg', path: 'assets/church.jpg', mime: 'image/jpeg' }]
+    for (const kind of ['gallery', 'team', 'cards']) {
+      const input = { ...plan, sections: [{ ...plan.sections[0], kind, items: [{ ...item, assetId: 'church', image: true }] }] }
+      const preview = previewCreation(config, input, { ...options, media })
+      expect(JSON.stringify(preview.blocks)).toContain('assets/church.jpg')
+      expect(() => previewCreation(config, input, options)).toThrow('approved media')
+    }
+  })
   it('uses the saved key in a header, with no tools, server fallback or retry', async () => {
     vi.mocked(requestGeminiCredential).mockResolvedValue('synthetic-key')
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(plan) }] } }] }))); vi.stubGlobal('fetch', fetch)

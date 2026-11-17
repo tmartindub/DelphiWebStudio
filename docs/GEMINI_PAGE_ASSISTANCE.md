@@ -1,8 +1,10 @@
-# Gemini page and section assistance — Stage 2
+# Gemini page and section assistance — Stage 2 baseline
 
 Last changed: 2026-11-16
 
 This development is local on branch `codex/gemini-pages-stage2`. It has not been pushed to GitHub or published. Stage 1 selected-text assistance remains available.
+
+This dated record describes the original creation increment. Creation now shares its entry point with **Edit existing content**, and approved existing image catalogs can populate new gallery, staff and card sections. See [Gemini assistant](GEMINI_ASSISTANT.md) and the updated illustrated guides for the complete current workflow.
 
 ## Creating something you can edit
 

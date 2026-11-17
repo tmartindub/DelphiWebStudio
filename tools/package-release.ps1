@@ -12,6 +12,7 @@ New-Item -ItemType Directory -Path $savedProjects -Force | Out-Null
 $workRoot = Join-Path $projectRoot ('test-results\package-release-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $workRoot | Out-Null
 try {
+  $payloadHashes = [ordered]@{}
   foreach ($platform in @('Win32', 'Win64')) {
     $bits = if ($platform -eq 'Win64') { '64' } else { '32' }
     $payload = Join-Path $workRoot "$platform\payload"
@@ -30,11 +31,15 @@ try {
     foreach ($folder in @('guides', 'pdf')) {
       Copy-Item -LiteralPath (Join-Path $projectRoot "docs\$folder") -Destination $docs -Recurse
     }
-    foreach ($name in @('PRIVACY.md', 'RECOVERY.md', 'KNOWN_LIMITATIONS.md', 'COMPATIBILITY.md', 'RELEASE_1_0_REVIEW.md', 'THIRD_PARTY_LICENSE_TEXTS.txt', 'WEBVIEW2_SDK_LICENSE.txt')) {
+    foreach ($name in @('PRIVACY.md', 'RECOVERY.md', 'KNOWN_LIMITATIONS.md', 'COMPATIBILITY.md', 'RELEASE_1_0_REVIEW.md', 'THIRD_PARTY_LICENSE_TEXTS.txt', 'WEBVIEW2_SDK_LICENSE.txt', 'GEMINI_ASSISTANT.md', 'GEMINI_TEXT_ASSISTANCE.md', 'GEMINI_PAGE_ASSISTANCE.md')) {
       Copy-Item -LiteralPath (Join-Path $projectRoot "docs\$name") -Destination $docs
     }
     # Retain complete build inputs as deliverables, independently of temporary output.
     $savedPayload = Join-Path $savedProjects "$platform\payload"
+    if (Test-Path -LiteralPath $savedPayload) {
+      if ((Get-Item -LiteralPath $savedPayload).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Saved payload cannot be a junction.' }
+      if (Get-ChildItem -LiteralPath $savedPayload -Recurse -Attributes ReparsePoint | Select-Object -First 1) { throw 'Saved payload contains a junction.' }
+    }
     $packageFiles = @(foreach ($source in Get-ChildItem -LiteralPath $payload -File -Recurse | Sort-Object FullName) {
       $relative = $source.FullName.Substring($payload.Length + 1)
       $destination = Join-Path $savedPayload $relative
@@ -42,6 +47,13 @@ try {
       Copy-Item -LiteralPath $source.FullName -Destination $destination -Force
       $destination
     })
+    # Reconcile only generated payload files; keep the saved installer inputs current.
+    foreach ($previous in Get-ChildItem -LiteralPath $savedPayload -File -Recurse) {
+      if ($previous.FullName.StartsWith([IO.Path]::GetFullPath($savedPayload) + '\', [StringComparison]::OrdinalIgnoreCase) -and $previous.FullName -notin $packageFiles) { Remove-Item -LiteralPath $previous.FullName -Force }
+    }
+    $platformHashes = [ordered]@{}
+    foreach ($file in $packageFiles) { $platformHashes[$file.Substring($savedProjects.Length + 1).Replace('\', '/')] = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLower() }
+    $payloadHashes[$platform] = $platformHashes
     $requirements = @(
       'Windows 10 or 11|Windows10|https://www.microsoft.com/windows',
       'Microsoft Edge WebView2 Runtime|WebView2|https://developer.microsoft.com/microsoft-edge/webview2/',
@@ -77,6 +89,7 @@ try {
     Write-Output "Saved Package Studio project: $projectFile"
     Write-Output "Prepared $destination"
   }
+  $payloadHashes | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $savedProjects 'payload-sha256.json') -Encoding utf8
 } finally {
   $resolved = [IO.Path]::GetFullPath($workRoot)
   $allowed = [IO.Path]::GetFullPath((Join-Path $projectRoot 'test-results')) + '\'

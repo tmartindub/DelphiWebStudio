@@ -10,13 +10,14 @@ import { PlacedMedia } from './PlacedMedia'
 
 interface Props {
   block: BlockConfig
+  readOnlyPreview?: string
   isSelected: boolean
   hiddenOnCurrentWidth?: boolean
   onSelect: () => void
   children: ReactNode
 }
 
-export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect, children }: Props) {
+export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect, children, readOnlyPreview }: Props) {
   const anchorName = typeof block.props.anchorName === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(block.props.anchorName) ? block.props.anchorName : undefined
   const blocks = useConfigStore((s) => {
     const pages = s.config.pages
@@ -28,7 +29,8 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
   const { selectedBlockId, selectBlock } = useEditorStore()
   const selectedSection = useEditorStore(state => state.selectedSection)
   const copiedSectionObject = useEditorStore(state => state.copiedSectionObject)
-  const previewMode = useEditorStore((s) => s.previewMode)
+  const editorPreviewMode = useEditorStore((s) => s.previewMode)
+  const previewMode = !!readOnlyPreview || editorPreviewMode
   const selectedSectionObject = useEditorStore((s) => s.selectedSectionObject)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; section?: number; objectX?: number; objectY?: number; item?: { field: string; index: number } } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -130,7 +132,7 @@ export function BlockWrapper({ block, isSelected, hiddenOnCurrentWidth, onSelect
     })
   }, [children, revealRef, block.props, previewMode])
 
-  const scope = `ws-${index}`
+  const scope = readOnlyPreview ? readOnlyPreview + '-' + encodeURIComponent(block.id).replace(/%/g, '_') : 'ws-' + index
   const blockSelector = `[data-ws-scope="${scope}"]`
   const selector = `${blockSelector} [data-ws-content]`
   const backgroundColor = typeof block.props.blockBackgroundColor === 'string' && /^#[0-9a-f]{6}$/i.test(block.props.blockBackgroundColor) ? block.props.blockBackgroundColor : ''

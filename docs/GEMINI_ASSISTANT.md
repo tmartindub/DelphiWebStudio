@@ -1,0 +1,50 @@
+# Gemini assistance for text, creation and existing content
+
+Last changed: 2026-11-16. Local development only; GitHub pushing and publication remain on hold.
+
+## Using the assistant
+
+Save a Google AI Studio key in Settings → Application-wide AI connection → Save key. Windows Credential Manager retains it for the current Windows account across projects and restarts. The owner has confirmed Free tier with billing disabled. The API key cannot establish billing status; the application asks for that confirmation and never retries against a different model or paid fallback.
+
+Select wording for **Help with selected text**, or choose **AI assistant** beside Page tools for layouts and content. **Create page or section** uses one reference page and supplied facts. **Edit existing content** uses the chosen page, block, independent object or supported list item. All results are proposals until **Apply**; normal editing remains available without AI.
+
+For an existing panel, try: “Make this panel 50 percent wide and light blue; keep its text.” After Preview, follow with: “Make it 45 percent wide and use a paler blue.” The second request refines the proposed model, and one Apply accepts both requests as a normal undoable edit. Current page / Proposed page and Desktop / Tablet / Phone support visual review. Use the normal editor Preview after acceptance to exercise links and visitor controls; the AI review is read-only.
+
+Recent conversation shows previewed, applied, undone and discarded results. It stays in this window. Clear conversation removes that request context without changing the project. Discard preview leaves the original untouched; Stop cancels a pending request; Close or Escape discards an unapplied proposal. Apply rejects an intervening project edit rather than overwriting it. The assistant's Undo reverses its latest applied transaction only while it remains the most recent edit; otherwise use normal editor history. Save normally after accepting changes.
+
+## Existing media and structured content
+
+**Allow project media catalog** is optional. It sends names, logical folders, file types, dimensions and asset IDs—not files, blobs or local paths. Edit mode offers a folder selector; a request can use up to 500 entries. Creation can choose from approved existing images for galleries, staff portraits and card illustrations. Unknown images remain editable placeholders.
+
+Supported list editing includes gallery photos, collage layers, staff members, FAQ and feature items, bulletins and documents, calendar events, Navbar entries and submenus, and Footer resources/buttons. Supply the real facts, dates and biographies. Replacing a gallery photo preserves its existing ID and caption. The assistant can select an existing PDF but does not read its contents or invent an event from it.
+
+Navigation requests can preserve a clickable About parent while adding submenu entries, reorder links, assign image/button destinations, link an exact text phrase, and create or rename an anchor. Internal destinations must exist and not be drafts. Recognized incoming links are repaired when a page path or anchor changes. Shared-section property changes include the corresponding copies and identify them in the review.
+
+## Limits and privacy
+
+The fixed model is `gemini-3.5-flash-lite`, with one direct HTTPS request and a 90-second timeout. HTTP 429 stops with a quota explanation; retries remain manual. Request instructions are limited to 3,000 characters. Existing-edit context is limited to 400 targets and 120,000 characters, with at most 50 operations. Creation supports up to eight sections, twelve items per section and 36 per page. Selected-text limits remain documented in GEMINI_TEXT_ASSISTANCE.md.
+
+Consent describes the context for each task. Selected components can contain sensitive text even when credentials and delivery settings are excluded. Whole-page selection includes its components; other pages contribute names and paths only. Free-tier content may improve Google's products. Original media files stay local. The key authenticates in a header and must not be logged or included in screenshots.
+
+The assistant cannot execute generated code, operate arbitrary computer applications, publish, upload through SFTP, send email, install software, configure delivery endpoints, or delete a whole page. It does not create images or read media contents. The ordinary exported website contains the accepted components and has no Gemini dependency. Google controls account eligibility, quotas and future model availability.
+
+## Implementation
+
+- `src/blocks/editable-fields.ts` contains the existing property metadata shared with the Properties window.
+- `src/ai/gemini-edits.ts` builds scoped targets, checks operations, resolves approved asset IDs, preserves rich text and incoming links, and constructs immutable before/after previews.
+- `src/ai/gemini-edit-request.ts` handles the credential read, one request, bounded conversation and cancellation.
+- `src/ai/GeminiEditAssistant.tsx` owns the temporary conversation and review controls. `GeminiPageAssistant.tsx` provides task switching and creation controls.
+- `src/ai/AIPagePreview.tsx` reuses normal BlockWrapper rendering with isolated styles and inert interaction.
+- `src/ai/gemini-pages.ts` retains the validated creation blueprint and generates ordinary components.
+
+Local validation rejects unknown fields, prototype-related keys, unsupported operations, unsafe protocols, invalid dates, out-of-scope targets and missing assets. No partial transaction is applied. Apply compares both reviewed snapshots and commits through the existing config-store history. Media connections and object URLs owned by the assistant are released when it closes.
+
+## Verification and preserved data
+
+The regression suite passed **429 tests** with two pre-existing integration skips. TypeScript, the production frontend build and both native builds passed. Focused checks include privacy/consent, exact rich-text preservation, panel children, list identity, real media references, dates, Navbar children, inline links, anchor/page-path repair, stale previews, atomic failure, Undo/Redo, portable serialization and static HTML export.
+
+The actual Win32 and Win64 production applications passed isolated UI checks for existing edits, follow-up previews, Apply and exact Undo, media references, staff/bulletin/calendar entries, navigation/anchors, responsive review widths, quota errors, Stop and Escape. Each also read the saved Windows credential and successfully completed two live Gemini requests using only synthetic panel content: an initial size/color change and a follow-up size refinement. No user project text or key contents were logged. Creation UI regression checks passed after task-switch integration; prior stage validation also exercised live page/section creation in both builds.
+
+The pre-completion backup is `H:\Delphi Web Studio Backups\DelphiWebStudioPro-stage2-working-pre-AI-completion-20261117-011001-UTC.zip` (500 files, 198,793,489 bytes, CRC verified; SHA-256 `61ffbfa5ac1580ea06cb5eca556b963ae432d578eb30f25bc5b2a61732298b5d`). The complete pre-AI v1.0 fallback remains preserved. Saved project and Website Test hashes are checked again before final commit. Clean-machine installation and arbitrary-provider compatibility remain subject to the existing release limitations.
+
+References: [Google pricing](https://ai.google.dev/gemini-api/docs/pricing), [billing](https://ai.google.dev/gemini-api/docs/billing), [model](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite), [structured outputs](https://ai.google.dev/gemini-api/docs/structured-output).

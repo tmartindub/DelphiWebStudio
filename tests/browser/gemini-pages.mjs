@@ -56,6 +56,8 @@ try {
   });
   async function open(kind = 'page') {
     await page.getByRole('button', { name: 'AI assistant', exact: true }).click();
+    const editing = page.getByRole('dialog', { name: 'Gemini · Edit your site' });
+    if (await editing.count()) await editing.getByRole('button', { name: 'Create page or section', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Gemini · Create a page or section' }); await dialog.waitFor();
     await dialog.getByLabel('AI creation type', { exact: true }).selectOption(kind);
     await dialog.getByLabel('AI page request', { exact: true }).fill('Create three welcoming panels with editable text, photo spaces and buttons.');
@@ -69,7 +71,7 @@ try {
   }
   let dialog = await open();
   assert(await dialog.getByRole('button', { name: 'Preview', exact: true }).isDisabled());
-  await dialog.getByRole('checkbox').nth(1).check(); await dialog.getByRole('checkbox').nth(2).check();
+  await dialog.getByRole('checkbox').nth(2).check(); await dialog.getByRole('checkbox').nth(3).check();
   await preview(dialog);
   assert.deepEqual((await readState()).config, original.config, 'Preview leaves the site unchanged');
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();

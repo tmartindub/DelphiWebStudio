@@ -30,7 +30,11 @@ Separate Win32 and Win64 installers are prepared locally under `export/release-1
 
 The installers preserve saved projects and the separate local profile. They are unsigned. Clean-Windows installation acceptance remains unverified; see [release review](docs/RELEASE_1_0_REVIEW.md) for exact evidence and limits. Building or installing this software does not publish a website.
 
-## Development
+## Optional Gemini assistance
+
+The Windows editor can reuse a saved Gemini key for selected-text assistance, new pages/sections, and reviewed edits to existing components. The assistant supports follow-up requests, existing media catalogs, content lists and navigation, with Preview, Apply and Undo. It uses the free-tier model without a paid fallback; the owner must keep the Google project on Free tier with billing disabled. See [Gemini assistant](docs/GEMINI_ASSISTANT.md) for operation, privacy and limits. These AI changes are currently local development under the owner's no-push instruction.
+
+## Development checks
 
 Release checks used Node 24.22.1 and npm 12.2.2:
 
