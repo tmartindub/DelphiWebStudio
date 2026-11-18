@@ -733,7 +733,7 @@ function renderFooterMultiColumn(block: BlockConfig): string {
         )
         .join('\n')
       return `        <div class="min-w-0">
-          <h4 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-2 @md:mb-3">${escapeHtml(col.title)}</h4>
+          <h2 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-2 @md:mb-3">${escapeHtml(col.title)}</h2>
           <ul class="space-y-1.5 @md:space-y-2">
 ${colLinks}
           </ul>

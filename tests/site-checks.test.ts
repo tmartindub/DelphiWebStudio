@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { checkSite } from '../src/project/site-checks'
 import type { BlockConfig, SiteConfig } from '../src/blocks/types'
 import { exportSiteToHTML } from '../src/lib/export-html'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { FooterBlock } from '../src/blocks/footer/FooterBlock'
+import { ImageBlock } from '../src/blocks/image/ImageBlock'
 
 const hero: BlockConfig = { id: 'hero', type: 'hero', variant: 'minimal', props: { headline: 'Welcome', primaryCta: 'News', primaryCtaUrl: '/news?source=home#top' } }
 const config: SiteConfig = { name: 'Community', pages: [
@@ -24,6 +28,46 @@ describe('local site checks', () => {
       expect.stringContaining('image without alternative text'),
       expect.stringContaining('Heading order skips from H1 to H3'),
     ]))
+  })
+  it('keeps footer information columns without link warnings or skipped heading levels', () => {
+    const copy = structuredClone(config)
+    const footer: BlockConfig = { id: 'footer', type: 'footer', variant: 'multi-column', props: {
+      links: [], navItems: [{ label: 'News', url: '/news' }],
+      columns: [{ title: 'Visit', links: ['219 Cardinal Street', 'Sandersville, GA 31082'] }, { title: 'Contact', links: ['office@nowhere.com'] }],
+    } }
+    copy.pages![0].blocks.push(footer)
+    copy.blocks = copy.pages![0].blocks
+    const before = structuredClone(copy)
+    expect(checkSite(copy, undefined, true).filter(issue => issue.pageId === 'home')).toEqual([])
+    expect(copy).toEqual(before)
+    const heading = '<h2 class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-2 @md:mb-3">Visit</h2>'
+    const preview = renderToStaticMarkup(createElement(FooterBlock, { block: footer }))
+    const exported = exportSiteToHTML({ name: 'Visit', blocks: copy.blocks })
+    expect(preview).toContain(heading)
+    expect(exported).toContain(heading)
+    expect(preview).not.toContain('<h4')
+    expect(exported).not.toContain('<h4')
+    expect(preview).toContain('office@nowhere.com')
+    expect(exported).toContain('office@nowhere.com')
+  })
+  it.each(['hero-image', 'grid', 'side-by-side'])('accepts an explicit image-page heading without changing the visible %s image', variant => {
+    const image: BlockConfig = { id: 'banner', type: 'image', variant, props: {
+      src: 'assets/happenings.png', alt: 'Parish happenings', caption: '', images: [{ src: 'assets/happenings.png', alt: 'Parish happenings' }],
+    } }
+    const page: SiteConfig = { name: 'Happenings', pages: [{ id: 'happenings', name: 'Happenings', path: '/', blocks: [image] }], blocks: [image] }
+    expect(checkSite(page, undefined, true).some(issue => issue.message.includes('No H1 heading'))).toBe(true)
+    const before = exportSiteToHTML(page)
+    const previewBefore = renderToStaticMarkup(createElement(ImageBlock, { block: image }))
+    image.props.pageHeading = '   '
+    expect(exportSiteToHTML(page)).toBe(before)
+    image.props.pageHeading = ' Parish happenings '
+    const after = exportSiteToHTML(page)
+    const previewAfter = renderToStaticMarkup(createElement(ImageBlock, { block: image }))
+    expect(checkSite(page, undefined, true).filter(issue => issue.message.includes('heading'))).toEqual([])
+    expect(after).toContain('<h1 class="sr-only">Parish happenings</h1>')
+    expect(previewAfter).toContain('<h1 class="sr-only">Parish happenings</h1>')
+    expect(after.replace('<h1 class="sr-only">Parish happenings</h1>', '')).toBe(before)
+    expect(previewAfter.replace('<h1 class="sr-only">Parish happenings</h1>', '')).toBe(previewBefore)
   })
   it('recognizes generated Search and Articles destinations when enabled', () => {
     const copy = structuredClone(config)
@@ -189,8 +233,8 @@ describe('local site checks', () => {
 
   it('warns about nonfunctional legacy navigation without altering it', () => {
     const copy = structuredClone(config)
-    copy.pages![0].blocks.push({ id: 'nav', type: 'navbar', variant: 'default', props: { links: ['About'], ctaText: 'Join' } })
-    copy.pages![0].blocks.push({ id: 'footer', type: 'footer', variant: 'multi-column', props: { links: [], columns: [{ title: 'Pages', links: ['Contact'] }] } })
+    copy.pages![0].blocks.push({ id: 'nav', type: 'navbar', variant: 'default', props: { links: ['About'], navItems: [{ label: 'News', url: '/news' }], ctaText: 'Join' } })
+    copy.pages![0].blocks.push({ id: 'footer', type: 'footer', variant: 'multi-column', props: { links: ['Privacy'], navItems: [{ label: 'News', url: '/news' }], columns: [{ title: 'Visit', links: ['219 Cardinal Street'] }] } })
     copy.blocks = copy.pages![0].blocks
     const before = structuredClone(copy)
     const issues = checkSite(copy)
@@ -200,7 +244,7 @@ describe('local site checks', () => {
     copy.pages![0].blocks[1].props.ctaUrl = '/news'
     expect(checkSite(copy).filter(issue => issue.blockId === 'nav')).toHaveLength(1)
     copy.pages![0].blocks[1].props = { links: [], ctaText: '' }
-    copy.pages![0].blocks[2].props = { links: [], columns: [{ title: 'Pages', links: [] }] }
+    copy.pages![0].blocks[2].props.links = []
     expect(checkSite(copy)).toEqual([])
   })
 })

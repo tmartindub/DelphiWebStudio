@@ -65,9 +65,9 @@ function FooterMultiColumn({ props }: { props: FooterProps }) {
         {/* Link columns */}
         {columns.map((col, i) => (
           <div key={i} className="min-w-0">
-            <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-2 @md:mb-3">
+            <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-text-2 @md:mb-3">
               {col.title}
-            </h4>
+            </h2>
             <ul className="space-y-1.5 @md:space-y-2">
               {col.links.map((link, j) => (
                 <li key={j}>

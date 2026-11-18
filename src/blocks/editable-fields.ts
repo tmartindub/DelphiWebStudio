@@ -287,6 +287,7 @@ export const blockFields: Partial<Record<BlockType, { sections: { title: string;
         fields: [
           { key: 'src', label: 'Image URL', type: 'image' },
           { key: 'alt', label: 'Alt Text', type: 'text' },
+          { key: 'pageHeading', label: 'Page heading', type: 'text' },
           { key: 'imageLink', label: 'Image link', type: 'link' },
           { key: 'title', label: 'Title', type: 'text' },
           { key: 'subtitle', label: 'Subtitle', type: 'text' },

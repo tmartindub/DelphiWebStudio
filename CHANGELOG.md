@@ -1,6 +1,18 @@
 # Changelog
 
-## 1.0.0 build 1 — 2026-11-15
+## 1.0.0 build 1 - 2026-11-18
+
+- Released the Win32 and Win64 desktop editions with Windows file/product version 1.0.0.1 and Package Studio Pro installers containing the editor, SFTP workflow, illustrated guides and required notices.
+- Added reviewed Google Gemini assistance for selected text, editable page/section creation and changes to existing components, with follow-up refinement, existing-media selection, navigation editing, Preview, Apply and Undo. Requests use the saved Windows credential and the fixed free-tier model without a paid fallback.
+- Made AI targeting check the section named in a request, identify a unique match and warn when it conflicts with the selection. Both desktop editions were verified previously with synthetic live Gemini hero-color requests; the lower section remained unchanged.
+- Added an Image block Page heading field for a main heading supplied by banner artwork, while preserving its visible appearance. Footer column headings now use the appropriate semantic level without changing their styling.
+- Corrected the footer checker so ordinary contact/address columns are not reported as broken navigation; actual legacy navigation labels still require destinations. Added page descriptions and heading guidance to the manuals, together with the local reviewed-export procedure.
+- Refreshed all seven DOCX/PDF guide pairs, preserving their illustrations and real dotted-leader tables of contents. Recorded the owner's separate Win32 and Win64 startup observations without treating them as hardware guarantees.
+- Passed 447 regression tests, with two pre-existing optional integration checks skipped, plus full source/API/test lint, TypeScript, Vite and both native Release builds. The November 18 npm registry bulk advisory check returned zero advisories for all 322 locked package names and recorded versions, including development dependencies.
+
+The entries below retain their original milestone dates. Counts, local-only restrictions and outstanding work recorded for those milestones describe that earlier state, rather than the current release.
+
+## Historical release preparation - 1.0.0 build 1 — 2026-11-15
 
 - Added Windows file/product version 1.0.0.1, release build settings and a reproducible two-architecture staging script; retained the existing seven-size application icon.
 - Corrected Win32 lookup of native OpenSSH for connection and inventory/transfer operations.
@@ -39,4 +51,4 @@
 - Add CI and correct two inherited React lint failures.
 - Resolve design-time native shell versus embedded React and additive folder layout; defer translation.
 
-Desktop, local AI, native durable project saves, complete offline export and secure publishing remain outstanding.
+At that October 29 baseline, desktop hosting, local AI, native durable saves, complete offline export and secure publishing were still outstanding. Later entries and the current release review describe their implemented scope.

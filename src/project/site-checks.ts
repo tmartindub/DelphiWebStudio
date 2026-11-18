@@ -75,9 +75,8 @@ export function checkSite(config: SiteConfig, settings?: { seoTitle?: string; se
       }
       if (block.type === 'navbar' || block.type === 'footer') {
         const links = Array.isArray(block.props.links) ? block.props.links : []
-        const columns = block.type === 'footer' && block.variant === 'multi-column' && Array.isArray(block.props.columns) ? block.props.columns : []
-        const hasColumnLinks = columns.some(column => column && typeof column === 'object' && Array.isArray(column.links) && column.links.some((link: unknown) => typeof link === 'string' && link.trim()))
-        if (links.some(link => typeof link === 'string' && link.trim()) || hasColumnLinks) add('This block contains text-only navigation labels that do not link to pages. Add working links under Navigation destinations.')
+        // Footer column entries can be ordinary address, contact or opening-hours text.
+        if (links.some(link => typeof link === 'string' && link.trim())) add('This block contains text-only navigation labels that do not link to pages. Add working links under Navigation destinations.')
       }
       if ((block.type === 'navbar' || block.type === 'footer') && Array.isArray(block.props.navItems)) {
         const destinations = block.props.navItems.flatMap(item => [item, ...(block.type === 'navbar' && Array.isArray(item?.children) ? item.children : [])])

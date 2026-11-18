@@ -1,6 +1,6 @@
-# Gemini selected-text assistance — local development
+# Gemini selected-text assistance
 
-This Stage 1 work is kept on the local `codex/gemini-text-stage1` branch. Do not push it or publish it until the owner changes that instruction. Saved website projects are not migrated or edited by this feature.
+Last changed: 2026-11-18. This selected-text workflow is included in version 1.0.0 build 1. It began as Stage 1 local development on November 16; that milestone's validation is retained below as a dated record. The current release also includes page/section creation and changes to existing components; see [Gemini assistant](GEMINI_ASSISTANT.md). A request or preview does not change a saved project file, and Apply changes the selected wording through normal editor history until you save it.
 
 ## Using the assistant
 
@@ -26,7 +26,7 @@ The Gemini API does not expose a request switch that forces an arbitrary key to 
 
 The original field and DOM are checked again before Apply to reject stale selections. Apply uses the normal config store and undo stack; it does not save a file, export, publish, navigate or modify unrelated fields. Existing shared-section semantics still apply when the edited block is intentionally shared across pages. AI requests and previews are temporary memory, not project data.
 
-Limits: one text box, 12,000 selected characters, 128 formatting segments, 1,500 instruction characters, 24,000 returned characters and a 90-second request timeout. More complex formatting benefits from smaller selections. The model is instructed to preserve factual content, but this is not an independent factual verification service. A longer passage may increase its text box height through the editor's existing auto-growth behavior. Page creation, media editing and autonomous site editing belong to later stages.
+Limits: one text box, 12,000 selected characters, 128 formatting segments, 1,500 instruction characters, 24,000 returned characters and a 90-second request timeout. More complex formatting benefits from smaller selections. The model is instructed to preserve factual content, but this is not an independent factual verification service. A longer passage may increase its text box height through the editor's existing auto-growth behavior. Use the separate AI assistant for current page/section creation and supported changes to existing components. Autonomous site or computer operation is outside the assistant's scope.
 
 Sources: https://ai.google.dev/gemini-api/docs/pricing#gemini-3.5-flash-lite and https://ai.google.dev/gemini-api/docs/billing.
 
@@ -40,4 +40,4 @@ The production UI in both desktop architectures passed isolated tests for Previe
 
 **Live Gemini validation passed in both desktop builds on 2026-11-16.** Each compiled application read the real saved Windows credential and made one request to `gemini-3.5-flash-lite` using only a synthetic selected passage and a spelling-correction instruction. Gemini returned the corrected wording, Preview left the document unchanged, Apply changed the selection, and Undo restored the exact original rich text. Both runs also passed the nine simulated-request interaction checks, with no page runtime errors. No user project text, media or key contents were logged or included in test results. The owner confirmed that the key's Google project is Free tier with billing disabled; the application does not independently verify billing status. These checks verify connectivity and the selected-text workflow, not the factual accuracy or quality of every future response. The test runner uses `WEBSTUDIO_LIVE_GEMINI=1` for this explicitly authorized live check. Both disposable test applications were closed and their profiles removed.
 
-The saved projects were preserved: `ICCTest - Weekly Bulletin.zip` remained SHA-256 `83EF2B4720C2B70F1FB056946CD05BF435832714494F1DD49E05A43F07DECBB6`; `ICCTest.zip` remained `BF8678E6EF9D6826095864844D5426C29ED1BD59C9FCA27F7F85B0DBFD23245B`. No website was published and no GitHub push was made.
+The saved projects were preserved: `ICCTest - Weekly Bulletin.zip` remained SHA-256 `83EF2B4720C2B70F1FB056946CD05BF435832714494F1DD49E05A43F07DECBB6`; `ICCTest.zip` remained `BF8678E6EF9D6826095864844D5426C29ED1BD59C9FCA27F7F85B0DBFD23245B`. No website was published and no GitHub push was made during that November 16 milestone. Its temporary no-push instruction has since been superseded by authorization for the v1.0 application release.

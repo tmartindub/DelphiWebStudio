@@ -13,6 +13,7 @@ export function ImageBlock({ block, editable = false }: { block: BlockConfig; ed
   const { variant, props } = block
   const src = props.src as string | undefined
   const alt = (props.alt as string) || ''
+  const pageHeading = typeof props.pageHeading === 'string' ? props.pageHeading.trim() : ''
   const rawTitle = props.title as string | undefined
   // Older inserted media used its filename as a visible title; retain the data but do not overlay it.
   const title = rawTitle && rawTitle === alt && /\.(png|jpe?g|gif|webp|bmp|svg|avif)$/i.test(rawTitle) ? undefined : rawTitle
@@ -32,6 +33,7 @@ export function ImageBlock({ block, editable = false }: { block: BlockConfig; ed
 
     return (
       <div className="px-6 py-12 @lg:px-16 @lg:py-16">
+        {pageHeading && <h1 className="sr-only">{pageHeading}</h1>}
         <div className={`grid grid-cols-1 @lg:grid-cols-2 gap-8 @lg:gap-12 items-center ${imageSide === 'right' ? '' : ''}`}>
           <div className={`reveal-scale reveal-d1 ${imageSide === 'right' ? '@lg:order-2' : ''}`}>
             {src && imageLink ? <a href={imageLink} onClick={editable ? event => event.preventDefault() : undefined}>{imgEl}</a> : imgEl}
@@ -52,6 +54,7 @@ export function ImageBlock({ block, editable = false }: { block: BlockConfig; ed
 
     return (
       <div className="px-6 py-12 @lg:px-16 @lg:py-16">
+        {pageHeading && <h1 className="sr-only">{pageHeading}</h1>}
         {title && <h2 className="reveal-fade-up reveal-d1 text-2xl font-display font-semibold mb-6 text-center">{title}</h2>}
         <div className="grid grid-cols-2 @lg:grid-cols-4 gap-3">
           {gridImages.map((img, i) => (
@@ -70,6 +73,7 @@ export function ImageBlock({ block, editable = false }: { block: BlockConfig; ed
   // hero-image (default)
   return (
     <div className="reveal-scale reveal-d1 relative">
+      {pageHeading && <h1 className="sr-only">{pageHeading}</h1>}
       {src
         ? imageLink ? <a href={imageLink} onClick={editable ? event => event.preventDefault() : undefined}><img src={src} alt={alt} draggable={false} style={{ ...(imageHeight ? { height: imageHeight, objectFit: props.imageFit === 'cover' || props.imageFit === 'fill' ? props.imageFit : 'contain' } : {}) }} className="w-full h-auto" /></a> : <img src={src} alt={alt} draggable={false} style={{ ...(imageHeight ? { height: imageHeight, objectFit: props.imageFit === 'cover' || props.imageFit === 'fill' ? props.imageFit : 'contain' } : {}) }} className="w-full h-auto" />
         : <Placeholder height={imageHeight} className="w-full h-64 @lg:h-96" />

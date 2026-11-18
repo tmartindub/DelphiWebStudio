@@ -1,11 +1,17 @@
-Delphi Web Studio Pro is experimental software.
+Delphi Web Studio Pro 1.0.0 build 1
+Windows file/product version 1.0.0.1
+Last changed: November 18, 2026
 
-Windows 10 or 11 x64 and the Microsoft Edge WebView2 Runtime are required. The installer checks for the runtime but does not include or download it. If it is missing, obtain it separately from Microsoft before running the installer again.
+Choose Win64 for 64-bit Windows or Win32 for 32-bit Windows. Win32 also runs on 64-bit Windows. Both editions provide the same editor features and guides and target Windows 10/11. Microsoft Edge WebView2 Runtime is required to display the editor. Setup checks for it and offers Microsoft's download address if it is missing; obtain the Runtime separately, then run Setup again.
 
-The editor is installed locally and does not require Node.js on the user's PC. Optional local AI runtime and model files are not included.
+The package includes the application, matching WebView2 loader, local editor assets, SFTP workflow, illustrated DOCX/PDF guides, privacy/recovery information and third-party notices. Private website projects, browser profiles, saved credentials, test data and development tools are excluded. The installed editor does not need Node.js on the user's computer.
 
-Projects, browser data, local revisions, and AI files are not removed by the application uninstaller. Keep separate backups of your projects.
+Optional online AI assistance uses Google Gemini. It requires internet access and an API key, the secret credential obtained through Google AI Studio for a Google project. Keep that project on Free tier with billing disabled and save the key through the editor's Settings for your Windows account. The app cannot verify billing status and does not switch to a paid fallback. Exported websites do not need Gemini. Optional local AI runtimes and model files are separate downloads and are not included or required for Gemini.
 
-Offline privacy and project recovery information is installed in the application's docs folder.
+SFTP (SSH File Transfer Protocol) provides encrypted website-file uploads to a compatible host. Its workflow is included in both editions and uses the optional Windows OpenSSH Client. Supply the host/account details, SSH key and trusted-hosts file approved for your server. Missing OpenSSH does not prevent ordinary editing, saving or local export.
 
-Opening, saving, reviewing, and exporting do not publish a website. Publishing and rollback require separate review and explicit confirmation.
+The application and Setup are unsigned; Windows may show a publisher or reputation warning. Installation is per Windows account in an architecture-specific folder. Uninstall preserves separately saved projects, the WebView profile, local revisions, saved Windows credentials and optional AI files. Keep verified project files and backups independently of the local draft storage.
+
+Start with the installed User Guide. Save a practice project, close and reopen it, then use Export, Review files, Download reviewed ZIP and Open reviewed site in browser to check the generated pages locally. Keep the editor running for that preview and use Stop local preview when finished. Performance depends on the computer and its WebView2 environment; the release review distinguishes observed systems from untested configurations.
+
+Opening, saving, reviewing and exporting do not publish a website. Publishing and rollback require separate review and explicit confirmation. No website project, domain setting or email recipient is changed by installing the editor.

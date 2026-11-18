@@ -1,8 +1,8 @@
-# Experimental portable project files — M1
+# Portable project files
 
 A portable project contains the editable description of a website and references to its media. JSON (JavaScript Object Notation) stores that description as structured text; a ZIP archive can package it with the imported files. While editing, the app keeps a separate local draft in its embedded browser. IndexedDB is the browser database used for media and local revisions. Microsoft Edge WebView2 supplies that browser inside the Windows application.
 
-Last changed: 2026-11-01. Tracking: issue #2. The specified M1 five-page save, reopen and export exit scenario passed in isolated testing. The application remains experimental; clean-install, power-loss and broader release validation are still pending.
+Last changed: 2026-11-18. Current release: 1.0.0 build 1. Portable project files, native saving and media-inclusive website export are part of this release. The earlier M1 implementation and isolated checks are retained below as historical evidence. See the [release review](RELEASE_1_0_REVIEW.md) for current validation and the distinction between owner installation observations and untested clean-Windows or power-loss scenarios.
 
 The code panel can be opened with its toolbar button or `J`, and its close button returns focus to the toolbar. The JSON editor has an accessible label and announces validation errors. Applying a JSON draft is blocked if the active project or configuration changed after editing began; copy the draft before cancelling and reopening. An isolated WebView2 test checked the keyboard shortcut, error, focus and stale-draft behavior. This is not a full accessibility audit.
 
@@ -17,6 +17,8 @@ Media folders belong to the saved project. Moving a file changes its folder assi
 Use **Local Storage** on the Dashboard to inspect per-project media and revision sizes. A revision is a profile-local snapshot. Save and verify a separate project file before removing a revision or clearing media belonging to a removed draft.
 
 ## Enable and use
+
+The remaining sections retain earlier milestone procedures and validation notes. Statements that assets, native saving, offline styling, publishing or later editor features are still outstanding describe those earlier states and are superseded by the current release review and illustrated guides. Use the current User Guide for the complete operating procedure, including Save project, Save as, media folders, recovery and local reviewed export.
 
 The dashboard offers Personal, Portfolio, Community, Church, School club, Business, Documentation and Blog starters. Each begins with editable prompts suited to its purpose; replace the prompts with your own information. **Start blank** creates an empty site instead.
 
