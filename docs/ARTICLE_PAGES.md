@@ -1,6 +1,6 @@
 # Article pages (experimental)
 
-Last changed: 2026-10-30. This is an initial article-authoring increment, not a complete blog or CMS.
+Last changed: 2026-10-30. An article is a website page with publishing details such as its author, summary and topic tags. This increment adds those details to ordinary editable pages. It does not provide a complete blog or content-management system (CMS).
 
 Create a non-Home page, select it, and open the **Articles** tab. Choose **Make this page an article**. The existing page content stays editable using the normal components. Add an author and summary in the Articles tab. The page name and path are its title and address.
 

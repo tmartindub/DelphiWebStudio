@@ -1,5 +1,7 @@
 # M0 upstream baseline
 
+This record describes the original OpenPage source, the open-source website builder extended by Delphi Web Studio Pro. A fork is the project's separately maintained copy of that source; the upstream repository retains the original project. Git tracks local code history, and GitHub hosts repositories for sharing and backup.
+
 Last changed: 2026-10-29 (America/New_York).
 
 ## Identity and preservation

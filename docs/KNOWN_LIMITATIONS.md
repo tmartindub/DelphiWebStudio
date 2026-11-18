@@ -3,11 +3,11 @@
 Current release review November 15, 2026 — version 1.0.0 build 1.
 
 - Clean Windows 10/11 installation testing remains unverified. Both architectures were built and exercised on the development Windows x64 machine.
-- The application and installers are unsigned; Windows can show publisher/reputation warnings. WebView2 is required, and SFTP additionally needs the Windows OpenSSH Client.
+- The application and installers are unsigned; Windows can show publisher/reputation warnings. Microsoft Edge WebView2, the browser engine embedded in the editor, is required. SFTP (SSH File Transfer Protocol) provides encrypted website-file uploads and additionally needs Windows OpenSSH Client, the optional Windows secure-shell tools.
 - Local loopback SFTP checks do not establish compatibility with every provider. Publishing requires deliberate review and confirmation. No site was published during validation.
 - Contact forms need a configured HTTPS form service or the supported visitor email-draft flow. Newsletter signup is not a complete hosted subscription service.
 - Wix project import, WordPress theme export, automatic GitHub site creation and automatic push/publish buttons remain future work. HTML/WordPress imports cover supported content and require review.
-- Optional local AI needs a compatible runtime and model supplied separately. Cloud AI requires its own key/account and session consent.
+- Local artificial intelligence (AI) runs a model, the software that generates suggestions, on this computer. It needs a compatible runtime, the program that runs that model, supplied separately. Optional cloud AI uses Google Gemini, Google's online AI service, and requires its own key/account and session consent.
 - Imported source, custom code and external media need independent review. The lightweight site checker does not certify accessibility, every external link, or overall site safety.
 - Portable project/save size and SFTP scan/backup limits are documented in the guides. Retained legacy credentials require explicit removal.
 - Add to dictionary saves the selected word in the current Windows user's spelling dictionary. WebView2 can retain a cached spelling result for an already checked paragraph; reopen the editor if that paragraph continues to underline a newly accepted word. Newly checked text and subsequent editor sessions recognize the saved word. Project text and formatting are not changed by this command.

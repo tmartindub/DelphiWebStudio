@@ -8,6 +8,10 @@ This dated record describes the original creation increment. Creation now shares
 
 ## Creating something you can edit
 
+Google Gemini is the online artificial intelligence service used by this application's optional creation assistant. It proposes a page or section from your instructions and the reference content you choose; the editor turns the approved proposal into its normal editable components. A model is the software that generates that proposal.
+
+Access uses an API key, a secret credential created through Google AI Studio, Google's website for managing Gemini access. The key belongs to a Google project that controls usage and billing independently of the website project. Free tier is Google's limited allowance for an eligible project; keep billing disabled for the project used here. The Windows edition retains the saved key in Windows Credential Manager for your Windows account.
+
 Open a project and choose **AI assistant** beside **Page tools**. The neutral **AI Assistant** window opens with neither mode selected and no request fields. Explicitly choose **Create**, then select a new page or a section on the current page and choose an existing page as the style reference. Both **Create** and **Edit existing content** remain visible, with the active mode highlighted. The request starts blank, with an example below it. Enter the result you want. For example:
 
 > Create a staff directory matching Home, with six portrait spaces and editable names, roles and biographies. Use clearly marked placeholders for missing details.
@@ -66,7 +70,7 @@ The regression suite passed 410 tests, with two existing integration tests skipp
 
 Both actual desktop builds passed isolated UI tests for page and section Preview, Cancel, Apply, Undo/Redo, editable proposed names/paths, collision rejection, responsive preview, heading visibility, Stop and quota errors without retry. Each architecture also made two live Gemini requests using only a synthetic reference page: an editable staff-directory page and a two-panel section. Preview left the site unchanged, Apply added the normal components, and Undo restored the exact original site and page selection. No user project was opened and no key contents were logged.
 
-The repeatable desktop check is `tests/browser/gemini-pages.mjs`. It requires an isolated WebView profile and loopback CDP address. Set `WEBSTUDIO_LIVE_GEMINI=1` only for an authorized live test against a confirmed unbilled project. Compact screenshots/results are retained in ignored `test-results/gemini-pages`; disposable profiles and generated caches are removed after validation.
+The repeatable desktop check is `tests/browser/gemini-pages.mjs`. It requires an isolated WebView profile, which separates the test browser's stored data, and a loopback CDP address. CDP (Chrome DevTools Protocol) lets the test control the browser on this computer. The current repeatable script uses simulated credentials and replies and rejects live-mode opt-in. The historical live checks described above were separately authorized tests; this regression script does not perform them. Compact screenshots/results are retained in ignored `test-results/gemini-pages`; disposable profiles and generated caches are removed after validation.
 
 Both architectures also passed a final check editing generated card text through the normal text editor, undoing that edit while keeping the section, and then undoing the section. The test applications were closed. Cleanup removed 655 disposable files totaling 152.69 MiB, including both test profiles, their shader cache, the generated frontend build copy and generated DCUs. The staged editor bundles in `bin/Win32/editor` and `bin/Win64/editor` remain intact. Both saved project ZIPs retained the SHA-256 values recorded before this development.
 

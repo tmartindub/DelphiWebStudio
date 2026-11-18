@@ -2,4 +2,4 @@
 
 Date: 2026-10-29. Status: accepted owner-approved direction.
 
-Retain React/TypeScript, history and MIT attribution. Extend inspected source instead of rewriting the canvas in Delphi. Reuse existing page support. Keep upstream directories and add standard owner folders without mass moves. Cost: two toolchains and upstream compatibility maintenance.
+OpenPage is the open-source website builder this application extends. Its editor uses React, an interface library, and TypeScript, which adds type checking to JavaScript. Retain React/TypeScript, history and MIT attribution. Extend inspected source instead of rewriting the canvas in Delphi. Reuse existing page support. Keep upstream directories and add standard owner folders without mass moves. Cost: two toolchains and upstream compatibility maintenance.

@@ -2,4 +2,4 @@
 
 Date: 2026-10-29. Status: accepted direction; implementation pending M1.
 
-Use human-readable versioned project JSON and local assets. Extend actual SiteConfig/pages instead of blindly adopting an illustrative schema. Validate IDs, references, paths and URLs; preserve unknown content. Browser persistence versions are not file versions. Keep migration originals recoverable. Preview/export derive from the same content model; caches are not authoritative.
+JSON (JavaScript Object Notation) is a structured text format used here to describe website content, layout and settings. Use human-readable versioned project JSON and local assets. Extend actual SiteConfig/pages instead of blindly adopting an illustrative schema. Validate IDs, references, paths and URLs; preserve unknown content. Browser persistence versions are not file versions. Keep migration originals recoverable. Preview/export derive from the same content model; caches are not authoritative.

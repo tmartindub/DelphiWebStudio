@@ -4,6 +4,10 @@ This Stage 1 work is kept on the local `codex/gemini-text-stage1` branch. Do not
 
 ## Using the assistant
 
+The application uses Google Gemini, Google's online artificial intelligence service, to suggest changes to selected wording. A model is the software that produces a suggestion from the passage and your request. You review that suggestion before the editor changes the text.
+
+Google AI Studio is Google's website for managing Gemini access. Its API key is a secret access credential tied to a Google project, which controls service usage and billing separately from your website project. Free tier is Google's service allowance for an eligible project. This feature requires a project with billing disabled.
+
 Save a Google Gemini key in the application's Settings first. In the editor, enter a text box, highlight the passage to change, and right-click. Choose **Help with selected text…**. The same command is available in Text settings. A collapsed caret does not authorize rewriting an entire box: select the words first.
 
 Choose Grammar, Warmer tone, Professional tone or Shorten, or write an instruction. Confirm that the key belongs to a **Free tier** Google AI Studio project with no billing account attached, and that the selected text and instruction may be sent to Google. These choices are remembered only for the running editor session. Google says free-tier content may be used to improve its products; avoid confidential passages.
@@ -18,7 +22,7 @@ The Gemini API does not expose a request switch that forces an arbitrary key to 
 
 ## Implementation and limits
 
-`src/blocks/RichText.tsx` captures the selection after flushing pending typing to the normal project state. It retains a local clone of the selected DOM fragment and maps text nodes to stable request segment ids. Only text segments and the instruction cross the network; no project manifest, other page, media file, file path or formatting HTML is sent. Returned segment count, order, ids and sizes are validated. Replacement text is assigned to text nodes, never parsed as HTML or executed.
+`src/blocks/RichText.tsx` captures the selection after flushing pending typing to the normal project state. It retains a local clone of the selected DOM fragment, the browser's structured representation of that passage, and maps text nodes to stable request segment ids. Only text segments and the instruction cross the network; no project manifest, other page, media file, file path or formatting HTML is sent. Returned segment count, order, ids and sizes are validated. Replacement text is assigned to text nodes, never parsed as HTML or executed.
 
 The original field and DOM are checked again before Apply to reject stale selections. Apply uses the normal config store and undo stack; it does not save a file, export, publish, navigate or modify unrelated fields. Existing shared-section semantics still apply when the edited block is intentionally shared across pages. AI requests and previews are temporary memory, not project data.
 

@@ -1,6 +1,6 @@
 # Contributing
 
-Use feature branches and small PRs against this fork. Preserve MIT attribution/history and follow owner directives and docs/DECISIONS.
+Contributions extend Delphi Web Studio Pro, the Windows website editor based on the OpenPage project. Git records the source history, while a pull request (PR) proposes a reviewed change to the GitHub repository. Use feature branches and small PRs against this fork. Preserve MIT attribution/history and follow owner directives and docs/DECISIONS.
 
 Verify Git/remotes and create the required ZIP pre-change backup. Native forms remain IDE-editable; React canvas is the approved exception. Avoid unnecessary helpers/dependencies. Product colors are orange/blue; exclude payments/ecommerce and mandatory cloud access.
 

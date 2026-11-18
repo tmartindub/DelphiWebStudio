@@ -1,5 +1,7 @@
 # Local AI action foundation (experimental)
 
+Local artificial intelligence (AI) runs a model on this computer to propose changes. The model is the software that generates a suggestion; a runtime loads and executes it. Here llama.cpp provides the local runtime, and GGUF is the model-file format it reads. The planner converts a suggestion into typed actions, meaning operations whose allowed data shapes can be checked before they change a project. JSON (JavaScript Object Notation) is the structured text used for those exchanges.
+
 Last changed: 2026-11-01. The experimental local AI planner is connected to the Windows application. M4's specified five-page generation and editing functions have been exercised in isolated checks; see the limits below.
 
 `src/ai/site-actions.ts` defines a versioned, preview-only request and a limited set of typed page, theme and block operations. Evaluation works on a copy of the validated project and returns a readable list of changes. It does not contact a model, execute commands, read files, publish a site or modify the editor. The result can be accepted only against the same source snapshot; a changed project or altered preview is rejected.

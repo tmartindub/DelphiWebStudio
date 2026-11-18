@@ -1,5 +1,7 @@
 # Experimental Windows installer
 
+Inno Setup is the Windows installer compiler used by the script in this folder. It turns an already staged application into a Setup executable for another computer. Microsoft Edge WebView2 is the browser engine embedded in the editor; its loader connects the application to the installed Runtime.
+
 The Inno Setup script builds a per-user Windows x64 installer from an already built and verified desktop stage. It installs the executable, WebView2 loader, local editor assets, MIT license, third-party notices, collected dependency and WebView2 SDK license texts, and offline privacy and recovery documents. It does not install Node.js, download anything, configure hosting, or publish a website. Uninstall removes installed program files but does not remove the separate WebView profile, project files or optional AI files.
 
 The Microsoft Edge WebView2 Runtime must be installed separately; see [Microsoft's runtime distribution guidance](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution). Setup checks the per-machine and per-user runtime registry entries. If neither contains a usable version, interactive setup offers to open the Microsoft download page and stops. Silent setup logs the missing prerequisite and stops. Optional local AI files are separate. An independent license audit and a clean Windows installation and end-to-end workflow are still required before release.

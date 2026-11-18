@@ -1,6 +1,6 @@
 # Delphi Web Studio Pro roadmap
 
-Last changed: 2026-10-29. Milestones are acceptance gates, not completed-feature claims.
+Last changed: 2026-10-29. Each numbered milestone below is a group of planned work with a check that establishes when that group is accepted. These milestones are acceptance gates, not completed-feature claims. The roadmap covers the visual editor, portable projects, optional artificial intelligence (AI) and website-file delivery. SFTP (SSH File Transfer Protocol) is the encrypted delivery connection; WebView2 is the Microsoft browser engine used inside the Windows shell.
 
 | Milestone | Deliverables | Exit gate |
 | --- | --- | --- |

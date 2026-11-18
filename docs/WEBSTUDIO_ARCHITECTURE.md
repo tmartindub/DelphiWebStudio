@@ -4,6 +4,8 @@ Last reviewed November 15, 2026 for version 1.0.0 build 1. See the [Engineering 
 
 ## Current architecture
 
+The Windows shell is the Delphi window and native code that handle operating-system work. Microsoft Edge WebView2 supplies the browser engine embedded in that window. React builds the interactive editor, and TypeScript adds type checking to its JavaScript code. A narrow bridge carries supported requests between that editor and the native shell. JSON (JavaScript Object Notation) is the structured text used for project descriptions; the manifest is the versioned record that packages those descriptions and media references for saving.
+
 | Area | Ownership |
 | --- | --- |
 | Windows shell | desktop/DelphiWebStudio/WebStudio.Main.dfm defines the form. WebStudio.Main.pas hosts WebView2, loads the adjacent editor bundle and coordinates native dialogs and downloads. |
@@ -19,7 +21,7 @@ Responsive rows in src/index.css and src/lib/export.css reflow from 940 px and c
 
 ## Original upstream baseline
 
-The remainder records the inspected upstream starting point and the first portable-project increment. Use the map above for current behavior.
+The remainder records the inspected upstream starting point and the first portable-project increment. OpenPage is the open-source website builder from which the project was forked. In this baseline, Google Gemini supplies online artificial intelligence, Vercel hosts optional server functions, and Pexels supplies an external image-search service. Use the map above for current behavior.
 
 Last changed: 2026-10-29. Inspected commit: 9818eb43a88e01b23cb55752e19902d8285a853b.
 

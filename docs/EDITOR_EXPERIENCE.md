@@ -2,6 +2,8 @@
 
 ## Current editor controls
 
+The canvas is the page displayed for visual editing. A block is a page section such as a banner, navigation bar or gallery; independent objects, such as text boxes and images, can sit inside sections or panels. The Navbar block supplies visitor navigation, while the Footer is the closing section at the bottom of a page. JSON (JavaScript Object Notation) is the structured text describing these components. HTML describes the exported page structure, CSS controls its appearance and JavaScript supplies programmed behavior.
+
 The [illustrated Editor Reference](pdf/Delphi%20Web%20Studio%20Pro%20Editor%20Reference.pdf) describes the current Windows interface. File, Edit, Insert, View, and Advanced collect the editor commands; Page tools holds Plan pages and Check site. The toolbar keeps project status, preview sizes, and common commands visible. Technical imports, JSON, and history live under Advanced.
 
 The Elements palette has categories, visual cards, and heading and paragraph presets. Object properties open in a floating window with paired position and size fields, and the selection toolbar exposes alignment, layering, duplicate, and delete. Use Shift+Click for a group or Alt+Click for overlapping objects. Use View > Media library or a Browse button in Properties to select media by thumbnail.

@@ -6,6 +6,8 @@ exist or authorize publication of any website.
 
 ## Save the Google key
 
+Google Gemini is Google's online artificial intelligence service. Its API key is a secret credential used to identify the Google project making a request. That service project manages access and usage separately from a website project in the editor.
+
 The user wants to enter the Gemini API key once and have the application retain
 it across application restarts, rather than requiring it to be entered for each
 session. Provide an appropriate way to replace or remove the saved key. Determine
@@ -17,7 +19,7 @@ key deliberately.
 Current behavior: a newly entered Gemini key is held in session state. The
 application also reads an older legacy key from browser local storage, when one
 exists. Project and configuration drafts use browser local storage; media and
-local revisions use IndexedDB. Those stores are not presently a protected,
+local revisions use IndexedDB, the embedded browser's local database. Those stores are not presently a protected,
 persistent credential feature for newly entered keys.
 
 ## Define compatible hosting

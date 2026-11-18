@@ -1,5 +1,7 @@
 # Experimental portable project files — M1
 
+A portable project contains the editable description of a website and references to its media. JSON (JavaScript Object Notation) stores that description as structured text; a ZIP archive can package it with the imported files. While editing, the app keeps a separate local draft in its embedded browser. IndexedDB is the browser database used for media and local revisions. Microsoft Edge WebView2 supplies that browser inside the Windows application.
+
 Last changed: 2026-11-01. Tracking: issue #2. The specified M1 five-page save, reopen and export exit scenario passed in isolated testing. The application remains experimental; clean-install, power-loss and broader release validation are still pending.
 
 The code panel can be opened with its toolbar button or `J`, and its close button returns focus to the toolbar. The JSON editor has an accessible label and announces validation errors. Applying a JSON draft is blocked if the active project or configuration changed after editing began; copy the draft before cancelling and reopening. An isolated WebView2 test checked the keyboard shortcut, error, focus and stale-draft behavior. This is not a full accessibility audit.
@@ -198,7 +200,7 @@ In the Windows app, **Open reviewed site in browser** opens that same ZIP throug
 
 Dashboard → **Local Storage** reports the size of stored media and local revisions by project. Review and remove individual revisions or media left by a removed draft. The cleanup operates on the editor profile. Saved project ZIPs and external backups are separate.
 
-After reviewing files, **Prepare file manifest** hashes the website files. Download the manifest to keep a local snapshot; selecting a previous WebStudio manifest lists files added, changed or removed since that snapshot. This does not inspect a live destination or delete anything. The desktop SFTP workflow below can compare and check a destination separately.
+After reviewing files, **Prepare file manifest** hashes the website files. Download the manifest to keep a local snapshot; selecting a previous WebStudio manifest lists files added, changed or removed since that snapshot. This does not inspect a live destination or delete anything. SFTP (SSH File Transfer Protocol) transfers website files over an encrypted connection to a compatible server. The desktop SFTP workflow below can compare and check a destination separately.
 
 The experimental desktop SFTP dialog also supports a destination scan, a matching ZIP backup and a review of a website ZIP against those files. The destination check is read-only. After review and a successful check, the transfer button requires a new local receipt filename and explicit confirmation. For replacements, enter a separate existing recovery folder outside the website and ensure the host does not serve it; the application cannot verify the host's web-server configuration. The transfer rechecks the inputs and destination, retains replaced files in that folder, and records its progress and final verification in the receipt. Files only on the destination are kept. A failed transfer may leave partial changes: inspect the receipt, take a new scan and backup, and review before trying again. This workflow has been tested with synthetic local SFTP data; an actual host deployment has not been verified.
 
