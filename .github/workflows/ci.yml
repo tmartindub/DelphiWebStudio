@@ -1,6 +1,8 @@
 name: Delphi Web Studio Pro checks
 
 on:
+  pull_request:
+    branches: [main, master]
   workflow_dispatch:
 
 permissions:
