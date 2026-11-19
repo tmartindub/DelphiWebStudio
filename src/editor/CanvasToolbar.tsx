@@ -16,6 +16,7 @@ import {
   Pencil,
   Trash2,
   Link,
+  Search,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEditorStore, type Viewport, type EditorMode } from '@/store/editorStore'
@@ -90,12 +91,13 @@ function AddPagePopover({ onAdd, onClose }: { onAdd: (name: string, path: string
   )
 }
 
-function PageTab({ page, isActive, onClick, onRename, onEditPath, onDelete, canDelete }: {
+function PageTab({ page, isActive, onClick, onRename, onEditPath, onEditSeo, onDelete, canDelete }: {
   page: PageConfig
   isActive: boolean
   onClick: () => void
   onRename: (name: string) => void
   onEditPath: () => void
+  onEditSeo: () => void
   onDelete: () => void
   canDelete: boolean
 }) {
@@ -145,6 +147,8 @@ function PageTab({ page, isActive, onClick, onRename, onEditPath, onDelete, canD
       {isActive && <button type="button" aria-label={`Rename ${page.name}`} title={`Rename ${page.name}`}
         onClick={() => { setName(page.name); setEditing(true) }}
         className="p-1 rounded text-text-3 hover:text-text-0 focus-visible:outline focus-visible:outline-2"><Pencil size={12} /></button>}
+      {isActive && <button type="button" aria-label={`Search details for ${page.name}`} title={`Search details for ${page.name}`}
+        onClick={onEditSeo} className="p-1 rounded text-text-3 hover:text-text-0 focus-visible:outline focus-visible:outline-2"><Search size={12} /></button>}
       {isActive && page.path !== '/' && <button type="button" aria-label={`Change address for ${page.name}`} title={`Change address for ${page.name}`}
         onClick={onEditPath} className="p-1 rounded text-text-3 hover:text-text-0 focus-visible:outline focus-visible:outline-2"><Link size={12} /></button>}
       {isActive && canDelete && <button type="button" aria-label={`Delete ${page.name}`}
@@ -155,6 +159,24 @@ function PageTab({ page, isActive, onClick, onRename, onEditPath, onDelete, canD
       </button>}
     </div>
   )
+}
+
+function EditPageSeoDialog({ page, onCancel, onSave }: { page: PageConfig; onCancel: () => void; onSave: (title: string, description: string) => void }) {
+  const dialog = useRef<HTMLDialogElement>(null)
+  const [title, setTitle] = useState(page.webstudioSeo?.title ?? '')
+  const [description, setDescription] = useState(page.webstudioSeo?.description ?? '')
+  const [error, setError] = useState('')
+  useEffect(() => { const element = dialog.current; element?.showModal(); return () => { if (element?.open) element.close() } }, [])
+  return <dialog ref={dialog} onCancel={event => { event.preventDefault(); onCancel() }} aria-labelledby="page-seo-title" className="w-[min(92vw,32rem)] rounded-xl border border-border-default bg-bg-1 p-5 text-text-0 shadow-xl backdrop:bg-black/60">
+    <h2 id="page-seo-title" className="text-lg font-semibold">Search details for {page.name}</h2>
+    <p className="mt-2 text-sm text-text-2">Set this page's title and description for search and sharing. Leave either blank to use the site-wide setting.</p>
+    <label htmlFor="page-search-title" className="mt-4 block text-sm">Page title</label>
+    <input id="page-search-title" value={title} onChange={event => setTitle(event.target.value)} className="mt-1 w-full rounded border border-border-default bg-bg-2 px-3 py-2 text-sm" />
+    <label htmlFor="page-search-description" className="mt-3 block text-sm">Page description</label>
+    <textarea id="page-search-description" value={description} onChange={event => setDescription(event.target.value)} rows={3} className="mt-1 w-full rounded border border-border-default bg-bg-2 px-3 py-2 text-sm" />
+    {error && <p role="alert" className="mt-2 text-sm text-status-red">{error}</p>}
+    <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onCancel} className="rounded border border-border-default px-3 py-2 text-sm">Cancel</button><button type="button" onClick={() => { try { onSave(title, description) } catch (cause) { setError(cause instanceof Error ? cause.message : 'Search details could not be saved.') } }} className="rounded bg-green px-3 py-2 text-sm font-semibold text-black">Save details</button></div>
+  </dialog>
 }
 
 function EditPagePathDialog({ page, onCancel, onSave }: { page: PageConfig; onCancel: () => void; onSave: (path: string, updateLinks: boolean) => void }) {
@@ -216,6 +238,7 @@ export function CanvasToolbar() {
   const removePage = useConfigStore((s) => s.removePage)
   const renamePage = useConfigStore((s) => s.renamePage)
   const changePagePath = useConfigStore((s) => s.changePagePath)
+  const updatePageSeo = useConfigStore((s) => s.updatePageSeo)
   const projects = useProjectsStore((s) => s.projects)
   const configName = useConfigStore((s) => s.config.name)
   const config = useConfigStore((s) => s.config)
@@ -224,12 +247,14 @@ export function CanvasToolbar() {
   const [showSiteChecks, setShowSiteChecks] = useState(false)
   const [deletingPage, setDeletingPage] = useState<{ id: string; projectId: string | null } | null>(null)
   const [editingPath, setEditingPath] = useState<{ id: string; projectId: string | null } | null>(null)
+  const [editingSeo, setEditingSeo] = useState<{ id: string; projectId: string | null } | null>(null)
   const [exporting, setExporting] = useState(false)
 
   const activeProject = activeProjectId ? projects.find((p) => p.id === activeProjectId) : null
   const projectName = activeProject?.name || configName
   const pageToDelete = pages.find(page => page.id === deletingPage?.id && deletingPage.projectId === activeProjectId)
   const pageToEditPath = pages.find(page => page.id === editingPath?.id && editingPath.projectId === activeProjectId)
+  const pageToEditSeo = pages.find(page => page.id === editingSeo?.id && editingSeo.projectId === activeProjectId)
   const linkedPages = pageToDelete ? pages.filter(page => page.id !== pageToDelete.id && page.blocks.some(block => {
     const keys = block.type === 'hero' ? ['primaryCtaUrl', 'secondaryCtaUrl'] : block.type === 'cta' ? ['buttonUrl'] : block.type === 'banner' ? ['linkUrl'] : block.type === 'navbar' ? ['ctaUrl'] : []
     return keys.some(key => {
@@ -265,6 +290,7 @@ export function CanvasToolbar() {
     {showSiteChecks && <SiteChecks onClose={() => setShowSiteChecks(false)} />}
     {pageToDelete && <DeletePageDialog page={pageToDelete} linkedPages={linkedPages} onCancel={() => setDeletingPage(null)} onConfirm={() => { removePage(pageToDelete.id); setDeletingPage(null) }} />}
     {pageToEditPath && <EditPagePathDialog page={pageToEditPath} onCancel={() => setEditingPath(null)} onSave={(path, updateLinks) => { changePagePath(pageToEditPath.id, path, updateLinks); setEditingPath(null) }} />}
+    {pageToEditSeo && <EditPageSeoDialog page={pageToEditSeo} onCancel={() => setEditingSeo(null)} onSave={(title, description) => { updatePageSeo(pageToEditSeo.id, title, description); setEditingSeo(null) }} />}
     {portableProjectsEnabled && <div className="bg-bg-1 border-b border-border-default px-3 py-1"><ProjectFileCommands /></div>}
     <div className="min-h-10 bg-bg-1 border-b border-border-default flex flex-wrap items-center px-3 py-1 gap-1">
       {/* Breadcrumb */}
@@ -291,6 +317,7 @@ export function CanvasToolbar() {
             onClick={() => setActivePage(page.id)}
             onRename={(name) => renamePage(page.id, name)}
             onEditPath={() => setEditingPath({ id: page.id, projectId: activeProjectId })}
+            onEditSeo={() => setEditingSeo({ id: page.id, projectId: activeProjectId })}
             onDelete={() => setDeletingPage({ id: page.id, projectId: activeProjectId })}
             canDelete={pages.length > 1 && page.path !== '/'}
           />

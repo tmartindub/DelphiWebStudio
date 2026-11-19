@@ -143,4 +143,10 @@ describe('portable project files', () => {
     badHome.pages![0].webstudioArticle = badHome.pages![1].webstudioArticle
     expect(() => validateProjectConfig(badHome)).toThrow('Home page cannot be an article')
   })
+
+  it('rejects invalid page search metadata without changing the source', () => {
+    const config = { name: 'Site', pages: [{ id: 'home', name: 'Home', path: '/', blocks: [], webstudioSeo: { title: 42 } }], blocks: [] }
+    expect(() => validateProjectConfig(config)).toThrow('must be text')
+    expect(config.pages[0].webstudioSeo.title).toBe(42)
+  })
 })

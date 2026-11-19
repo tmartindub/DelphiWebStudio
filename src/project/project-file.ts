@@ -92,6 +92,10 @@ export function validateProjectConfig(value: unknown): SiteConfig {
       pageIds.add(id)
       text(page.name, 'Page name')
       const path = pagePath(page.path)
+      if (page.webstudioSeo !== undefined) {
+        const seo = record(page.webstudioSeo, 'Page search metadata')
+        if ((seo.title !== undefined && typeof seo.title !== 'string') || (seo.description !== undefined && typeof seo.description !== 'string')) throw new Error('Page search title and description must be text.')
+      }
       if (paths.has(path.toLowerCase())) throw new Error(`Duplicate page path: ${path}.`)
       paths.add(path.toLowerCase())
       if (page.webstudioArticle !== undefined) {

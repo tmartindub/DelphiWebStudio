@@ -11,6 +11,18 @@ const pages = [
 const config: SiteConfig = { name: 'Example', pages, blocks: pages[0].blocks }
 
 describe('multi-page export', () => {
+  it('exports individual page search titles and descriptions with site-wide fallbacks', async () => {
+    const site = structuredClone(config)
+    site.pages![1].webstudioSeo = { title: 'News & updates', description: 'Latest "community" news' }
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site, { settings: { seoTitle: 'Community Site', seoDescription: 'Site-wide description' } })).arrayBuffer())
+    const home = await zip.file('index.html')!.async('string')
+    const news = await zip.file('community/news.html')!.async('string')
+    expect(home).toContain('<title>Community Site</title>')
+    expect(home).toContain('Site-wide description')
+    expect(news).toContain('<title>News &amp; updates</title>')
+    expect(news).toContain('Latest &quot;community&quot; news')
+    expect(news).toContain('property="og:title" content="News &amp; updates"')
+  })
   it('exports each page, preserves content and produces relative navigation from nested paths', async () => {
     const zip = await JSZip.loadAsync(await (await exportSiteZip(config)).arrayBuffer())
     const home = await zip.file('index.html')!.async('string')

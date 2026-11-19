@@ -1531,7 +1531,8 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     const nav = pages.map((target, targetIndex) => `<a href="${escapeHtml(prefix + encodeURI(paths[targetIndex]))}"${target.id === page.id ? ' aria-current="page"' : ''} class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(target.name)}</a>`).join(' ') + (articles.length ? ` <a href="${prefix}articles/index.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Articles</a>` : '') + (options?.settings?.siteSearch === 'on' ? ` <a href="${prefix}search.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a>` : '')
     const article = page.webstudioArticle
     const articleHeader = article && (article.author || article.summary) ? `<header class="px-6 py-3 text-text-1">${article.author ? `<p class="text-sm">By ${escapeHtml(article.author)}</p>` : ''}${article.summary ? `<p class="text-sm">${escapeHtml(article.summary)}</p>` : ''}</header>` : ''
-    const html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, options)
+    const pageSettings = { ...options?.settings, ...(page.webstudioSeo?.title?.trim() ? { seoTitle: page.webstudioSeo.title } : {}), ...(page.webstudioSeo?.description?.trim() ? { seoDescription: page.webstudioSeo.description } : {}) }
+    const html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, { settings: pageSettings })
       .replace('<body>', `<body>\n<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav}</nav>`)
       .replace('<main class="@container">', `<main class="@container">${articleHeader}`)
       .replace(/\b(src|href|data)="assets\//g, `$1="${prefix}assets/`)

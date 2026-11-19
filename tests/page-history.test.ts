@@ -13,6 +13,16 @@ beforeEach(() => {
 })
 
 describe('page history', () => {
+  it('saves and undoes page search metadata without affecting another page', () => {
+    const id = useConfigStore.getState().addPage('News', '/news')
+    useConfigStore.getState().updatePageSeo(id, 'News title', 'News description')
+    expect(useConfigStore.getState().config.pages![1].webstudioSeo).toEqual({ title: 'News title', description: 'News description' })
+    expect(useConfigStore.getState().config.pages![0].webstudioSeo).toBeUndefined()
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().config.pages![1].webstudioSeo).toBeUndefined()
+    useConfigStore.getState().redo()
+    expect(useConfigStore.getState().config.pages![1].webstudioSeo?.title).toBe('News title')
+  })
   it('restores the selected page when adding, undoing and redoing pages', () => {
     const id = useConfigStore.getState().addPage('News', '/news')
     expect(useConfigStore.getState().activePageId).toBe(id)
