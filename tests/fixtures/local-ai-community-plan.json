@@ -1,0 +1,24 @@
+{
+  "pages": [
+    {
+      "name": "Welcome",
+      "headline": "A Community of Shared Stories"
+    },
+    {
+      "name": "About",
+      "headline": "Where People Meet and Grow"
+    },
+    {
+      "name": "Events",
+      "headline": "Discover What's Happening"
+    },
+    {
+      "name": "Resources",
+      "headline": "Tools and Tips for Life"
+    },
+    {
+      "name": "Contact",
+      "headline": "Connect and Share"
+    }
+  ]
+}
