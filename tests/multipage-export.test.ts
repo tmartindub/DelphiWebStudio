@@ -58,7 +58,7 @@ describe('multi-page export', () => {
   it('packages referenced PDF bytes and uses the correct nested relative path', async () => {
     const site = structuredClone(config)
     site.pages![1].blocks = [{ id: 'pdf', type: 'pdfViewer', variant: 'default', props: { title: 'Bulletin', src: 'assets/example.pdf' } }]
-    const media = [{ id: 'example', projectId: 'p', name: 'bulletin.pdf', path: 'assets/example.pdf', mime: 'application/pdf', size: 9, sha256: 'x', content: new Blob(['%PDF-test'], { type: 'application/pdf' }) }]
+    const media = [{ id: 'example', projectId: 'p', name: 'bulletin.pdf', path: 'assets/example.pdf', mime: 'application/pdf', size: 9, sha256: '3c87d37f1dbea6909f917ce437c390fb8e655a774387d9e69301c0b2283d5b63', content: new Blob(['%PDF-test'], { type: 'application/pdf' }) }]
     const zip = await JSZip.loadAsync(await (await exportSiteZip(site, undefined, media)).arrayBuffer())
     expect(await zip.file('assets/example.pdf')!.async('string')).toBe('%PDF-test')
     expect(await zip.file('community/news.html')!.async('string')).toContain('src="../assets/pdfjs/viewer.html?file=..%2Fexample.pdf"')
@@ -70,10 +70,17 @@ describe('multi-page export', () => {
   it('retains an alternating feature image on a nested page', async () => {
     const site = structuredClone(config)
     site.pages![1].blocks = [{ id: 'feature', type: 'features', variant: 'alternating', props: { title: 'Stories', items: [{ title: 'Photo', description: 'Example', image: 'assets/photo.png' }] } }]
-    const media = [{ id: 'photo', projectId: 'p', name: 'photo.png', path: 'assets/photo.png', mime: 'image/png', size: 5, sha256: 'x', content: new Blob(['image'], { type: 'image/png' }) }]
+    const media = [{ id: 'photo', projectId: 'p', name: 'photo.png', path: 'assets/photo.png', mime: 'image/png', size: 5, sha256: '6105d6cc76af400325e94d588ce511be5bfdbb73b437dc51eca43917d7a43e3d', content: new Blob(['image'], { type: 'image/png' }) }]
     const zip = await JSZip.loadAsync(await (await exportSiteZip(site, undefined, media)).arrayBuffer())
     expect(await zip.file('assets/photo.png')!.async('string')).toBe('image')
     expect(await zip.file('community/news.html')!.async('string')).toContain('src="../assets/photo.png"')
+  })
+
+  it('refuses to export media whose bytes do not match its recorded checksum', async () => {
+    const site = structuredClone(config)
+    site.pages![1].blocks = [{ id: 'feature', type: 'features', variant: 'alternating', props: { title: 'Stories', items: [{ title: 'Photo', description: '', image: 'assets/photo.png' }] } }]
+    const media = [{ id: 'photo', projectId: 'p', name: 'photo.png', path: 'assets/photo.png', mime: 'image/png', size: 5, sha256: '6105d6cc76af400325e94d588ce511be5bfdbb73b437dc51eca43917d7a43e3d', content: new Blob(['other'], { type: 'image/png' }) }]
+    await expect(exportSiteZip(site, undefined, media)).rejects.toThrow('Media integrity check failed for photo.png')
   })
 
   it('rewrites links to project pages to portable relative HTML paths', async () => {
@@ -94,7 +101,7 @@ describe('multi-page export', () => {
     site.pages![0].blocks = [{ id: 'pdf', type: 'pdfViewer', variant: 'default', props: { src: 'assets/example.pdf' } }]
     site.blocks = site.pages![0].blocks
     site.pages![1].path = path
-    const media = [{ id: 'example', projectId: 'p', name: 'bulletin.pdf', path: 'assets/example.pdf', mime: 'application/pdf', size: 9, sha256: 'x', content: new Blob(['%PDF-test'], { type: 'application/pdf' }) }]
+    const media = [{ id: 'example', projectId: 'p', name: 'bulletin.pdf', path: 'assets/example.pdf', mime: 'application/pdf', size: 9, sha256: '3c87d37f1dbea6909f917ce437c390fb8e655a774387d9e69301c0b2283d5b63', content: new Blob(['%PDF-test'], { type: 'application/pdf' }) }]
     await expect(exportSiteZip(site, undefined, media)).rejects.toThrow('conflicts with an exported asset or folder')
   })
 
@@ -162,7 +169,7 @@ describe('multi-page export', () => {
     site.pages![1].webstudioArticle = { status: 'draft', author: 'Author', summary: 'Private draft', createdAt: '2026-01-01', modifiedAt: '2026-01-01' }
     site.pages![1].blocks = [{ id: 'img', type: 'image', variant: 'hero-image', props: { src: 'assets/draft.png' } }]
     site.pages![2].webstudioArticle = { status: 'ready', author: 'Ada', summary: 'Public article', createdAt: '2026-01-01', modifiedAt: '2026-01-01' }
-    const media = [{ id: 'draft', projectId: 'p', name: 'draft.png', path: 'assets/draft.png', mime: 'image/png', size: 5, sha256: 'x', content: new Blob(['image'], { type: 'image/png' }) }]
+    const media = [{ id: 'draft', projectId: 'p', name: 'draft.png', path: 'assets/draft.png', mime: 'image/png', size: 5, sha256: '6105d6cc76af400325e94d588ce511be5bfdbb73b437dc51eca43917d7a43e3d', content: new Blob(['image'], { type: 'image/png' }) }]
     const zip = await JSZip.loadAsync(await (await exportSiteZip(site, { settings: { siteSearch: 'on', siteBaseUrl: 'https://example.com/' } }, media)).arrayBuffer())
     expect(zip.file('community/news.html')).toBeNull()
     expect(zip.file('assets/draft.png')).toBeNull()
