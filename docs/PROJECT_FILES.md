@@ -58,6 +58,8 @@ For Hero, CTA and Banner links, the Properties panel also offers **Choose a site
 
 Before deleting a page, the editor lists other pages with Hero, CTA or Banner link settings that point to it. Deletion is explicitly confirmed and can be undone; it does not automatically remove those link settings. Links in other block types or custom content are not checked, so this is not a complete broken-link audit.
 
+**Check site** runs local checks for known Hero, CTA and Banner destinations, missing image descriptions, and unconfigured Contact or Newsletter forms. Select **Open this block** to go to a finding. Unknown root-relative paths are flagged for review because they might instead name a separate hosted file. External links, in-page anchors, custom content, visual layout and overall accessibility are not verified. A clean result is not a certification; inspect the exported site separately.
+
 In Preview mode, links to existing site pages switch the visible page without leaving the editor. Other links are not followed there; use the exported website to test external addresses and anchors. In editing mode, clicking a link selects its block instead of navigating away. The split Hero preview also shows its configured image when available.
 
 New Footer blocks start without prefilled legal links or copyright claims. The multi-column layout uses the description and columns actually present in the project instead of generating product or legal placeholder content. Existing saved values are preserved; projects that previously relied on generated placeholder columns will no longer display those placeholders unless the content was explicitly saved.
