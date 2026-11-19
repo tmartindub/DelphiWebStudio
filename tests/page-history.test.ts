@@ -61,6 +61,26 @@ describe('page history', () => {
     expect(useConfigStore.getState().config.pages?.find(page => page.id === id)?.path).toBe('/updates')
   })
 
+  it('optionally updates known page links in one undoable change, preserving queries and anchors', () => {
+    useConfigStore.getState().addBlock({ id: 'h', type: 'hero', variant: 'centered', props: { primaryCtaUrl: '/news?from=home#top', secondaryCtaUrl: 'https://example.com/news' } })
+    const id = useConfigStore.getState().addPage('News', '/news')
+    useConfigStore.getState().addBlock({ id: 'c', type: 'cta', variant: 'simple', props: { buttonUrl: '/news/' } })
+    useConfigStore.getState().changePagePath(id, '/updates', true)
+    let pages = useConfigStore.getState().config.pages!
+    expect(pages[0].blocks[0].props.primaryCtaUrl).toBe('/updates?from=home#top')
+    expect(pages[0].blocks[0].props.secondaryCtaUrl).toBe('https://example.com/news')
+    expect(pages[1].blocks[0].props.buttonUrl).toBe('/updates')
+    expect(useConfigStore.getState().config.blocks[0].props.primaryCtaUrl).toBe('/updates?from=home#top')
+    useConfigStore.getState().undo()
+    pages = useConfigStore.getState().config.pages!
+    expect(pages[1].path).toBe('/news')
+    expect(pages[0].blocks[0].props.primaryCtaUrl).toBe('/news?from=home#top')
+    useConfigStore.getState().redo()
+    expect(useConfigStore.getState().config.pages![1].path).toBe('/updates')
+    useConfigStore.getState().changePagePath(id, '/articles', false)
+    expect(useConfigStore.getState().config.pages![0].blocks[0].props.primaryCtaUrl).toBe('/updates?from=home#top')
+  })
+
   it('undoes and redoes a complete JSON replacement without discarding extension data', () => {
     const before = { ...useConfigStore.getState().config, name: 'Original', extension: { retained: 1 } }
     useConfigStore.getState().setConfig(before)

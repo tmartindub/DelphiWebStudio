@@ -157,18 +157,20 @@ function PageTab({ page, isActive, onClick, onRename, onEditPath, onDelete, canD
   )
 }
 
-function EditPagePathDialog({ page, onCancel, onSave }: { page: PageConfig; onCancel: () => void; onSave: (path: string) => void }) {
+function EditPagePathDialog({ page, onCancel, onSave }: { page: PageConfig; onCancel: () => void; onSave: (path: string, updateLinks: boolean) => void }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const [path, setPath] = useState(page.path)
   const [error, setError] = useState('')
+  const [updateLinks, setUpdateLinks] = useState(true)
   useEffect(() => { const element = dialog.current; element?.showModal(); return () => { if (element?.open) element.close() } }, [])
   return <dialog ref={dialog} onCancel={event => { event.preventDefault(); onCancel() }} aria-labelledby="page-path-title" className="w-[min(92vw,32rem)] rounded-xl border border-border-default bg-bg-1 p-5 text-text-0 shadow-xl backdrop:bg-black/60">
     <h2 id="page-path-title" className="text-lg font-semibold">Change address for {page.name}</h2>
-    <p className="mt-2 text-sm text-text-2">Existing links and bookmarks may stop working. Check site can identify known links that need updating. You can undo this change.</p>
+    <p className="mt-2 text-sm text-text-2">External bookmarks and links in unsupported content may stop working. You can undo this change.</p>
     <label htmlFor="page-path" className="mt-4 block text-sm">Page address</label>
     <input id="page-path" value={path} onChange={event => { setPath(event.target.value); setError('') }} className="mt-1 w-full rounded border border-border-default bg-bg-2 px-3 py-2 text-sm" />
+    <label className="mt-3 flex items-start gap-2 text-sm"><input type="checkbox" checked={updateLinks} onChange={event => setUpdateLinks(event.target.checked)} /> Update known Hero, CTA, Banner and Navbar button links to this page.</label>
     {error && <p role="alert" className="mt-2 text-sm text-status-red">{error}</p>}
-    <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onCancel} className="rounded border border-border-default px-3 py-2 text-sm">Cancel</button><button type="button" onClick={() => { try { onSave(path.trim()) } catch (cause) { setError(cause instanceof Error ? cause.message : 'Address could not be changed.') } }} className="rounded bg-green px-3 py-2 text-sm font-semibold text-black">Save address</button></div>
+    <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onCancel} className="rounded border border-border-default px-3 py-2 text-sm">Cancel</button><button type="button" onClick={() => { try { onSave(path.trim(), updateLinks) } catch (cause) { setError(cause instanceof Error ? cause.message : 'Address could not be changed.') } }} className="rounded bg-green px-3 py-2 text-sm font-semibold text-black">Save address</button></div>
   </dialog>
 }
 
@@ -262,7 +264,7 @@ export function CanvasToolbar() {
     {showPlanPages && <PlanPages onClose={() => setShowPlanPages(false)} />}
     {showSiteChecks && <SiteChecks onClose={() => setShowSiteChecks(false)} />}
     {pageToDelete && <DeletePageDialog page={pageToDelete} linkedPages={linkedPages} onCancel={() => setDeletingPage(null)} onConfirm={() => { removePage(pageToDelete.id); setDeletingPage(null) }} />}
-    {pageToEditPath && <EditPagePathDialog page={pageToEditPath} onCancel={() => setEditingPath(null)} onSave={path => { changePagePath(pageToEditPath.id, path); setEditingPath(null) }} />}
+    {pageToEditPath && <EditPagePathDialog page={pageToEditPath} onCancel={() => setEditingPath(null)} onSave={(path, updateLinks) => { changePagePath(pageToEditPath.id, path, updateLinks); setEditingPath(null) }} />}
     {portableProjectsEnabled && <div className="bg-bg-1 border-b border-border-default px-3 py-1"><ProjectFileCommands /></div>}
     <div className="min-h-10 bg-bg-1 border-b border-border-default flex flex-wrap items-center px-3 py-1 gap-1">
       {/* Breadcrumb */}
