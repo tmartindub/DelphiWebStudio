@@ -33,7 +33,7 @@ object MainForm: TMainForm
     UserDataFolder = '%LOCALAPPDATA%\DelphiWebStudio\WebView'
     OnCreateWebViewCompleted = EditorBrowserCreateWebViewCompleted
     OnNavigationStarting = EditorBrowserNavigationStarting
-    OnFrameNavigationStarting = EditorBrowserNavigationStarting
+    OnFrameNavigationStarting = EditorBrowserFrameNavigationStarting
     OnNavigationCompleted = EditorBrowserNavigationCompleted
     OnNewWindowRequested = EditorBrowserNewWindowRequested
     OnPermissionRequested = EditorBrowserPermissionRequested

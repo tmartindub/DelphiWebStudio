@@ -15,6 +15,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure EditorBrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HResult);
     procedure EditorBrowserNavigationStarting(Sender: TCustomEdgeBrowser; Args: TNavigationStartingEventArgs);
+    procedure EditorBrowserFrameNavigationStarting(Sender: TCustomEdgeBrowser; Args: TNavigationStartingEventArgs);
     procedure EditorBrowserNavigationCompleted(Sender: TCustomEdgeBrowser; IsSuccess: Boolean; WebErrorStatus: COREWEBVIEW2_WEB_ERROR_STATUS);
     procedure EditorBrowserNewWindowRequested(Sender: TCustomEdgeBrowser; Args: TNewWindowRequestedEventArgs);
     procedure EditorBrowserPermissionRequested(Sender: TCustomEdgeBrowser; Args: TPermissionRequestedEventArgs);
@@ -77,6 +78,22 @@ procedure TMainForm.EditorBrowserNavigationCompleted(Sender: TCustomEdgeBrowser;
 begin
   if IsSuccess then StatusLabel.Caption := 'Local editor loaded.'
   else StatusLabel.Caption := 'The local editor could not be loaded.';
+end;
+
+procedure TMainForm.EditorBrowserFrameNavigationStarting(Sender: TCustomEdgeBrowser; Args: TNavigationStartingEventArgs);
+var Address: PWideChar; Allowed: Boolean; URL: string;
+begin
+  Address := nil;
+  Allowed := False;
+  try
+    if Succeeded(Args.ArgsInterface.Get_uri(Address)) and (Address <> nil) then begin
+      URL := string(Address);
+      Allowed := URL.StartsWith('https://webstudio.local/') or URL.StartsWith('blob:https://webstudio.local/');
+    end;
+  finally
+    CoTaskMemFree(Address);
+  end;
+  if not Allowed then Args.ArgsInterface.Set_Cancel(1);
 end;
 
 procedure TMainForm.EditorBrowserNewWindowRequested(Sender: TCustomEdgeBrowser; Args: TNewWindowRequestedEventArgs);
