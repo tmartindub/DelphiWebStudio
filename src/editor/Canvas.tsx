@@ -82,9 +82,10 @@ export function Canvas() {
         {pages.some(page => page.webstudioArticle?.status === 'ready') && <a href="#article-index" className="min-w-0 [overflow-wrap:anywhere] hover:text-text-0" onClick={event => { event.preventDefault(); toast('The article list is available in the exported website ZIP.') }}>Articles</a>}
         {searchEnabled && <a href="#site-search" className="min-w-0 [overflow-wrap:anywhere] hover:text-text-0" onClick={event => { event.preventDefault(); toast('Site search is available in the exported website ZIP.') }}>Search</a>}
       </nav>}
-      {activeArticle && (activeArticle.author || activeArticle.summary) && <header className="px-6 py-3 text-text-1">
+      {activeArticle && (activeArticle.author || activeArticle.summary || activeArticle.tags?.length) && <header className="px-6 py-3 text-text-1">
         {activeArticle.author && <p className="text-sm">By {activeArticle.author}</p>}
         {activeArticle.summary && <p className="text-sm">{activeArticle.summary}</p>}
+        {!!activeArticle.tags?.length && <p className="text-sm">Tags: {activeArticle.tags.join(', ')}</p>}
       </header>}
       {blocks.length === 0 ? <div className="bg-[#dce8f3] min-h-[400px] flex"><CanvasEmpty /></div> : blocks.map((block) => {
         const props = Object.fromEntries(Object.entries(block.props).map(([key, value]) => {

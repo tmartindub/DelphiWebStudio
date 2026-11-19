@@ -1,4 +1,5 @@
 import { toast } from 'sonner'
+import { useState } from 'react'
 import type { PageConfig } from '@/blocks/types'
 import { validateProjectConfig } from '@/project/project-file'
 import { useConfigStore } from '@/store/configStore'
@@ -8,6 +9,8 @@ export function ArticlesPanel() {
   const activePageId = useConfigStore(state => state.activePageId)
   const page = config.pages?.find(item => item.id === activePageId)
   const article = page?.webstudioArticle
+  const [tagDraft, setTagDraft] = useState<{ pageId: string; value: string } | null>(null)
+  const tagInput = tagDraft?.pageId === activePageId ? tagDraft.value : ''
 
   function updateArticle(changes: Partial<NonNullable<PageConfig['webstudioArticle']>>) {
     const state = useConfigStore.getState()
@@ -44,6 +47,12 @@ export function ArticlesPanel() {
     <label className="block">Summary
       <textarea aria-label="Article summary" value={article.summary} onChange={event => updateArticle({ summary: event.target.value })} rows={3} className="block w-full mt-1 p-2 rounded bg-bg-2 border border-border-default" />
     </label>
+    <div><label htmlFor="article-tag" className="block">Tags</label>
+      <div className="mt-1 flex gap-1"><input id="article-tag" value={tagInput} maxLength={80} onChange={event => setTagDraft({ pageId: page.id, value: event.target.value })} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); const tag = tagInput.trim(); if (tag && !(article.tags ?? []).some(value => value.toLowerCase() === tag.toLowerCase())) { updateArticle({ tags: [...(article.tags ?? []), tag] }); setTagDraft(null) } } }} className="min-w-0 flex-1 p-2 rounded bg-bg-2 border border-border-default" />
+      <button type="button" onClick={() => { const tag = tagInput.trim(); if (tag && !(article.tags ?? []).some(value => value.toLowerCase() === tag.toLowerCase())) { updateArticle({ tags: [...(article.tags ?? []), tag] }); setTagDraft(null) } }} className="rounded border border-border-default px-2">Add tag</button></div>
+      <ul className="mt-2 space-y-1">{(article.tags ?? []).map((tag, index) => <li key={`${tag}-${index}`} className="flex items-center justify-between gap-2"><span>{tag}</span><button type="button" aria-label={`Remove tag ${tag}`} onClick={() => updateArticle({ tags: article.tags!.filter((_, position) => position !== index) })} className="text-text-2 underline">Remove</button></li>)}</ul>
+      <p className="mt-1 text-text-3">Tags appear with ready articles and in site search and RSS.</p>
+    </div>
     <p>Edit the article content with the page components. Ready includes it in the ZIP; it does not publish the site.</p>
   </div>
 }

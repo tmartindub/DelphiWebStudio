@@ -1446,14 +1446,14 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     if (articles.length) {
       const channelTitle = options?.settings?.siteName || validated.name
       const channelDescription = options?.settings?.siteDescription || 'Articles'
-      const xmlValues = [channelTitle, channelDescription, ...articles.flatMap(article => [article.name, article.webstudioArticle!.summary])]
+      const xmlValues = [channelTitle, channelDescription, ...articles.flatMap(article => [article.name, article.webstudioArticle!.summary, ...(article.webstudioArticle!.tags ?? [])])]
       if (xmlValues.some(value => Array.from(value).some(character => {
         const code = character.codePointAt(0)!
         return (code < 32 && code !== 9 && code !== 10 && code !== 13) || (code >= 0xd800 && code <= 0xdfff) || code === 0xfffe || code === 0xffff
       }))) throw new Error('Article feed contains characters that cannot be written to XML.')
       const items = articles.map(article => {
         const location = new URL(encodeURI(paths[pages.indexOf(article)]), base).href
-        return `  <item><title>${escapeHtml(article.name)}</title><link>${escapeHtml(location)}</link><guid isPermaLink="true">${escapeHtml(location)}</guid><description>${escapeHtml(article.webstudioArticle!.summary)}</description></item>`
+        return `  <item><title>${escapeHtml(article.name)}</title><link>${escapeHtml(location)}</link><guid isPermaLink="true">${escapeHtml(location)}</guid><description>${escapeHtml(article.webstudioArticle!.summary)}</description>${(article.webstudioArticle!.tags ?? []).map(tag => `<category>${escapeHtml(tag)}</category>`).join('')}</item>`
       }).join('\n')
       const feed = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>${escapeHtml(channelTitle)}</title><link>${escapeHtml(base.href)}</link><description>${escapeHtml(channelDescription)}</description>\n${items}\n</channel></rss>\n`
       zip.file('feed.xml', feed, { date: new Date('1980-01-01T00:00:00Z') })
@@ -1461,7 +1461,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
   }
   if (articles.length) {
     const nav = pages.map((page, index) => `<a href="../${escapeHtml(encodeURI(paths[index]))}" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(page.name)}</a>`).join(' ')
-    const cards = articles.map(article => `<article class="p-4 rounded-lg border border-border-default"><h2 class="text-xl font-semibold"><a href="../${escapeHtml(encodeURI(paths[pages.indexOf(article)]))}" class="text-green hover:underline">${escapeHtml(article.name)}</a></h2>${article.webstudioArticle!.author ? `<p class="text-sm">By ${escapeHtml(article.webstudioArticle!.author)}</p>` : ''}${article.webstudioArticle!.summary ? `<p class="text-sm">${escapeHtml(article.webstudioArticle!.summary)}</p>` : ''}</article>`).join('')
+    const cards = articles.map(article => `<article class="p-4 rounded-lg border border-border-default"><h2 class="text-xl font-semibold"><a href="../${escapeHtml(encodeURI(paths[pages.indexOf(article)]))}" class="text-green hover:underline">${escapeHtml(article.name)}</a></h2>${article.webstudioArticle!.author ? `<p class="text-sm">By ${escapeHtml(article.webstudioArticle!.author)}</p>` : ''}${article.webstudioArticle!.summary ? `<p class="text-sm">${escapeHtml(article.webstudioArticle!.summary)}</p>` : ''}${article.webstudioArticle!.tags?.length ? `<p class="text-sm">Tags: ${article.webstudioArticle!.tags.map(escapeHtml).join(', ')}</p>` : ''}</article>`).join('')
     const content = `<main id="main-content" tabindex="-1" class="@container"><div class="max-w-3xl mx-auto px-6 py-12"><h1 class="text-3xl font-bold mb-4">Articles</h1><div class="space-y-4">${cards}</div>${siteBaseUrl ? '<p class="mt-4"><a href="../feed.xml" class="text-green hover:underline">RSS feed</a></p>' : ''}</div></main>`
     const searchNav = options?.settings?.siteSearch === 'on' ? ' <a href="../search.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a>' : ''
     const archive = exportSiteToHTML({ ...validated, name: 'Articles', blocks: [] }, { settings: { ...options?.settings, seoTitle: 'Articles' } })
@@ -1472,7 +1472,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
   }
   if (options?.settings?.siteSearch === 'on') {
     const searchIndex = pages.map((page, pageIndex) => {
-      const text: string[] = [page.name, page.webstudioArticle?.author ?? '', page.webstudioArticle?.summary ?? '']
+      const text: string[] = [page.name, page.webstudioArticle?.author ?? '', page.webstudioArticle?.summary ?? '', ...(page.webstudioArticle?.tags ?? [])]
       const pending: unknown[] = page.blocks.map(block => block.props)
       while (pending.length) {
         const value = pending.pop()
@@ -1545,7 +1545,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     const prefix = '../'.repeat(depth)
     const nav = pages.map((target, targetIndex) => `<a href="${escapeHtml(prefix + encodeURI(paths[targetIndex]))}"${target.id === page.id ? ' aria-current="page"' : ''} class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(target.name)}</a>`).join(' ') + (articles.length ? ` <a href="${prefix}articles/index.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Articles</a>` : '') + (options?.settings?.siteSearch === 'on' ? ` <a href="${prefix}search.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a>` : '')
     const article = page.webstudioArticle
-    const articleHeader = article && (article.author || article.summary) ? `<header class="px-6 py-3 text-text-1">${article.author ? `<p class="text-sm">By ${escapeHtml(article.author)}</p>` : ''}${article.summary ? `<p class="text-sm">${escapeHtml(article.summary)}</p>` : ''}</header>` : ''
+    const articleHeader = article && (article.author || article.summary || article.tags?.length) ? `<header class="px-6 py-3 text-text-1">${article.author ? `<p class="text-sm">By ${escapeHtml(article.author)}</p>` : ''}${article.summary ? `<p class="text-sm">${escapeHtml(article.summary)}</p>` : ''}${article.tags?.length ? `<p class="text-sm">Tags: ${article.tags.map(escapeHtml).join(', ')}</p>` : ''}</header>` : ''
     const pageSettings = { ...options?.settings, ...(page.webstudioSeo?.title?.trim() ? { seoTitle: page.webstudioSeo.title } : {}), ...(page.webstudioSeo?.description?.trim() ? { seoDescription: page.webstudioSeo.description } : {}) }
     const html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, { settings: pageSettings })
       .replace('</head>', canonicalBase ? `  <link rel="canonical" href="${escapeHtml(new URL(encodeURI(paths[index]), canonicalBase).href)}" />\n  <meta property="og:url" content="${escapeHtml(new URL(encodeURI(paths[index]), canonicalBase).href)}" />\n</head>` : '</head>')

@@ -178,27 +178,33 @@ describe('multi-page export', () => {
 
   it('omits draft article pages and their media from site, navigation, search and sitemap', async () => {
     const site = structuredClone(config)
-    site.pages![1].webstudioArticle = { status: 'draft', author: 'Author', summary: 'Private draft', createdAt: '2026-01-01', modifiedAt: '2026-01-01' }
+    site.pages![1].webstudioArticle = { status: 'draft', author: 'Author', summary: 'Private draft', tags: ['secret tag'], createdAt: '2026-01-01', modifiedAt: '2026-01-01' }
     site.pages![1].blocks = [{ id: 'img', type: 'image', variant: 'hero-image', props: { src: 'assets/draft.png' } }]
-    site.pages![2].webstudioArticle = { status: 'ready', author: 'Ada', summary: 'Public article', createdAt: '2026-01-01', modifiedAt: '2026-01-01' }
+    site.pages![2].webstudioArticle = { status: 'ready', author: 'Ada', summary: 'Public article', tags: ['News & events'], createdAt: '2026-01-01', modifiedAt: '2026-01-01' }
     const media = [{ id: 'draft', projectId: 'p', name: 'draft.png', path: 'assets/draft.png', mime: 'image/png', size: 5, sha256: '6105d6cc76af400325e94d588ce511be5bfdbb73b437dc51eca43917d7a43e3d', content: new Blob(['image'], { type: 'image/png' }) }]
     const zip = await JSZip.loadAsync(await (await exportSiteZip(site, { settings: { siteSearch: 'on', siteBaseUrl: 'https://example.com/' } }, media)).arrayBuffer())
     expect(zip.file('community/news.html')).toBeNull()
     expect(zip.file('assets/draft.png')).toBeNull()
     expect(await zip.file('index.html')!.async('string')).not.toContain('community/news.html')
     expect(await zip.file('search.html')!.async('string')).not.toContain('Private draft')
+    expect(await zip.file('search.html')!.async('string')).not.toContain('secret tag')
+    expect(await zip.file('search.html')!.async('string')).toContain('News & events')
     expect(await zip.file('sitemap.xml')!.async('string')).not.toContain('community/news.html')
     expect(await zip.file('sitemap.xml')!.async('string')).toContain('https://example.com/articles/index.html')
     const article = await zip.file('about.html')!.async('string')
     expect(article).toContain('By Ada')
     expect(article).toContain('Public article')
+    expect(article).toContain('Tags: News &amp; events')
     const archive = await zip.file('articles/index.html')!.async('string')
     expect(archive).toContain('href="../about.html"')
     expect(archive).toContain('rel="canonical" href="https://example.com/articles/index.html"')
     expect(archive).not.toContain('Private draft')
+    expect(archive).toContain('Tags: News &amp; events')
     const feed = await zip.file('feed.xml')!.async('string')
     expect(feed).toContain('<link>https://example.com/about.html</link>')
     expect(feed).toContain('<description>Public article</description>')
+    expect(feed).toContain('<category>News &amp; events</category>')
+    expect(feed).not.toContain('secret tag')
     expect(feed).not.toContain('Private draft')
   })
 
