@@ -7,14 +7,16 @@ uses
 
 type
   { Starts only an explicitly configured local llama-server. The caller owns
-    model/runtime verification, protected key-file creation, and readiness. }
+    the trusted checksum source, runtime dependencies, key-file protection,
+    and server readiness. }
   TLocalAIProcess = class
   private
     FProcess: THandle;
     FJob: THandle;
   public
     destructor Destroy; override;
-    procedure Start(const ServerPath, ModelPath, KeyFile: string; Port: Word);
+    procedure Start(const ServerPath, ModelPath, KeyFile, ServerSHA256,
+      ModelSHA256: string; Port: Word);
     procedure Stop;
     function IsRunning: Boolean;
   end;
@@ -22,7 +24,7 @@ type
 implementation
 
 uses
-  System.IOUtils;
+  System.IOUtils, System.Hash;
 
 destructor TLocalAIProcess.Destroy;
 begin
@@ -38,8 +40,8 @@ begin
     (ExitCode = STILL_ACTIVE);
 end;
 
-procedure TLocalAIProcess.Start(const ServerPath, ModelPath, KeyFile: string;
-  Port: Word);
+procedure TLocalAIProcess.Start(const ServerPath, ModelPath, KeyFile, ServerSHA256,
+  ModelSHA256: string; Port: Word);
 var
   ServerName, ModelName, KeyName, Key, CommandLine: string;
   Startup: TStartupInfo;
@@ -68,6 +70,12 @@ begin
   for Index := 1 to Length(Key) do
     if not CharInSet(Key[Index], ['0'..'9', 'A'..'F', 'a'..'f']) then
       raise EArgumentException.Create('Local AI key file is invalid.');
+  if (Length(ServerSHA256) <> 64) or (Length(ModelSHA256) <> 64) then
+    raise EArgumentException.Create('Trusted SHA-256 checksums are required.');
+  if not SameText(THashSHA2.GetHashStringFromFile(ServerName), ServerSHA256) then
+    raise EArgumentException.Create('Local AI runtime checksum does not match.');
+  if not SameText(THashSHA2.GetHashStringFromFile(ModelName), ModelSHA256) then
+    raise EArgumentException.Create('Local AI model checksum does not match.');
 
   FJob := CreateJobObject(nil, nil);
   if FJob = 0 then RaiseLastOSError;
