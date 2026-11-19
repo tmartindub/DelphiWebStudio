@@ -355,7 +355,8 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
   const projectId = useEditorStore((s) => s.activeProjectId)
   const mediaRevision = useProjectsStore((s) => s.projects.find(project => project.id === projectId)?.mediaRevision ?? 0)
   const [media, setMedia] = useState<{ projectId: string; revision: number; images: MediaAsset[] } | null>(null)
-  const imageItems = field.type === 'array-items' && field.key === 'images' && (block.type === 'gallery' || block.type === 'image')
+  const imageItems = field.type === 'array-items' && ((field.key === 'images' && (block.type === 'gallery' || block.type === 'image')) || (field.key === 'items' && block.type === 'features'))
+  const imageKey = block.type === 'features' ? 'image' : 'src'
 
   useEffect(() => {
     if (!portableProjectsEnabled || (field.type !== 'image' && !imageItems) || !projectId) return
@@ -508,7 +509,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
       function createEmptyItem(): Record<string, string> {
         if (items.length > 0) {
           const template: Record<string, string> = {}
-          for (const key of Object.keys(items[0])) template[key] = ''
+          for (const key of Object.keys(items[0])) if (key !== 'assetId') template[key] = ''
           return template
         }
         // Fallback templates by block type + field key
@@ -527,6 +528,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
       return (
         <div className="mb-2.5">
           <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{field.label}</label>
+          {imageItems && block.type === 'features' && <p className="mb-1 text-[10px] text-text-3">Feature images appear in the alternating layout.</p>}
           {items.map((item, i) => (
             <div key={i} className="bg-bg-2 border border-border-default rounded p-2 mb-1.5">
               <div className="flex items-center justify-between mb-1.5">
@@ -538,7 +540,7 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                   Remove
                 </button>
               </div>
-              {Object.entries(item).filter(([key]) => !(imageItems && key === 'assetId')).map(([key, val]) => (
+              {Object.entries(imageItems && imageKey === 'image' && !('image' in item) ? { ...item, image: '' } : item).filter(([key]) => !(imageItems && key === 'assetId')).map(([key, val]) => (
                 <div key={key} className="mb-1">
                   <label className="block text-[10px] text-text-3 mb-0.5">{key}</label>
                   <input
@@ -548,19 +550,19 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
                     onChange={(e) => {
                       const updated = [...items]
                       updated[i] = { ...updated[i], [key]: e.target.value }
-                      if (imageItems && key === 'src') delete updated[i].assetId
+                      if (imageItems && key === imageKey) delete updated[i].assetId
                       onChange(updated)
                     }}
                     className="w-full px-1.5 py-1 rounded border border-border-subtle bg-bg-3 text-text-0 text-[11px] outline-none focus:border-green"
                   />
-                  {imageItems && key === 'src' && portableProjectsEnabled && images.length > 0 && <select
+                  {imageItems && key === imageKey && portableProjectsEnabled && images.length > 0 && <select
                     aria-label={`Choose image for ${field.label} item ${i + 1}`}
                     value={images.some(image => image.path === val) ? val : ''}
                     onChange={event => {
                       const image = images.find(candidate => candidate.path === event.target.value)
                       if (!image) return
                       const updated = [...items]
-                      updated[i] = { ...updated[i], src: image.path, assetId: image.id }
+                      updated[i] = { ...updated[i], [imageKey]: image.path, assetId: image.id }
                       onChange(updated)
                     }}
                     className="mt-1 w-full px-1.5 py-1 rounded border border-border-subtle bg-bg-3 text-text-0 text-[11px] outline-none focus:border-green">

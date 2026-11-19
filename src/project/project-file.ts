@@ -166,6 +166,9 @@ export function validateProjectMedia(config: SiteConfig, assets: unknown[]): voi
         if (typeof entry.assetId === 'string' && typeof entry.src === 'string' && pathsById.has(entry.assetId) && pathsById.get(entry.assetId) !== entry.src) {
           throw new Error(`Media ID and path do not match: ${entry.assetId}.`)
         }
+        if (block.type === 'features' && typeof entry.assetId === 'string' && typeof entry.image === 'string' && pathsById.has(entry.assetId) && pathsById.get(entry.assetId) !== entry.image) {
+          throw new Error(`Media ID and path do not match: ${entry.assetId}.`)
+        }
       }
       for (const [key, child] of Object.entries(value)) {
         if (key === 'assetId' && typeof child === 'string' && child && !assetIds.has(child)) throw new Error(`Missing project media ID: ${child}.`)
