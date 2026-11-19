@@ -14,6 +14,8 @@ Undoing an image replacement restores its prior dimensions as well as its bytes 
 
 Save downloads a project ZIP with a manifest and the project's media; Open validates it and restores a separate local project. Projects without media can still be saved as JSON. Browser download behavior governs the destination. Previous replacement versions are retained in the browser but are not included in project ZIPs.
 
+Before creating a project ZIP, Save verifies each stored file's size and SHA-256 checksum. If a file no longer matches its recorded metadata, saving stops with an error so the file can be restored or replaced instead of creating a project ZIP that cannot be reopened. Large media collections can take longer to save while they are checked.
+
 Site export includes referenced media and a local PDF.js viewer with page navigation, zoom, text search, password prompting and download. Print opens the PDF in the browser. Exported styling is embedded and uses system font fallbacks. User-supplied remote media and optional analytics can still require network access; complete offline export remains unfinished. Browser IndexedDB is not a substitute for a saved project ZIP, and native atomic file saving remains future desktop work.
 
 The PDF preview and exported viewer initially fit pages to the available width without enlarging them. Zoom is expressed relative to that fit; zooming in can intentionally require horizontal scrolling. The exported viewer was checked at 375, 768 and 1440 pixels using the sample bulletin, including phone-width search and zoom. Individual PDFs and devices may still need additional testing.
