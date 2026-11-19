@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ErrorBoundary } from './layout/ErrorBoundary'
 import { AppLayout } from './layout/AppLayout'
 import { Dashboard } from './routes/Dashboard'
@@ -28,11 +28,12 @@ function AppRoutes() {
 }
 
 export function App() {
+  const Router = window.location.origin === 'https://webstudio.local' ? HashRouter : BrowserRouter
   return (
     <ErrorBoundary>
-      <BrowserRouter>
+      <Router>
         <AppRoutes />
-      </BrowserRouter>
+      </Router>
     </ErrorBoundary>
   )
 }
