@@ -17,6 +17,7 @@ type
     RecoveryOpenDialog: TOpenDialog;
     RecoverySaveDialog: TSaveDialog;
     procedure FormCreate(Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
     procedure EditorBrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HResult);
     procedure EditorBrowserNavigationStarting(Sender: TCustomEdgeBrowser; Args: TNavigationStartingEventArgs);
     procedure EditorBrowserFrameNavigationStarting(Sender: TCustomEdgeBrowser; Args: TNavigationStartingEventArgs);
@@ -27,6 +28,8 @@ type
     procedure RecoverStageButtonClick(Sender: TObject);
   private
     FDownloadPending: Boolean;
+    FActiveProjectSaves: Integer;
+    FCloseWarningShown: Boolean;
   end;
 
 var MainForm: TMainForm;
@@ -45,6 +48,7 @@ type
     FFileName: string;
     FStagedPath: string;
     FTargetPath: string;
+    FFinished: Boolean;
   public
     constructor Create(AOwner: TMainForm; AOwnerWindow: HWND; const AFileName, AStagedPath, ATargetPath: string);
     function Invoke(const sender: ICoreWebView2DownloadOperation; const args: IUnknown): HResult; stdcall;
@@ -67,28 +71,39 @@ begin
   if not IsWindow(FOwnerWindow) or (FindControl(FOwnerWindow) <> FOwner) or
     (csDestroying in FOwner.ComponentState) or not Assigned(FOwner.StatusLabel) or
     Winapi.Windows.Failed(sender.Get_State(State)) then Exit;
-  if State = COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED then begin
-    if FStagedPath <> '' then begin
-      try
-        CommitStagedProjectFile(FStagedPath, FTargetPath);
-      except
+  if (State <> COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED) and (State <> COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED) then Exit;
+  if FStagedPath <> '' then begin
+    if FFinished then Exit;
+    FFinished := True;
+  end;
+  try
+    if State = COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED then begin
+      if FStagedPath <> '' then begin
+        try
+          CommitStagedProjectFile(FStagedPath, FTargetPath);
+        except
+          if Assigned(FOwner.RecoveryOpenDialog) then FOwner.RecoveryOpenDialog.InitialDir := TPath.GetDirectoryName(FStagedPath);
+          FOwner.StatusLabel.Hint := FStagedPath;
+          FOwner.StatusLabel.Caption := 'Project not saved. Check staged file: ' + FStagedPath;
+          Exit;
+        end;
+      end;
+      FOwner.StatusLabel.Hint := '';
+      FOwner.StatusLabel.Caption := 'Download completed: ' + FFileName;
+    end else if State = COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED then begin
+      if FStagedPath <> '' then begin
         if Assigned(FOwner.RecoveryOpenDialog) then FOwner.RecoveryOpenDialog.InitialDir := TPath.GetDirectoryName(FStagedPath);
         FOwner.StatusLabel.Hint := FStagedPath;
-        FOwner.StatusLabel.Caption := 'Project not saved. Check staged file: ' + FStagedPath;
-        Exit;
+        FOwner.StatusLabel.Caption := 'Project download interrupted. Check staged file: ' + FStagedPath;
+      end else begin
+        FOwner.StatusLabel.Hint := '';
+        FOwner.StatusLabel.Caption := 'Download interrupted: ' + FFileName + '. Try saving again.';
       end;
     end;
-    FOwner.StatusLabel.Hint := '';
-    FOwner.StatusLabel.Caption := 'Download completed: ' + FFileName;
-  end else if State = COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED then begin
+  finally
     if FStagedPath <> '' then begin
-      if Assigned(FOwner.RecoveryOpenDialog) then FOwner.RecoveryOpenDialog.InitialDir := TPath.GetDirectoryName(FStagedPath);
-      FOwner.StatusLabel.Hint := FStagedPath;
-      FOwner.StatusLabel.Caption := 'Project download interrupted. Check staged file: ' + FStagedPath;
-    end
-    else begin
-      FOwner.StatusLabel.Hint := '';
-      FOwner.StatusLabel.Caption := 'Download interrupted: ' + FFileName + '. Try saving again.';
+      if FOwner.FActiveProjectSaves > 0 then Dec(FOwner.FActiveProjectSaves);
+      FOwner.FCloseWarningShown := False;
     end;
   end;
 end;
@@ -102,6 +117,19 @@ begin
   try
     EditorBrowser.CreateWebView;
   except on E: Exception do StatusLabel.Caption := 'Unable to start the local editor: ' + E.Message end;
+end;
+
+procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  if (FDownloadPending or (FActiveProjectSaves > 0)) and
+    (not FCloseWarningShown or (StatusLabel.Caption <> 'A save is in progress. Wait for it to finish, or close again to interrupt it.')) then begin
+    FCloseWarningShown := True;
+    CanClose := False;
+    StatusLabel.Caption := 'A save is in progress. Wait for it to finish, or close again to interrupt it.';
+  end else begin
+    CanClose := True;
+    if not FDownloadPending and (FActiveProjectSaves = 0) then FCloseWarningShown := False;
+  end;
 end;
 
 procedure TMainForm.EditorBrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HResult);
@@ -247,6 +275,7 @@ begin
     Exit;
   end;
   FDownloadPending := True;
+  FCloseWarningShown := False;
   OwnerWindow := Handle;
   DownloadArgs := Args.ArgsInterface;
   try
@@ -290,7 +319,7 @@ begin
                       DownloadArgs.Set_Cancel(1);
                       StatusLabel.Caption := 'Project save could not start. Try again.';
                     end else StatusLabel.Caption := 'Download started; completion status is unavailable.';
-                  end;
+                  end else if StagedPath <> '' then Inc(FActiveProjectSaves);
                 end;
               end else begin
                 DownloadArgs.Set_Cancel(1);
