@@ -3,7 +3,7 @@ unit WebStudio.Bridge;
 
 interface
 
-uses System.SysUtils;
+uses System.SysUtils, System.Generics.Collections;
 
 type
   TDesktopCapability = (dcProjectOpen, dcProjectSave, dcMediaImport, dcSiteExport);
@@ -12,6 +12,22 @@ type
   TDesktopRequest = record
     RequestId: string;
     Capability: TDesktopCapability;
+  end;
+
+  { Native owner creates a fresh session with its own unpredictable ID.
+    Once revoked or full, create a new session rather than recycling IDs. }
+  TDesktopSession = class
+  private
+    FSessionId: string;
+    FProjectId: string;
+    FGrants: TDesktopCapabilities;
+    FSeenRequests: TDictionary<string, Byte>;
+    FRevoked: Boolean;
+  public
+    constructor Create(const SessionId, ProjectId: string; Grants: TDesktopCapabilities);
+    destructor Destroy; override;
+    function ValidateAndClaim(const RawJSON, SenderURL: string): TDesktopRequest;
+    procedure Revoke;
   end;
 
 { Validates an envelope only. SenderURL must be obtained from the WebView
@@ -23,6 +39,47 @@ function ValidateDesktopRequest(const RawJSON, SenderURL, SessionId,
 implementation
 
 uses System.JSON, System.Classes;
+
+constructor TDesktopSession.Create(const SessionId, ProjectId: string; Grants: TDesktopCapabilities);
+begin
+  inherited Create;
+  if SessionId = '' then raise EArgumentException.Create('A native session ID is required.');
+  FSessionId := SessionId;
+  FProjectId := ProjectId;
+  FGrants := Grants;
+  FSeenRequests := TDictionary<string, Byte>.Create;
+end;
+
+destructor TDesktopSession.Destroy;
+begin
+  FSeenRequests.Free;
+  inherited;
+end;
+
+function TDesktopSession.ValidateAndClaim(const RawJSON, SenderURL: string): TDesktopRequest;
+begin
+  TMonitor.Enter(Self);
+  try
+    if FRevoked then raise EInvalidOpException.Create('Desktop session is revoked.');
+    Result := ValidateDesktopRequest(RawJSON, SenderURL, FSessionId, FProjectId, FGrants);
+    if FSeenRequests.ContainsKey(Result.RequestId) then raise EInvalidOpException.Create('Desktop request was already used.');
+    if FSeenRequests.Count >= 4096 then raise EInvalidOpException.Create('Desktop session request limit reached.');
+    FSeenRequests.Add(Result.RequestId, 0);
+  finally
+    TMonitor.Exit(Self);
+  end;
+end;
+
+procedure TDesktopSession.Revoke;
+begin
+  TMonitor.Enter(Self);
+  try
+    FRevoked := True;
+    FGrants := [];
+  finally
+    TMonitor.Exit(Self);
+  end;
+end;
 
 function ValidateDesktopRequest(const RawJSON, SenderURL, SessionId,
   ProjectId: string; Grants: TDesktopCapabilities): TDesktopRequest;
