@@ -13,6 +13,7 @@ import JSZip from 'jszip'
 export function ProjectFileCommands() {
   const inputRef = useRef<HTMLInputElement>(null)
   const [opening, setOpening] = useState(false)
+  const [saving, setSaving] = useState(false)
   const navigate = useNavigate()
   const config = useConfigStore(state => state.config)
   const activeProjectId = useEditorStore(state => state.activeProjectId)
@@ -100,7 +101,9 @@ export function ProjectFileCommands() {
 
   async function saveProject() {
     if (!project || useEditorStore.getState().mediaImporting) return
+    setSaving(true)
     useEditorStore.getState().setMediaImporting(true)
+    const preparationToast = toast.loading('Preparing project. Keep this window open until the save finishes.')
     try {
       const portableSettings = { ...project.projectFile?.settings, ...project.settings }
       delete portableSettings.deployAccessKey
@@ -149,11 +152,13 @@ export function ProjectFileCommands() {
       useProjectsStore.getState().saveProjectFile(project.id, projectDocument)
       const currentProject = useProjectsStore.getState().projects.find(item => item.id === project.id)
       if (useEditorStore.getState().activeProjectId !== project.id || useConfigStore.getState().config !== config || currentProject?.name !== project.name || JSON.stringify(currentProject?.settings ?? {}) !== JSON.stringify(project.settings ?? {})) {
-        toast.warning('An earlier snapshot was downloaded. Newer changes remain in the draft; save again to include them.')
+        toast.warning('An earlier snapshot was prepared. Newer changes remain in the draft; save again to include them.')
       } else toast('Project file download requested. Choose a destination if prompted.')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Project could not be saved.')
     } finally {
+      toast.dismiss(preparationToast)
+      setSaving(false)
       useEditorStore.getState().setMediaImporting(false)
     }
   }
@@ -166,8 +171,8 @@ export function ProjectFileCommands() {
         <FolderOpen size={14} />{opening ? 'Opening…' : 'Open project'}
       </button>
       {project && <button type="button" disabled={mediaImporting} onClick={() => void saveProject()}
-        className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3">
-        <Save size={14} />Save project
+        className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-text-1 hover:bg-bg-3 disabled:opacity-50">
+        <Save size={14} />{saving ? 'Preparing project…' : 'Save project'}
       </button>}
     </div>
   )
