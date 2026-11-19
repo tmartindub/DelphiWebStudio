@@ -3,7 +3,7 @@ program ProjectSaveSmoke;
 uses System.SysUtils, System.IOUtils, System.Classes, System.Zip, WebStudio.ProjectSave in '..\..\desktop\project\WebStudio.ProjectSave.pas', WebStudio.ProjectOpen in '..\..\desktop\project\WebStudio.ProjectOpen.pas';
 var
   Id: TGUID;
-  Folder, Target, EmptyTarget, RecoveryTarget, NestedRecovery, EmptyRecovery: string;
+  Folder, Target, EmptyTarget, RecoveryTarget, NestedRecovery, EmptyRecovery, UnicodeTarget, UnicodeRecovery: string;
   Data, Actual, RecoveryBytes: TBytes;
   Index: Integer;
   Rejected: Boolean;
@@ -19,6 +19,8 @@ begin
   RecoveryTarget := TPath.Combine(Folder, 'recovery.zip');
   NestedRecovery := TPath.Combine(Folder, 'nested-recovery.zip');
   EmptyRecovery := TPath.Combine(Folder, 'empty-recovery.zip');
+  UnicodeTarget := TPath.Combine(Folder, 'caf' + #$00E9 + '-' + #$4F1A + '.webstudio.json');
+  UnicodeRecovery := TPath.Combine(Folder, 'unicode-recovery.zip');
   try
     SetLength(Data, 1048587);
     for Index := 0 to High(Data) do Data[Index] := Byte(Index mod 251);
@@ -101,6 +103,16 @@ begin
       Archive.Read('empty.webstudio.json', RecoveryBytes);
     finally Archive.Free end;
     if Length(RecoveryBytes) <> 0 then raise Exception.Create('Empty recovery differs.');
+    SaveNewProjectFile(UnicodeTarget, Data);
+    SaveProjectRecoveryZip(UnicodeTarget, UnicodeRecovery, Length(Data));
+    Archive := TZipFile.Create;
+    try
+      Archive.Open(UnicodeRecovery, zmRead);
+      if Archive.FileName[0] <> TPath.GetFileName(UnicodeTarget) then raise Exception.Create('Unicode recovery filename differs.');
+      Archive.Read(0, RecoveryBytes);
+    finally Archive.Free end;
+    if Length(RecoveryBytes) <> Length(Data) then raise Exception.Create('Unicode recovery length differs.');
+    for Index := 0 to High(Data) do if Data[Index] <> RecoveryBytes[Index] then raise Exception.Create('Unicode recovery bytes differ.');
     Rejected := False;
     try ReadProjectFile('relative.webstudio.json', 100);
     except on E: EArgumentException do Rejected := True end;
@@ -113,7 +125,7 @@ begin
     try SaveNewProjectFile(TPath.Combine(Folder, 'missing\project.json'), nil);
     except on E: EOSError do Rejected := True end;
     if not Rejected then raise Exception.Create('Missing folder was accepted.');
-    if Length(TDirectory.GetFiles(Folder)) <> 5 then raise Exception.Create('Temporary files were left behind.');
+    if Length(TDirectory.GetFiles(Folder)) <> 7 then raise Exception.Create('Temporary files were left behind.');
     Writeln('Native create-only save, bounded open and ZIP recovery snapshot passed.');
   finally
     if TFile.Exists(Target) then TFile.Delete(Target);
@@ -121,6 +133,8 @@ begin
     if TFile.Exists(RecoveryTarget) then TFile.Delete(RecoveryTarget);
     if TFile.Exists(NestedRecovery) then TFile.Delete(NestedRecovery);
     if TFile.Exists(EmptyRecovery) then TFile.Delete(EmptyRecovery);
+    if TFile.Exists(UnicodeTarget) then TFile.Delete(UnicodeTarget);
+    if TFile.Exists(UnicodeRecovery) then TFile.Delete(UnicodeRecovery);
     TDirectory.Delete(Folder, False);
   end;
 end.
