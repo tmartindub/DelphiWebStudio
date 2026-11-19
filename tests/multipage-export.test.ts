@@ -150,9 +150,17 @@ describe('multi-page export', () => {
     expect(await zip.file('index.html')!.async('string')).not.toContain('community/news.html')
     expect(await zip.file('search.html')!.async('string')).not.toContain('Private draft')
     expect(await zip.file('sitemap.xml')!.async('string')).not.toContain('community/news.html')
+    expect(await zip.file('sitemap.xml')!.async('string')).toContain('https://example.com/articles/index.html')
     const article = await zip.file('about.html')!.async('string')
     expect(article).toContain('By Ada')
     expect(article).toContain('Public article')
+    const archive = await zip.file('articles/index.html')!.async('string')
+    expect(archive).toContain('href="../about.html"')
+    expect(archive).not.toContain('Private draft')
+    const feed = await zip.file('feed.xml')!.async('string')
+    expect(feed).toContain('<link>https://example.com/about.html</link>')
+    expect(feed).toContain('<description>Public article</description>')
+    expect(feed).not.toContain('Private draft')
   })
 
   it('rejects an exported page link to a draft article', async () => {
@@ -161,5 +169,26 @@ describe('multi-page export', () => {
     site.pages![0].blocks = [{ id: 'cta', type: 'cta', variant: 'simple', props: { headline: 'News', buttonText: 'Read', buttonUrl: '/community/news' } }]
     site.blocks = site.pages![0].blocks
     await expect(exportSiteZip(site)).rejects.toThrow('links to the draft article')
+  })
+
+  it('exports an article index without a feed when no public URL is configured', async () => {
+    const site = structuredClone(config)
+    site.pages![2].webstudioArticle = { status: 'ready', author: '', summary: '', createdAt: '', modifiedAt: '' }
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site)).arrayBuffer())
+    expect(zip.file('articles/index.html')).not.toBeNull()
+    expect(zip.file('feed.xml')).toBeNull()
+  })
+
+  it('rejects a page whose output would overwrite the article index', async () => {
+    const site = structuredClone(config)
+    site.pages![1].path = '/articles/index'
+    site.pages![2].webstudioArticle = { status: 'ready', author: '', summary: '', createdAt: '', modifiedAt: '' }
+    await expect(exportSiteZip(site)).rejects.toThrow('conflicts with an exported asset or folder')
+  })
+
+  it('rejects invalid XML characters in article feeds', async () => {
+    const site = structuredClone(config)
+    site.pages![2].webstudioArticle = { status: 'ready', author: '', summary: 'bad\u0001text', createdAt: '', modifiedAt: '' }
+    await expect(exportSiteZip(site, { settings: { siteBaseUrl: 'https://example.com/' } })).rejects.toThrow('cannot be written to XML')
   })
 })

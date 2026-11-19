@@ -1410,6 +1410,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
   const validated = validateProjectConfig(config)
   const allPages = validated.pages!
   const pages = allPages.filter(page => page.webstudioArticle?.status !== 'draft')
+  const articles = pages.filter(page => page.webstudioArticle?.status === 'ready')
   const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery', 'pdfViewer', 'document', 'audio', 'mediaVideo'])
   for (const page of pages) {
     const unknown = page.blocks.find(block => !knownTypes.has(block.type))
@@ -1431,12 +1432,37 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     } catch {
       throw new Error('Public site URL must be an absolute http or https address without credentials, query, or fragment.')
     }
-    if (pages.length > 50_000) throw new Error('The site has too many pages for one sitemap.')
+    if (pages.length + (articles.length ? 1 : 0) > 50_000) throw new Error('The site has too many pages for one sitemap.')
     if (!base.pathname.endsWith('/')) base.pathname += '/'
-    const locations = paths.map(path => `  <url><loc>${escapeHtml(new URL(encodeURI(path), base).href)}</loc></url>`).join('\n')
+    const locations = [...paths, ...(articles.length ? ['articles/index.html'] : [])].map(path => `  <url><loc>${escapeHtml(new URL(encodeURI(path), base).href)}</loc></url>`).join('\n')
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${locations}\n</urlset>\n`
     if (new TextEncoder().encode(sitemap).length > 50 * 1024 * 1024) throw new Error('The sitemap is too large to export.')
     zip.file('sitemap.xml', sitemap, { date: new Date('1980-01-01T00:00:00Z') })
+    if (articles.length) {
+      const channelTitle = options?.settings?.siteName || validated.name
+      const channelDescription = options?.settings?.siteDescription || 'Articles'
+      const xmlValues = [channelTitle, channelDescription, ...articles.flatMap(article => [article.name, article.webstudioArticle!.summary])]
+      if (xmlValues.some(value => Array.from(value).some(character => {
+        const code = character.codePointAt(0)!
+        return (code < 32 && code !== 9 && code !== 10 && code !== 13) || (code >= 0xd800 && code <= 0xdfff) || code === 0xfffe || code === 0xffff
+      }))) throw new Error('Article feed contains characters that cannot be written to XML.')
+      const items = articles.map(article => {
+        const location = new URL(encodeURI(paths[pages.indexOf(article)]), base).href
+        return `  <item><title>${escapeHtml(article.name)}</title><link>${escapeHtml(location)}</link><guid isPermaLink="true">${escapeHtml(location)}</guid><description>${escapeHtml(article.webstudioArticle!.summary)}</description></item>`
+      }).join('\n')
+      const feed = `<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"><channel><title>${escapeHtml(channelTitle)}</title><link>${escapeHtml(base.href)}</link><description>${escapeHtml(channelDescription)}</description>\n${items}\n</channel></rss>\n`
+      zip.file('feed.xml', feed, { date: new Date('1980-01-01T00:00:00Z') })
+    }
+  }
+  if (articles.length) {
+    const nav = pages.map((page, index) => `<a href="../${escapeHtml(encodeURI(paths[index]))}" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(page.name)}</a>`).join(' ')
+    const cards = articles.map(article => `<article class="p-4 rounded-lg border border-border-default"><h2 class="text-xl font-semibold"><a href="../${escapeHtml(encodeURI(paths[pages.indexOf(article)]))}" class="text-green hover:underline">${escapeHtml(article.name)}</a></h2>${article.webstudioArticle!.author ? `<p class="text-sm">By ${escapeHtml(article.webstudioArticle!.author)}</p>` : ''}${article.webstudioArticle!.summary ? `<p class="text-sm">${escapeHtml(article.webstudioArticle!.summary)}</p>` : ''}</article>`).join('')
+    const content = `<main class="@container"><div class="max-w-3xl mx-auto px-6 py-12"><h1 class="text-3xl font-bold mb-4">Articles</h1><div class="space-y-4">${cards}</div>${siteBaseUrl ? '<p class="mt-4"><a href="../feed.xml" class="text-green hover:underline">RSS feed</a></p>' : ''}</div></main>`
+    const searchNav = options?.settings?.siteSearch === 'on' ? ' <a href="../search.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a>' : ''
+    const archive = exportSiteToHTML({ ...validated, name: 'Articles', blocks: [] }, { settings: { ...options?.settings, seoTitle: 'Articles' } })
+      .replace('<body>', `<body>\n<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav} <a href="index.html" aria-current="page" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Articles</a>${searchNav}</nav>`)
+      .replace('<main class="@container"></main>', content)
+    zip.file('articles/index.html', archive, { date: new Date('1980-01-01T00:00:00Z') })
   }
   if (options?.settings?.siteSearch === 'on') {
     const searchIndex = pages.map((page, pageIndex) => {
@@ -1453,7 +1479,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
       return { title: page.name, href: encodeURI(paths[pageIndex]), text: text.join(' ') }
     })
     const searchData = JSON.stringify(searchIndex).replace(/</g, '\\u003c')
-    const nav = pages.map((page, index) => `<a href="${escapeHtml(encodeURI(paths[index]))}" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(page.name)}</a>`).join(' ')
+    const nav = pages.map((page, index) => `<a href="${escapeHtml(encodeURI(paths[index]))}" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(page.name)}</a>`).join(' ') + (articles.length ? ' <a href="articles/index.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Articles</a>' : '')
     const searchContent = `<main class="@container"><div class="max-w-3xl mx-auto px-6 py-12"><h1 class="text-3xl font-bold mb-4">Search</h1><form id="site-search-form"><label for="site-search-query" class="block mb-2">Search this site</label><input id="site-search-query" type="search" maxlength="200" class="w-full px-3 py-2 rounded-lg border border-border-default bg-bg-2 text-text-0" /><button type="submit" class="mt-3 px-4 py-2 rounded-lg bg-green text-black font-semibold">Search</button></form><p id="site-search-status" role="status" class="mt-4"></p><ul id="site-search-results" class="mt-4 space-y-2"></ul><noscript>JavaScript is required for site search.</noscript></div></main>`
     const searchScript = `<script type="application/json" id="site-search-data">${searchData}</script><script>
       document.getElementById('site-search-form').addEventListener('submit', function(event) {
@@ -1505,7 +1531,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     })) throw new Error(`Page ${page.name} conflicts with an exported asset or folder: ${paths[index]}.`)
     const depth = paths[index].split('/').length - 1
     const prefix = '../'.repeat(depth)
-    const nav = pages.map((target, targetIndex) => `<a href="${escapeHtml(prefix + encodeURI(paths[targetIndex]))}"${target.id === page.id ? ' aria-current="page"' : ''} class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(target.name)}</a>`).join(' ') + (options?.settings?.siteSearch === 'on' ? ` <a href="${prefix}search.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a>` : '')
+    const nav = pages.map((target, targetIndex) => `<a href="${escapeHtml(prefix + encodeURI(paths[targetIndex]))}"${target.id === page.id ? ' aria-current="page"' : ''} class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(target.name)}</a>`).join(' ') + (articles.length ? ` <a href="${prefix}articles/index.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Articles</a>` : '') + (options?.settings?.siteSearch === 'on' ? ` <a href="${prefix}search.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a>` : '')
     const article = page.webstudioArticle
     const articleHeader = article && (article.author || article.summary) ? `<header class="px-6 py-3 text-text-1">${article.author ? `<p class="text-sm">By ${escapeHtml(article.author)}</p>` : ''}${article.summary ? `<p class="text-sm">${escapeHtml(article.summary)}</p>` : ''}</header>` : ''
     const html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, options)
