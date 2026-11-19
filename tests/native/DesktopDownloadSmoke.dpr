@@ -14,6 +14,7 @@ begin
   else if Count = 2 then Target := ExtractFilePath(ParamStr(0)) + 'exported-site.zip'
   else if Count = 3 then Target := ExtractFilePath(ParamStr(0)) + 'cancelled-project.zip'
   else if Count = 4 then Target := ExtractFilePath(ParamStr(0)) + 'saved-again.zip'
+  else if Count = 5 then Target := ExtractFilePath(ParamStr(0)) + 'interrupted-test.zip'
   else raise Exception.Create('Unexpected dialog.');
   if TFile.Exists(Target) then raise Exception.Create('Test output already exists.');
   Window := GetParent(TSaveDialog(Sender).Handle);
@@ -34,6 +35,11 @@ begin
   finally CoTaskMemFree(Address) end;
   Inc(Count);
   MainForm.EditorBrowserDownloadStarting(Sender, Args);
+  if Count = 5 then TThread.ForceQueue(nil,
+    procedure
+    begin
+      if Operation <> nil then Operation.Cancel;
+    end);
 end;
 var Deadline: UInt64; Value: string; Observer: TDownloadObserver; DownloadState: COREWEBVIEW2_DOWNLOAD_STATE;
 begin
@@ -154,6 +160,9 @@ begin
       if Winapi.Windows.Failed(Observer.Operation.Get_State(DownloadState)) then raise Exception.Create('Could not inspect project download.');
     until (DownloadState <> COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS) or (GetTickCount64 >= Deadline);
     if DownloadState <> COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED then raise Exception.Create('Project download did not complete.');
+    Deadline := GetTickCount64 + 10000;
+    while (MainForm.StatusLabel.Caption <> 'Download completed: saved-project.zip') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if MainForm.StatusLabel.Caption <> 'Download completed: saved-project.zip' then raise Exception.Create('Project download completion was not reported.');
     Observer.Operation := nil;
     MainForm.EditorBrowser.ExecuteScript('window.testToasts=[];new MutationObserver(()=>{document.querySelectorAll("[data-sonner-toast]").forEach(e=>window.testToasts.push(e.innerText))}).observe(document.body,{childList:true,subtree:true})');
     MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Export").click()');
@@ -166,6 +175,9 @@ begin
       if Winapi.Windows.Failed(Observer.Operation.Get_State(DownloadState)) then raise Exception.Create('Could not inspect site download.');
     until (DownloadState <> COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS) or (GetTickCount64 >= Deadline);
     if DownloadState <> COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED then raise Exception.Create('Site export download did not complete.');
+    Deadline := GetTickCount64 + 10000;
+    while (MainForm.StatusLabel.Caption <> 'Download completed: exported-site.zip') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if MainForm.StatusLabel.Caption <> 'Download completed: exported-site.zip' then raise Exception.Create('Site download completion was not reported.');
     Observer.Operation := nil;
     MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Save project").click()');
     Deadline := GetTickCount64 + 30000;
@@ -189,6 +201,17 @@ begin
       if Winapi.Windows.Failed(Observer.Operation.Get_State(DownloadState)) then raise Exception.Create('Could not inspect save after cancellation.');
     until (DownloadState <> COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS) or (GetTickCount64 >= Deadline);
     if DownloadState <> COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED then raise Exception.Create('Save after cancellation did not complete.');
+    Deadline := GetTickCount64 + 10000;
+    while (MainForm.StatusLabel.Caption <> 'Download completed: saved-again.zip') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if MainForm.StatusLabel.Caption <> 'Download completed: saved-again.zip' then raise Exception.Create('Repeated save completion was not reported.');
+    Observer.Operation := nil;
+    MainForm.EditorBrowser.ExecuteScript('(()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([new Uint8Array(128*1024*1024)]));a.download="interrupted-test.zip";a.click()})()');
+    Deadline := GetTickCount64 + 30000;
+    while (Observer.Count < 5) and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if Observer.Count <> 5 then raise Exception.Create('Interrupted download did not start.');
+    Deadline := GetTickCount64 + 30000;
+    while (MainForm.StatusLabel.Caption <> 'Download interrupted: interrupted-test.zip. Try saving again.') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if MainForm.StatusLabel.Caption <> 'Download interrupted: interrupted-test.zip. Try saving again.' then raise Exception.Create('Interrupted download was not reported.');
     Writeln('Desktop project save and site export downloads completed.');
     Writeln('Desktop editor imported and rendered a sample PDF in the preview and page.');
   finally
