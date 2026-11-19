@@ -131,6 +131,12 @@ describe('portable project files', () => {
     expect(() => validateProjectMedia(config, assets)).toThrow('do not match')
   })
 
+  it('checks local files linked from content before saving', () => {
+    const config = { name: 'Site', blocks: [{ id: 'c', type: 'content', variant: 'prose', props: { body: '[Bulletin](assets/bulletin.pdf#page=2)' } }] } as unknown as SiteConfig
+    expect(() => validateProjectMedia(config, [])).toThrow('Missing project media file')
+    expect(() => validateProjectMedia(config, [{ id: 'pdf', path: 'assets/bulletin.pdf' }])).not.toThrow()
+  })
+
   it('retains article metadata and rejects invalid status or an article Home page', () => {
     const config = structuredClone(fivePages) as unknown as SiteConfig
     config.pages![1].webstudioArticle = { status: 'draft', author: 'Ada', summary: 'A draft', createdAt: '2026-01-01', modifiedAt: '2026-01-01' }

@@ -2,7 +2,7 @@ import { createElement, type ReactNode } from 'react'
 
 /**
  * Simple markdown-to-React renderer. No dangerouslySetInnerHTML, no XSS surface.
- * Supports: ## headers, **bold**, *italic*, - lists, line breaks.
+ * Supports: ## headers, **bold**, *italic*, links, - lists, line breaks.
  */
 export function renderMarkdown(text: string): ReactNode[] {
   const lines = text.split('\n')
@@ -63,17 +63,25 @@ function inlineFormat(text: string): ReactNode[] {
     const boldMatch = remaining.match(/\*\*(.+?)\*\*/)
     // Italic
     const italicMatch = remaining.match(/\*(.+?)\*/)
+    const linkMatch = remaining.match(/\[([^\]\n]+)\]\(([^)\s]+)\)/)
 
     // Find earliest match
     const boldIdx = boldMatch?.index ?? Infinity
     const italicIdx = italicMatch?.index ?? Infinity
+    const linkIdx = linkMatch?.index ?? Infinity
 
-    if (boldIdx === Infinity && italicIdx === Infinity) {
+    if (boldIdx === Infinity && italicIdx === Infinity && linkIdx === Infinity) {
       parts.push(remaining)
       break
     }
 
-    if (boldIdx <= italicIdx && boldMatch) {
+    if (linkIdx <= boldIdx && linkIdx <= italicIdx && linkMatch) {
+      if (linkIdx > 0) parts.push(remaining.slice(0, linkIdx))
+      const destination = linkMatch[2]
+      const safe = !/[\\\p{Cc}]/u.test(destination) && !destination.startsWith('//') && (!/^[a-z][a-z\d+.-]*:/i.test(destination) || /^(https?:|mailto:|tel:)/i.test(destination))
+      parts.push(safe ? createElement('a', { key: key++, href: destination, className: 'text-green underline' }, linkMatch[1]) : linkMatch[0])
+      remaining = remaining.slice(linkIdx + linkMatch[0].length)
+    } else if (boldIdx <= italicIdx && boldMatch) {
       if (boldIdx > 0) parts.push(remaining.slice(0, boldIdx))
       parts.push(createElement('strong', { key: key++, className: 'font-semibold text-text-0' }, boldMatch[1]))
       remaining = remaining.slice(boldIdx + boldMatch[0].length)

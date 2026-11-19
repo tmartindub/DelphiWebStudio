@@ -6,10 +6,19 @@ import { CtaBlock } from '../src/blocks/cta/CtaBlock'
 import { NavbarBlock } from '../src/blocks/navbar/NavbarBlock'
 import { FooterBlock } from '../src/blocks/footer/FooterBlock'
 import { TeamBlock } from '../src/blocks/team/TeamBlock'
+import { ContentBlock } from '../src/blocks/content/ContentBlock'
 import { exportToHTML } from '../src/lib/export-html'
 import type { BlockConfig } from '../src/blocks/types'
 
 describe('preview link and image fidelity', () => {
+  it('renders safe text links without turning unsafe protocols into links', async () => {
+    const block: BlockConfig = { id: 'text', type: 'content', variant: 'prose', props: { body: '[News](/news) [Site](https://example.com) [Bad](javascript:alert)' } }
+    const preview = renderToStaticMarkup(createElement(ContentBlock, { block }))
+    expect(preview).toContain('href="/news"')
+    expect(preview).toContain('href="https://example.com"')
+    expect(preview).not.toContain('href="javascript:')
+    expect(await exportToHTML({ name: 'Site', blocks: [block] })).not.toContain('href="javascript:')
+  })
   it('shows selected team photos in both preview and exported pages', async () => {
     const block: BlockConfig = { id: 'team', type: 'team', variant: 'grid', props: { members: [{ name: 'Alex', role: 'Volunteer', avatar: 'assets/alex.png' }] } }
     expect(renderToStaticMarkup(createElement(TeamBlock, { block }))).toContain('src="assets/alex.png"')

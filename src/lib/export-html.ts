@@ -1522,7 +1522,8 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     zip.file('assets/pdfjs/LICENSE', pdfLicense, { date })
   }
   const serialized = JSON.stringify(pages)
-  const referencedPaths = [...new Set([...serialized.matchAll(/"(assets\/[a-zA-Z0-9._-]+)"/g)].map(match => match[1]))]
+  const textMediaPaths = pages.flatMap(page => page.blocks.filter(block => block.type === 'content' && typeof block.props.body === 'string').flatMap(block => [...(block.props.body as string).matchAll(/\]\((assets\/[a-zA-Z0-9._-]+)(?:[?#][^)\s]*)?\)/g)].map(match => match[1])))
+  const referencedPaths = [...new Set([...serialized.matchAll(/"(assets\/[a-zA-Z0-9._-]+)"/g)].map(match => match[1]).concat(textMediaPaths))]
   for (const path of referencedPaths) {
     const asset = media.find(item => item.path === path)
     if (!asset) throw new Error(`Missing media file: ${path}.`)

@@ -76,6 +76,18 @@ describe('multi-page export', () => {
     expect(await zip.file('community/news.html')!.async('string')).toContain('src="../assets/photo.png"')
   })
 
+  it('packages media linked from content and rewrites links on nested pages', async () => {
+    const site = structuredClone(config)
+    site.pages![1].blocks = [{ id: 'text', type: 'content', variant: 'prose', props: { body: '[Bulletin](assets/example.pdf#page=2) and [About](/about)' } }]
+    const media = [{ id: 'example', projectId: 'p', name: 'bulletin.pdf', path: 'assets/example.pdf', mime: 'application/pdf', size: 9, sha256: '3c87d37f1dbea6909f917ce437c390fb8e655a774387d9e69301c0b2283d5b63', content: new Blob(['%PDF-test'], { type: 'application/pdf' }) }]
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site, undefined, media)).arrayBuffer())
+    expect(await zip.file('assets/example.pdf')!.async('string')).toBe('%PDF-test')
+    const news = await zip.file('community/news.html')!.async('string')
+    expect(news).toContain('href="../assets/example.pdf#page=2"')
+    expect(news).toContain('href="../about.html"')
+    await expect(exportSiteZip(site)).rejects.toThrow('Missing media file')
+  })
+
   it('refuses to export media whose bytes do not match its recorded checksum', async () => {
     const site = structuredClone(config)
     site.pages![1].blocks = [{ id: 'feature', type: 'features', variant: 'alternating', props: { title: 'Stories', items: [{ title: 'Photo', description: '', image: 'assets/photo.png' }] } }]
