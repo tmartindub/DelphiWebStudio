@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { ChevronDown, ChevronRight, Code } from 'lucide-react'
 import type { BlockConfig, BlockType } from '@/blocks/types'
 import { useConfigStore } from '@/store/configStore'
+import { portableProjectsEnabled } from '@/project/project-file'
 
 interface FieldDef {
   key: string
   label: string
-  type: 'text' | 'textarea' | 'select' | 'array-strings' | 'array-items'
+  type: 'text' | 'link' | 'textarea' | 'select' | 'array-strings' | 'array-items'
   options?: string[]
 }
 
@@ -46,9 +47,9 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
           { key: 'headline', label: 'Headline', type: 'text' },
           { key: 'subheadline', label: 'Subheadline', type: 'textarea' },
           { key: 'primaryCta', label: 'Primary CTA', type: 'text' },
-          { key: 'primaryCtaUrl', label: 'Primary CTA URL', type: 'text' },
+          { key: 'primaryCtaUrl', label: 'Primary CTA URL', type: 'link' },
           { key: 'secondaryCta', label: 'Secondary CTA', type: 'text' },
-          { key: 'secondaryCtaUrl', label: 'Secondary CTA URL', type: 'text' },
+          { key: 'secondaryCtaUrl', label: 'Secondary CTA URL', type: 'link' },
           { key: 'heroImage', label: 'Hero Image URL', type: 'text' },
         ],
       },
@@ -109,7 +110,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
           { key: 'headline', label: 'Headline', type: 'text' },
           { key: 'subheadline', label: 'Subheadline', type: 'text' },
           { key: 'buttonText', label: 'Button Text', type: 'text' },
-          { key: 'buttonUrl', label: 'Button URL', type: 'text' },
+          { key: 'buttonUrl', label: 'Button URL', type: 'link' },
         ],
       },
       {
@@ -329,7 +330,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
         fields: [
           { key: 'text', label: 'Text', type: 'text' },
           { key: 'linkText', label: 'Link Text', type: 'text' },
-          { key: 'linkUrl', label: 'Link URL', type: 'text' },
+          { key: 'linkUrl', label: 'Link URL', type: 'link' },
         ],
       },
       {
@@ -345,6 +346,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
 function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }) {
   const updateBlockProps = useConfigStore((s) => s.updateBlockProps)
   const updateBlock = useConfigStore((s) => s.updateBlock)
+  const pages = useConfigStore((s) => s.config.pages)
 
   // For variant field, it's on the block itself
   const value = field.key === 'variant'
@@ -361,6 +363,25 @@ function PropertyField({ field, block }: { field: FieldDef; block: BlockConfig }
   }
 
   switch (field.type) {
+    case 'link': {
+      const availablePages = (pages ?? []).filter(page => page.webstudioArticle?.status !== 'draft')
+      const current = String(value || '')
+      const selected = availablePages.some(page => page.path === current) ? current : ''
+      return (
+        <div className="mb-2.5">
+          <label className="block text-[11.5px] text-text-2 mb-1 font-medium">{field.label}</label>
+          <input type="text" aria-label={field.label} value={current} onChange={event => onChange(event.target.value)}
+            className="w-full px-2 py-1.5 rounded border border-border-default bg-bg-2 text-text-0 text-xs outline-none focus:border-green" />
+          {portableProjectsEnabled && availablePages.length > 0 && <select aria-label={`Choose a page for ${field.label}`} value={selected}
+            onChange={event => { if (event.target.value) onChange(event.target.value) }}
+            className="mt-1 w-full px-2 py-1.5 rounded border border-border-default bg-bg-2 text-text-0 text-xs outline-none focus:border-green">
+            <option value="">Choose a site page...</option>
+            {availablePages.map(page => <option key={page.id} value={page.path}>{page.name} ({page.path})</option>)}
+          </select>}
+        </div>
+      )
+    }
+
     case 'text':
       return (
         <div className="mb-2.5">

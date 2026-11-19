@@ -54,6 +54,8 @@ Before opening or saving, known block media IDs and local `assets/` paths are ch
 
 When a button or link uses an exact project page path such as `/about`, website ZIP export rewrites it to the correct relative HTML file for the page it appears on. Query strings and fragment identifiers are preserved. Links to unknown paths and external sites are unchanged; broken-link checks and the separate legacy Navbar block remain unfinished. An isolated browser test followed a button from a nested page to another page and then Home while the site was served under a subdirectory.
 
+For Hero, CTA and Banner links, the Properties panel also offers **Choose a site page** below the URL field. Selecting a page fills in its path; the URL field remains editable for external addresses or anchors. Draft articles are omitted from the chooser. The chooser does not yet cover the separate legacy Navbar block, arbitrary links inside content, or automatically update references when a page is removed.
+
 ZIP export checks page filenames against already packaged files and folders, including case-insensitive collisions and file/folder conflicts. If a page would overwrite a bundled PDF viewer file, export stops and identifies the conflicting page; the project remains open. Rename that page path before retrying.
 
 ## Optional sitemap
