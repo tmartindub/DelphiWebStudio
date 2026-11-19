@@ -240,6 +240,13 @@ export const useConfigStore = create<ConfigState>()(
                 return originalPath === page.path || originalPath === encodeURI(page.path) ? `[${label}](${path}${split < 0 ? '' : destination.slice(split)})` : match
               })
             }
+            if (block.type === 'navbar' && Array.isArray(block.props.navItems)) for (const navItem of block.props.navItems) {
+              if (!navItem || typeof navItem.url !== 'string') continue
+              const trimmed = navItem.url.trim()
+              const split = trimmed.search(/[?#]/)
+              const originalPath = (split < 0 ? trimmed : trimmed.slice(0, split)).replace(/\/$/, '') || '/'
+              if (originalPath === page.path || originalPath === encodeURI(page.path)) navItem.url = path + (split < 0 ? '' : trimmed.slice(split))
+            }
             const keys = block.type === 'hero' ? ['primaryCtaUrl', 'secondaryCtaUrl'] : block.type === 'cta' ? ['buttonUrl'] : block.type === 'banner' ? ['linkUrl'] : block.type === 'navbar' ? ['ctaUrl'] : []
             for (const key of keys) {
               const value = block.props[key]

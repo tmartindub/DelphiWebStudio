@@ -11,6 +11,15 @@ const pages = [
 const config: SiteConfig = { name: 'Example', pages, blocks: pages[0].blocks }
 
 describe('multi-page export', () => {
+  it('exports navbar destinations on desktop and mobile with nested page links', async () => {
+    const site = structuredClone(config)
+    site.pages![1].blocks.push({ id: 'nav', type: 'navbar', variant: 'default', props: { logo: 'Club', links: ['Legacy'], navItems: [{ label: 'About club', url: '/about' }] } })
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site)).arrayBuffer())
+    const news = await zip.file('community/news.html')!.async('string')
+    expect(news).toContain('aria-label="Navigation menu"')
+    expect(news.match(/href="\.\.\/about\.html"[^>]*>About club<\/a>/g)).toHaveLength(2)
+    expect(news).toContain('Legacy')
+  })
   it('exports individual page search titles and descriptions with site-wide fallbacks', async () => {
     const site = structuredClone(config)
     site.pages![1].webstudioSeo = { title: 'News & updates', description: 'Latest "community" news' }
