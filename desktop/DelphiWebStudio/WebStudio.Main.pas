@@ -57,6 +57,7 @@ var State: COREWEBVIEW2_DOWNLOAD_STATE;
 begin
   Result := S_OK;
   if not IsWindow(FOwnerWindow) or (FindControl(FOwnerWindow) <> FOwner) or
+    (csDestroying in FOwner.ComponentState) or not Assigned(FOwner.StatusLabel) or
     Winapi.Windows.Failed(sender.Get_State(State)) then Exit;
   if State = COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED then
     FOwner.StatusLabel.Caption := 'Download completed: ' + FFileName
@@ -186,7 +187,8 @@ begin
       procedure
       begin
         try
-          if IsWindow(OwnerWindow) and (FindControl(OwnerWindow) = Self) then begin
+          if IsWindow(OwnerWindow) and (FindControl(OwnerWindow) = Self) and
+            not (csDestroying in ComponentState) then begin
             try
               SaveDownloadDialog.FileName := SuggestedName;
               if SaveDownloadDialog.Execute then begin
@@ -206,7 +208,8 @@ begin
             except
               DownloadArgs.Set_Cancel(1);
             end;
-            if IsWindow(OwnerWindow) and (FindControl(OwnerWindow) = Self) then FDownloadPending := False;
+            if IsWindow(OwnerWindow) and (FindControl(OwnerWindow) = Self) and
+              not (csDestroying in ComponentState) then FDownloadPending := False;
           end else DownloadArgs.Set_Cancel(1);
         finally
           Deferral.Complete;
