@@ -8,7 +8,7 @@ type TDownloadObserver = class
   procedure DialogShown(Sender: TObject);
 end;
 procedure TDownloadObserver.DialogShown(Sender: TObject);
-var Target: string; Window: HWND;
+var Target, RaceTarget: string; Window: HWND;
 begin
   if Count = 1 then Target := ExtractFilePath(ParamStr(0)) + 'saved-project.zip'
   else if Count = 2 then Target := ExtractFilePath(ParamStr(0)) + 'exported-site.zip'
@@ -18,15 +18,23 @@ begin
   else if Count = 6 then Target := ExtractFilePath(ParamStr(0)) + 'saved-project.zip'
   else if Count = 7 then Target := ExtractFilePath(ParamStr(0)) + 'save-after-collision.zip'
   else if Count = 8 then Target := ExtractFilePath(ParamStr(0)) + 'interrupted-project.zip'
+  else if Count = 9 then Target := ExtractFilePath(ParamStr(0)) + 'race-target.zip'
   else raise Exception.Create('Unexpected dialog.');
   if (Count <> 6) and TFile.Exists(Target) then raise Exception.Create('Test output already exists.');
   Window := GetParent(TSaveDialog(Sender).Handle);
   Writeln('Dialog displayed; handle=', TSaveDialog(Sender).Handle, ' parent=', Window);
   if Count = 3 then PostMessage(Window, WM_COMMAND, IDCANCEL, 0)
   else begin
+    RaceTarget := Target;
     Target := ExtractFileName(Target);
     SendMessage(Window, CDM_SETCONTROLTEXT, edt1, LPARAM(PChar(Target)));
     PostMessage(Window, WM_COMMAND, IDOK, 0);
+    if Count = 9 then TThread.ForceQueue(nil,
+      procedure
+      begin
+        if TFile.Exists(RaceTarget) then raise Exception.Create('Race target unexpectedly exists.');
+        TFile.WriteAllText(RaceTarget, 'external change');
+      end);
   end;
 end;
 procedure TDownloadObserver.Started(Sender: TCustomEdgeBrowser; Args: TDownloadStartingEventArgs);
@@ -243,6 +251,17 @@ begin
     Deadline := GetTickCount64 + 30000;
     while (Pos('Project download interrupted.', MainForm.StatusLabel.Caption) <> 1) and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
     if (Pos('Project download interrupted.', MainForm.StatusLabel.Caption) <> 1) or TFile.Exists(ExtractFilePath(ParamStr(0)) + 'interrupted-project.zip') then raise Exception.Create('Interrupted project produced a final file or was not reported.');
+    Observer.Operation := nil;
+    MainForm.EditorBrowser.ExecuteScript('(()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([new Uint8Array(128*1024*1024)]));a.download="race.webstudio.zip";a.click()})()');
+    Deadline := GetTickCount64 + 30000;
+    while (Observer.Count < 9) and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if Observer.Count <> 9 then raise Exception.Create('Race test did not start.');
+    Deadline := GetTickCount64 + 30000;
+    while (Pos('Project not saved. Check staged file: ', MainForm.StatusLabel.Caption) <> 1) and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if Pos('Project not saved. Check staged file: ', MainForm.StatusLabel.Caption) <> 1 then raise Exception.Create('Late destination collision was not reported.');
+    if TFile.ReadAllText(ExtractFilePath(ParamStr(0)) + 'race-target.zip') <> 'external change' then raise Exception.Create('Late destination collision replaced external data.');
+    Value := Copy(MainForm.StatusLabel.Caption, Length('Project not saved. Check staged file: ') + 1, MaxInt);
+    if not TFile.Exists(Value) or (TFile.GetSize(Value) <> 128 * 1024 * 1024) then raise Exception.Create('Staged bytes were not retained after late collision.');
     Writeln('Desktop project save and site export downloads completed.');
     Writeln('Desktop editor imported and rendered a sample PDF in the preview and page.');
   finally
