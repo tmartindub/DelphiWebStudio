@@ -30,6 +30,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
           { key: 'logo', label: 'Logo Text', type: 'text' },
           { key: 'logoImage', label: 'Logo Image URL', type: 'image' },
           { key: 'ctaText', label: 'CTA Button', type: 'text' },
+          { key: 'ctaUrl', label: 'CTA Destination', type: 'link' },
           { key: 'links', label: 'Nav Links', type: 'array-strings' },
         ],
       },
