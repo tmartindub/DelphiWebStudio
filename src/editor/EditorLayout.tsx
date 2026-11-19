@@ -98,13 +98,16 @@ function useGenerationOrchestration() {
 function EditorEmptyState() {
   const navigate = useNavigate()
   const addProject = useProjectsStore((s) => s.addProject)
+  const updateProjectConfig = useProjectsStore((s) => s.updateProjectConfig)
   const setConfig = useConfigStore((s) => s.setConfig)
   const setActiveProject = useEditorStore((s) => s.setActiveProject)
 
   function startFromTemplate(tplId: string, tplName: string) {
     const id = addProject(tplName)
+    const config = buildTemplate(tplId, tplName)
+    updateProjectConfig(id, config)
     setActiveProject(id)
-    setConfig(buildTemplate(tplId, tplName))
+    setConfig(config)
   }
 
   return (

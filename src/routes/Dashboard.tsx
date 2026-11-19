@@ -38,6 +38,7 @@ function projectAccent(project: Project): string {
 function PromptSection() {
   const navigate = useNavigate()
   const addProject = useProjectsStore((s) => s.addProject)
+  const updateProjectConfig = useProjectsStore((s) => s.updateProjectConfig)
   const setConfig = useConfigStore((s) => s.setConfig)
   const setActiveProject = useEditorStore((s) => s.setActiveProject)
 
@@ -46,6 +47,7 @@ function PromptSection() {
 
   function startBlank() {
     const id = addProject('Untitled Project')
+    updateProjectConfig(id, defaultConfig)
     setActiveProject(id)
     setConfig(defaultConfig)
     navigate('/editor')
@@ -53,8 +55,10 @@ function PromptSection() {
 
   function startFromTemplate(tplId: string, tplName: string) {
     const id = addProject(tplName)
+    const config = buildTemplate(tplId, tplName)
+    updateProjectConfig(id, config)
     setActiveProject(id)
-    setConfig(buildTemplate(tplId, tplName))
+    setConfig(config)
     navigate('/editor')
   }
 
@@ -64,8 +68,10 @@ function PromptSection() {
 
     const placeholderName = trimmed.split(/\s+/).slice(0, 4).join(' ')
     const id = addProject(placeholderName.charAt(0).toUpperCase() + placeholderName.slice(1))
+    const config = getTemplateForPrompt(trimmed)
+    updateProjectConfig(id, config)
     setActiveProject(id)
-    setConfig(getTemplateForPrompt(trimmed))
+    setConfig(config)
     navigate('/editor')
   }
 
