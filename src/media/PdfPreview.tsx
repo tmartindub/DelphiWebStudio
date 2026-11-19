@@ -8,12 +8,25 @@ GlobalWorkerOptions.workerSrc = workerUrl
 export function PdfPreview({ asset, onClose }: { asset: MediaAsset; onClose: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const documentAreaRef = useRef<HTMLDivElement>(null)
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null)
   const [pageNumber, setPageNumber] = useState(1)
   const [zoom, setZoom] = useState(1)
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('Loading document…')
   const [downloadUrl, setDownloadUrl] = useState('')
+  const [availableWidth, setAvailableWidth] = useState(0)
+
+  useEffect(() => {
+    const element = documentAreaRef.current
+    if (!element) return
+    const observer = new ResizeObserver(() => {
+      const style = getComputedStyle(element)
+      setAvailableWidth(Math.max(1, element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)))
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -40,7 +53,9 @@ export function PdfPreview({ asset, onClose }: { asset: MediaAsset; onClose: () 
     pdf.getPage(pageNumber).then(page => {
       const canvas = canvasRef.current
       if (!active || !canvas) return
-      const viewport = page.getViewport({ scale: zoom })
+      const pageWidth = page.getViewport({ scale: 1 }).width
+      const fit = availableWidth ? Math.min(1, availableWidth / pageWidth) : 1
+      const viewport = page.getViewport({ scale: fit * zoom })
       canvas.width = Math.ceil(viewport.width)
       canvas.height = Math.ceil(viewport.height)
       const context = canvas.getContext('2d')
@@ -51,7 +66,7 @@ export function PdfPreview({ asset, onClose }: { asset: MediaAsset; onClose: () 
       if (active && error?.name !== 'RenderingCancelledException') setStatus(`Unable to render page: ${error instanceof Error ? error.message : String(error)}`)
     })
     return () => { active = false; renderTask?.cancel() }
-  }, [pdf, pageNumber, zoom])
+  }, [pdf, pageNumber, zoom, availableWidth])
 
   async function search() {
     if (!pdf || !query.trim()) return
@@ -77,9 +92,9 @@ export function PdfPreview({ asset, onClose }: { asset: MediaAsset; onClose: () 
         <button type="button" onClick={() => setPageNumber(number => Math.max(1, number - 1))} disabled={!pdf || pageNumber <= 1}>Previous</button>
         <span>Page {pageNumber} of {pdf?.numPages ?? '…'}</span>
         <button type="button" onClick={() => setPageNumber(number => Math.min(pdf?.numPages ?? 1, number + 1))} disabled={!pdf || pageNumber >= pdf.numPages}>Next</button>
-        <button type="button" onClick={() => setZoom(value => Math.max(0.5, value - 0.25))}>−</button>
-        <span>{Math.round(zoom * 100)}%</span>
-        <button type="button" onClick={() => setZoom(value => Math.min(3, value + 0.25))}>+</button>
+        <button type="button" aria-label="Zoom out" onClick={() => setZoom(value => Math.max(0.5, value - 0.25))}>−</button>
+        <span>Fit {Math.round(zoom * 100)}%</span>
+        <button type="button" aria-label="Zoom in" onClick={() => setZoom(value => Math.min(3, value + 0.25))}>+</button>
         <input aria-label="Search PDF text" value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void search() }} className="bg-bg-2 border border-border-default rounded px-2 py-1" />
         <button type="button" onClick={() => void search()} disabled={!pdf || !query.trim()}>Search</button>
         {downloadUrl && <a href={downloadUrl} download={asset.name}>Download</a>}
@@ -87,7 +102,7 @@ export function PdfPreview({ asset, onClose }: { asset: MediaAsset; onClose: () 
         <button type="button" onClick={onClose}>Close</button>
       </div>
       {status && <div role="status" className="px-3 py-2 text-xs text-text-1">{status}</div>}
-      <div className="flex-1 overflow-auto p-4"><canvas ref={canvasRef} aria-label={`Page ${pageNumber} of ${asset.name}`} className="mx-auto max-w-none bg-white" /></div>
+      <div ref={documentAreaRef} className="flex-1 min-h-0 overflow-auto p-4"><canvas ref={canvasRef} aria-label={`Page ${pageNumber} of ${asset.name}`} className="mx-auto max-w-none bg-white" /></div>
     </div>
   )
 }

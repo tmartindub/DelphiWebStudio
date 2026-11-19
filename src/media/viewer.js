@@ -4,11 +4,13 @@ GlobalWorkerOptions.workerSrc = './pdf.worker.min.js'
 const file = new URLSearchParams(location.search).get('file') || ''
 const status = document.getElementById('status')
 const canvas = document.getElementById('page-canvas')
+const main = document.querySelector('main')
 const pageInput = document.getElementById('page')
 const zoomLabel = document.getElementById('zoom')
 let pdf
 let zoom = 1
 let rendering
+let renderSequence = 0
 
 if (!/^\.\.\/[a-zA-Z0-9._-]+\.pdf$/i.test(file)) {
   status.textContent = 'Invalid PDF path.'
@@ -32,11 +34,17 @@ if (!/^\.\.\/[a-zA-Z0-9._-]+\.pdf$/i.test(file)) {
 
 async function render() {
   if (!pdf) return
+  const sequence = ++renderSequence
   if (rendering) { rendering.cancel(); try { await rendering.promise } catch { /* cancelled */ } }
+  if (sequence !== renderSequence) return
   const number = Math.max(1, Math.min(pdf.numPages, Number(pageInput.value) || 1))
   pageInput.value = String(number)
   const page = await pdf.getPage(number)
-  const viewport = page.getViewport({ scale: zoom })
+  if (sequence !== renderSequence) return
+  const style = getComputedStyle(main)
+  const available = Math.max(1, main.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight))
+  const pageWidth = page.getViewport({ scale: 1 }).width
+  const viewport = page.getViewport({ scale: Math.min(1, available / pageWidth) * zoom })
   canvas.width = Math.ceil(viewport.width)
   canvas.height = Math.ceil(viewport.height)
   canvas.setAttribute('aria-label', `PDF page ${number} of ${pdf.numPages}`)
@@ -47,8 +55,9 @@ async function render() {
 document.getElementById('previous').onclick = () => { pageInput.value = String(Number(pageInput.value) - 1); void render() }
 document.getElementById('next').onclick = () => { pageInput.value = String(Number(pageInput.value) + 1); void render() }
 pageInput.onchange = () => void render()
-document.getElementById('zoom-out').onclick = () => { zoom = Math.max(.5, zoom - .25); zoomLabel.textContent = `${Math.round(zoom * 100)}%`; void render() }
-document.getElementById('zoom-in').onclick = () => { zoom = Math.min(3, zoom + .25); zoomLabel.textContent = `${Math.round(zoom * 100)}%`; void render() }
+document.getElementById('zoom-out').onclick = () => { zoom = Math.max(.5, zoom - .25); zoomLabel.textContent = `Fit ${Math.round(zoom * 100)}%`; void render() }
+document.getElementById('zoom-in').onclick = () => { zoom = Math.min(3, zoom + .25); zoomLabel.textContent = `Fit ${Math.round(zoom * 100)}%`; void render() }
+window.addEventListener('resize', () => { void render() })
 document.getElementById('fullscreen').onclick = () => { void document.documentElement.requestFullscreen().catch(() => { status.textContent = 'Fullscreen unavailable.' }) }
 document.getElementById('search').onclick = async () => {
   const query = document.getElementById('query').value.trim().toLocaleLowerCase()
