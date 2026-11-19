@@ -37,7 +37,7 @@ var
   Folder, Source, Destination: string;
   Driver: TDialogDriver;
   Archive: TZipFile;
-  BeforeBytes, AfterBytes: TBytes;
+  BeforeBytes, AfterBytes, FixtureBytes: TBytes;
 begin
   Folder := ExtractFilePath(ParamStr(0));
   Source := TPath.Combine(Folder, '.webstudio-download-test.tmp');
@@ -53,7 +53,8 @@ begin
     MainForm.RecoveryOpenDialog.InitialDir := Folder;
     MainForm.RecoveryOpenDialog.OnShow := Driver.OpenShown;
     MainForm.RecoverySaveDialog.OnShow := Driver.SaveShown;
-    TFile.WriteAllBytes(Source, TEncoding.UTF8.GetBytes('{"example":1}'));
+    FixtureBytes := TFile.ReadAllBytes(TPath.Combine(GetCurrentDir, 'samples\five-page.webstudio.json'));
+    TFile.WriteAllBytes(Source, FixtureBytes);
     Driver.CancelSave := True;
     MainForm.RecoverStageButtonClick(nil);
     if not TFile.Exists(Source) or TFile.Exists(Destination) then raise Exception.Create('Cancelled recovery changed files.');
@@ -67,12 +68,13 @@ begin
     if not TFile.Exists(Source) or (TFile.ReadAllText(Destination) <> 'existing') then raise Exception.Create('Recovery replaced an existing destination.');
     TFile.Delete(Destination);
     MainForm.RecoverStageButtonClick(nil);
-    if TFile.Exists(Source) or not TFile.Exists(Destination) or (TFile.ReadAllText(Destination) <> '{"example":1}') then raise Exception.Create('Recovery did not preserve project bytes.');
+    AfterBytes := TFile.ReadAllBytes(Destination);
+    if TFile.Exists(Source) or (Length(FixtureBytes) <> Length(AfterBytes)) or not CompareMem(@FixtureBytes[0], @AfterBytes[0], Length(FixtureBytes)) then raise Exception.Create('Recovery did not preserve project bytes.');
     if Pos('Recovered file may be incomplete.', MainForm.StatusLabel.Caption) <> 1 then raise Exception.Create('Recovery verification notice was not shown.');
     Archive := TZipFile.Create;
     try
       Archive.Open(Source, zmWrite);
-      Archive.Add(TEncoding.UTF8.GetBytes('{"example":1}'), 'project.webstudio.json');
+      Archive.Add(FixtureBytes, 'project.webstudio.json');
       Archive.Close;
     finally Archive.Free end;
     BeforeBytes := TFile.ReadAllBytes(Source);
