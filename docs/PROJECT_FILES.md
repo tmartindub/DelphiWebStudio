@@ -10,6 +10,8 @@ Open accepts unversioned OpenPage SiteConfig JSON or WebStudio schema 2. Each op
 
 Save validates a snapshot and starts a JSON download. Browser download settings determine the final location and collision filename. The success message deliberately says that download started; it does not claim an atomic filesystem write or confirmed disk durability. Existing browser draft autosave remains available. Native atomic saves and recovery are later work.
 
+While the editor is open, changes are written to the browser draft as the editor state changes, without waiting for a later screen refresh. Browser storage can still be cleared or fail, so use **Save project** to keep a separate portable copy.
+
 ## Format and preservation
 
 ```json
