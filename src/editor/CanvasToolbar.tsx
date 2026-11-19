@@ -22,6 +22,7 @@ import type { PageConfig } from '@/blocks/types'
 import { exportToHTML, downloadHTML, exportSiteZip } from '@/lib/export-html'
 import { ProjectFileCommands } from '@/project/ProjectFileCommands'
 import { portableProjectsEnabled } from '@/project/project-file'
+import { ProjectMediaLibrary } from '@/media/media-library'
 
 const viewports: { value: Viewport; icon: typeof Monitor; label: string }[] = [
   { value: 'desktop', icon: Monitor, label: 'Desktop' },
@@ -187,7 +188,8 @@ export function CanvasToolbar() {
     try {
       const filename = (activeProject?.name || config.name || 'site').toLowerCase().replace(/[^a-z0-9-]+/g, '-')
       if (portableProjectsEnabled) {
-        downloadHTML(await exportSiteZip(config, { settings: activeProject?.settings }), `${filename}.zip`)
+        const media = activeProjectId ? await new ProjectMediaLibrary().list(activeProjectId) : []
+        downloadHTML(await exportSiteZip(config, { settings: activeProject?.settings }, media), `${filename}.zip`)
         toast('Website ZIP exported')
       } else {
         downloadHTML(await exportToHTML(config, { settings: activeProject?.settings }), `${filename}.html`)

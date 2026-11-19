@@ -440,3 +440,5 @@ This is declared-license inventory, not a complete redistribution bundle. Before
 | zod | 4.3.6 | MIT | development |
 | zod-validation-error | 4.0.2 | MIT | development |
 | zustand | 5.0.11 | MIT | runtime/optional |
+
+M3 additions: pdfjs-dist 6.4.299 (Apache-2.0, runtime; its license accompanies the exported PDF viewer) and fake-indexeddb 6.2.4 (Apache-2.0, test development dependency).

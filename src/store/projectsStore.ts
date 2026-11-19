@@ -15,6 +15,7 @@ export interface Project {
   deploymentId?: string
   lastDeployedAt?: string
   projectFile?: SiteProjectFile
+  mediaRevision?: number
 }
 
 export interface ProjectSettings {
@@ -35,6 +36,7 @@ interface ProjectsState {
   projects: Project[]
   addProject: (name: string, projectFile?: SiteProjectFile) => string
   saveProjectFile: (id: string, projectFile: SiteProjectFile) => void
+  mediaChanged: (id: string) => void
   duplicateProject: (id: string) => string | null
   deleteProject: (id: string) => void
   renameProject: (id: string, name: string) => void
@@ -78,10 +80,14 @@ export const useProjectsStore = create<ProjectsState>()(
           updatedAt: 'Just now',
         } : project),
       })),
+      mediaChanged: (id) => set(state => ({
+        projects: state.projects.map(project => project.id === id ? { ...project, mediaRevision: (project.mediaRevision ?? 0) + 1 } : project),
+      })),
       duplicateProject: (id) => {
         const state = useProjectsStore.getState()
         const original = state.projects.find((p) => p.id === id)
         if (!original) return null
+        if (original.mediaRevision) return null
         const newId = `proj-${crypto.randomUUID()}`
         const clone: Project = {
           ...JSON.parse(JSON.stringify(original)),

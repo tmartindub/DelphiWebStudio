@@ -21,3 +21,7 @@ M1 first increment adds feature-gated portable SiteConfig files and validation; 
 15. License history is preserved; redistribution notices/fonts/media/models/native runtimes still need final packaging audit.
 
 No application/site was deployed in M0. Translation is deferred by owner instruction.
+
+## M3 media increment
+
+The experimental project workflow now saves media in project ZIPs and includes referenced assets and a local PDF viewer in website ZIPs. See MEDIA_LIBRARY.md for operation and remaining limitations. Website styling still depends on external resources, native atomic save remains outstanding, and project duplication is disabled when media exists. The numbered entries below describe the original M0 baseline and are retained as historical findings, not a current feature checklist.

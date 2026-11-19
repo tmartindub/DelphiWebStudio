@@ -5,6 +5,10 @@ import { RenderBlock } from '@/blocks/registry'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import JSZip from 'jszip'
+import type { MediaAsset } from '@/media/media-library'
+import pdfViewerHtml from '@/media/viewer.html?raw'
+import pdfViewerScript from '@/media/viewer.js?raw'
+import pdfLicense from 'pdfjs-dist/LICENSE?raw'
 
 export interface ExportSiteSettings {
   siteName?: string
@@ -1189,7 +1193,18 @@ function renderBlock(block: BlockConfig): string {
     case 'image':
     case 'video':
     case 'gallery':
+    case 'document':
+    case 'audio':
+    case 'mediaVideo':
       return renderToStaticMarkup(createElement(RenderBlock, { block }))
+    case 'pdfViewer': {
+      const src = String(block.props.src || '')
+      if (!/^assets\/[a-zA-Z0-9._-]+\.pdf$/i.test(src)) throw new Error('PDF viewer requires a PDF from the media library.')
+      const title = escapeHtml(String(block.props.title || 'PDF document'))
+      const height = Math.max(200, Math.min(2000, Number(block.props.height) || 600))
+      const viewer = `assets/pdfjs/viewer.html?file=${encodeURIComponent(`../${src.slice(7)}`)}`
+      return `<section><h2>${title}</h2><iframe src="${escapeHtml(viewer)}" title="${title}" style="width:100%;height:${height}px;border:0" allowfullscreen></iframe><a href="${escapeHtml(src)}" download>Download PDF</a></section>`
+    }
     default:
       return `  <!-- Unknown block type: ${escapeHtml(block.type)} -->`
   }
@@ -1405,10 +1420,10 @@ export async function exportToHTML(
   return exportSiteToHTML(config, options)
 }
 
-export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOptions): Promise<Blob> {
+export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOptions, media: MediaAsset[] = []): Promise<Blob> {
   const validated = validateProjectConfig(config)
   const pages = validated.pages!
-  const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery'])
+  const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery', 'pdfViewer', 'document', 'audio', 'mediaVideo'])
   for (const page of pages) {
     const unknown = page.blocks.find(block => !knownTypes.has(block.type))
     if (unknown) throw new Error(`Page ${page.name} contains unsupported block ${unknown.type}; it cannot be exported safely.`)
@@ -1419,6 +1434,25 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     throw new Error('Page paths produce conflicting file and folder names.')
   }
   const zip = new JSZip()
+  if (pages.some(page => page.blocks.some(block => block.type === 'pdfViewer'))) {
+    const [{ default: pdfModule }, { default: pdfWorker }] = await Promise.all([
+      import('pdfjs-dist/build/pdf.min.mjs?raw'),
+      import('pdfjs-dist/build/pdf.worker.min.mjs?raw'),
+    ])
+    const date = new Date('1980-01-01T00:00:00Z')
+    zip.file('assets/pdfjs/pdf.min.js', pdfModule, { date })
+    zip.file('assets/pdfjs/pdf.worker.min.js', pdfWorker, { date })
+    zip.file('assets/pdfjs/viewer.html', pdfViewerHtml, { date })
+    zip.file('assets/pdfjs/viewer.js', pdfViewerScript, { date })
+    zip.file('assets/pdfjs/LICENSE', pdfLicense, { date })
+  }
+  const serialized = JSON.stringify(validated)
+  const referencedPaths = [...new Set([...serialized.matchAll(/"(assets\/[a-zA-Z0-9._-]+)"/g)].map(match => match[1]))]
+  for (const path of referencedPaths) {
+    const asset = media.find(item => item.path === path)
+    if (!asset) throw new Error(`Missing media file: ${path}.`)
+    zip.file(path, await asset.content.arrayBuffer(), { date: new Date('1980-01-01T00:00:00Z') })
+  }
   for (let index = 0; index < pages.length; index++) {
     const page = pages[index]
     const depth = paths[index].split('/').length - 1
@@ -1426,6 +1460,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     const nav = pages.map((target, targetIndex) => `<a href="${escapeHtml(prefix + encodeURI(paths[targetIndex]))}"${target.id === page.id ? ' aria-current="page"' : ''}>${escapeHtml(target.name)}</a>`).join(' ')
     const html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, options)
       .replace('<body>', `<body>\n<nav aria-label="Site pages">${nav}</nav>`)
+      .replace(/\b(src|href|data)="assets\//g, `$1="${prefix}assets/`)
     zip.file(paths[index], html, { date: new Date('1980-01-01T00:00:00Z') })
   }
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
