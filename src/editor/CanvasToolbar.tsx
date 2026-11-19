@@ -13,6 +13,8 @@ import {
   HelpCircle,
   Download,
   Loader2,
+  Pencil,
+  Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useEditorStore, type Viewport, type EditorMode } from '@/store/editorStore'
@@ -95,7 +97,7 @@ function PageTab({ page, isActive, onClick, onRename, onDelete, canDelete }: {
 }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(page.name)
-  const [showContext, setShowContext] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
@@ -111,6 +113,7 @@ function PageTab({ page, isActive, onClick, onRename, onDelete, canDelete }: {
     return (
       <input
         ref={inputRef}
+        aria-label={`Rename ${page.name}`}
         value={name}
         onChange={(e) => setName(e.target.value)}
         onBlur={commitRename}
@@ -125,11 +128,10 @@ function PageTab({ page, isActive, onClick, onRename, onDelete, canDelete }: {
   }
 
   return (
-    <div className="relative">
+    <div className="flex items-center shrink-0">
       <button
         onClick={onClick}
-        onDoubleClick={(e) => { e.stopPropagation(); setEditing(true) }}
-        onContextMenu={(e) => { e.preventDefault(); setShowContext(true) }}
+        onDoubleClick={(e) => { e.stopPropagation(); setName(page.name); setEditing(true) }}
         className={`px-2 py-1 rounded text-xs transition-all ${
           isActive ? 'bg-bg-3 text-text-0' : 'text-text-3 hover:text-text-1 hover:bg-bg-2'
         }`}
@@ -137,27 +139,16 @@ function PageTab({ page, isActive, onClick, onRename, onDelete, canDelete }: {
       >
         {page.name}
       </button>
-      {showContext && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setShowContext(false)} />
-          <div className="absolute top-full left-0 mt-1 bg-bg-2 border border-border-default rounded-lg p-1 shadow-[0_8px_24px_rgba(0,0,0,0.4)] z-20 min-w-[100px]">
-            <button
-              onClick={() => { setShowContext(false); setEditing(true) }}
-              className="w-full text-left px-2.5 py-1.5 rounded text-[11px] text-text-1 hover:bg-bg-3 hover:text-text-0 transition-colors"
-            >
-              Rename
-            </button>
-            {canDelete && (
-              <button
-                onClick={() => { setShowContext(false); onDelete() }}
-                className="w-full text-left px-2.5 py-1.5 rounded text-[11px] text-text-1 hover:bg-status-red/10 hover:text-status-red transition-colors"
-              >
-                Delete
-              </button>
-            )}
-          </div>
-        </>
-      )}
+      {isActive && <button type="button" aria-label={`Rename ${page.name}`} title={`Rename ${page.name}`}
+        onClick={() => { setName(page.name); setEditing(true) }}
+        className="p-1 rounded text-text-3 hover:text-text-0 focus-visible:outline focus-visible:outline-2"><Pencil size={12} /></button>}
+      {isActive && canDelete && <button type="button" aria-label={confirmDelete ? `Confirm delete ${page.name}` : `Delete ${page.name}`}
+        title={confirmDelete ? 'Click again to delete this page' : `Delete ${page.name}`}
+        onClick={() => { if (confirmDelete) onDelete(); else setConfirmDelete(true) }}
+        onBlur={() => setConfirmDelete(false)}
+        className="p-1 rounded text-text-3 hover:text-status-red focus-visible:outline focus-visible:outline-2">
+        {confirmDelete ? 'Delete?' : <Trash2 size={12} />}
+      </button>}
     </div>
   )
 }
@@ -221,7 +212,7 @@ export function CanvasToolbar() {
       <div className="w-px h-5 bg-border-default mx-1.5 shrink-0" />
 
       {/* Page tabs */}
-      <div className="flex items-center gap-0.5 relative overflow-x-auto">
+      <div className="flex items-center gap-0.5 min-w-0 overflow-x-auto">
         {pages.map((page) => (
           <PageTab
             key={page.id}
@@ -233,7 +224,8 @@ export function CanvasToolbar() {
             canDelete={pages.length > 1 && page.path !== '/'}
           />
         ))}
-        <div className="relative">
+      </div>
+        <div className="relative shrink-0">
           <button
             onClick={() => setShowAddPage(!showAddPage)}
             className="w-6 h-6 rounded flex items-center justify-center text-text-3 hover:text-green hover:bg-bg-2 transition-all"
@@ -249,7 +241,6 @@ export function CanvasToolbar() {
             />
           )}
         </div>
-      </div>
 
       {/* Right side */}
       <div className="ml-auto flex flex-wrap justify-end items-center gap-1 min-w-0">
