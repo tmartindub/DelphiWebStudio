@@ -25,6 +25,7 @@ export interface ProjectSettings {
   language?: string
   seoTitle?: string
   seoDescription?: string
+  siteBaseUrl?: string
   ogImageUrl?: string
   customDomain?: string
   gaId?: string

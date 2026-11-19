@@ -85,4 +85,27 @@ describe('multi-page export', () => {
     const media = [{ id: 'example', projectId: 'p', name: 'bulletin.pdf', path: 'assets/example.pdf', mime: 'application/pdf', size: 9, sha256: 'x', content: new Blob(['%PDF-test'], { type: 'application/pdf' }) }]
     await expect(exportSiteZip(site, undefined, media)).rejects.toThrow('conflicts with an exported asset or folder')
   })
+
+  it('creates an optional sitemap with absolute URLs under the configured site folder', async () => {
+    const absent = await JSZip.loadAsync(await (await exportSiteZip(config)).arrayBuffer())
+    expect(absent.file('sitemap.xml')).toBeNull()
+    const site = structuredClone(config)
+    site.pages![2].path = '/a&b'
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site, { settings: { siteBaseUrl: 'https://example.com/site' } })).arrayBuffer())
+    const sitemap = await zip.file('sitemap.xml')!.async('string')
+    expect(sitemap).toContain('<loc>https://example.com/site/index.html</loc>')
+    expect(sitemap).toContain('<loc>https://example.com/site/community/news.html</loc>')
+    expect(sitemap).toContain('<loc>https://example.com/site/a&amp;b.html</loc>')
+    expect(zip.file('robots.txt')).toBeNull()
+  })
+
+  it.each(['example.com', 'javascript:alert(1)', 'https://user:pass@example.com/', 'https://example.com/?x=1', 'https://example.com/#section', 'https://example.com\\site'])('rejects an invalid public site URL %s', async siteBaseUrl => {
+    await expect(exportSiteZip(config, { settings: { siteBaseUrl } })).rejects.toThrow('Public site URL')
+  })
+
+  it('rejects a page path that conflicts with the generated sitemap', async () => {
+    const site = structuredClone(config)
+    site.pages![1].path = '/sitemap.xml/nested'
+    await expect(exportSiteZip(site, { settings: { siteBaseUrl: 'https://example.com/' } })).rejects.toThrow('conflicts with an exported asset or folder')
+  })
 })
