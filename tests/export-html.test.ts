@@ -51,6 +51,13 @@ describe('exportSiteToHTML', () => {
     expect(html).toMatch(/posthog\.init\("phc_test_key"/)
   })
 
+  it('keeps analytics values inside their script strings', () => {
+    const attack = '</script><script>window.injected = true</script>'
+    const html = exportSiteToHTML(baseConfig, { settings: { gaId: attack, posthogKey: attack } })
+    expect(html).not.toContain(attack)
+    expect(html).toContain('\\u003c/script>\\u003cscript>window.injected = true\\u003c/script>')
+  })
+
   it('omits optional metadata when settings are absent', () => {
     const html = exportSiteToHTML(baseConfig)
     expect(html).not.toMatch(/name="description"/)
