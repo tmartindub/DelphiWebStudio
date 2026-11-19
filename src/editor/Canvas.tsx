@@ -22,6 +22,7 @@ export function Canvas() {
   const setActivePage = useConfigStore((s) => s.setActivePage)
   const { selectedBlockId, selectBlock, viewport, activeProjectId } = useEditorStore()
   const revision = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.mediaRevision ?? 0)
+  const searchEnabled = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.settings?.siteSearch === 'on')
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
   const referencedAssets = JSON.stringify([...new Set([
     ...blocks.map(block => typeof block.props.assetId === 'string' ? block.props.assetId : '').filter(Boolean),
@@ -64,6 +65,7 @@ export function Canvas() {
     >
       {pages && <nav aria-label="Site pages" className="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">
         {pages.map(page => <a key={page.id} href={page.path} aria-current={page.id === activePageId ? 'page' : undefined} className="min-w-0 [overflow-wrap:anywhere] hover:text-text-0" onClick={event => { event.preventDefault(); setActivePage(page.id); selectBlock(null) }}>{page.name}</a>)}
+        {searchEnabled && <a href="#site-search" className="min-w-0 [overflow-wrap:anywhere] hover:text-text-0" onClick={event => { event.preventDefault(); toast('Site search is available in the exported website ZIP.') }}>Search</a>}
       </nav>}
       {blocks.length === 0 ? <div className="bg-[#dce8f3] min-h-[400px] flex"><CanvasEmpty /></div> : blocks.map((block) => {
         const props = Object.fromEntries(Object.entries(block.props).map(([key, value]) => {

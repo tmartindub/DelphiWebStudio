@@ -63,3 +63,9 @@ No `robots.txt` is created: search engines expect it at the host root, which may
 ## Contact email option
 
 A Contact block can be configured with **Contact Email** in Properties. The exported form checks required name, email and message fields, then opens the visitor's configured email application with a draft. The visitor must send that draft; WebStudio does not receive or send the message. The address appears in the exported site. This option requires JavaScript and a working mail handler, and it does not guarantee delivery. The editor preview never launches the mail application. Forms without a valid contact address remain disabled; newsletter signup is still unconfigured. Hosted form backends remain future work.
+
+## Optional site search
+
+In Settings → General, set **Site search** to **Include in website ZIP** to add a Search link and a local search page. Search uses an index embedded in the exported page; it does not send queries to a search service. It searches page names and common text fields such as headings, descriptions, captions, questions and answers. It does not extract text from PDFs or search every possible block or plugin field. The index is part of the public website export and should contain only content intended for publication. A page path that would overwrite `search.html` is rejected. The Search link in the editor is a preview; use the exported website to run a search.
+
+An isolated browser test saved and reopened the setting, searched a nested page, followed the result under a subfolder, and blocked external requests. Full CMS and document-text search remain future work.

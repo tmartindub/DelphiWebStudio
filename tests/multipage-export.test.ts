@@ -108,4 +108,33 @@ describe('multi-page export', () => {
     site.pages![1].path = '/sitemap.xml/nested'
     await expect(exportSiteZip(site, { settings: { siteBaseUrl: 'https://example.com/' } })).rejects.toThrow('conflicts with an exported asset or folder')
   })
+
+  it('adds optional local site search without indexing contact addresses', async () => {
+    const site = structuredClone(config)
+    site.pages![1].blocks.push({ id: 'contact', type: 'contact', variant: 'form', props: { title: 'Questions', recipientEmail: 'secret@example.com' } } as never)
+    const absent = await JSZip.loadAsync(await (await exportSiteZip(site)).arrayBuffer())
+    expect(absent.file('search.html')).toBeNull()
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site, { settings: { siteSearch: 'on' } })).arrayBuffer())
+    const search = await zip.file('search.html')!.async('string')
+    const news = await zip.file('community/news.html')!.async('string')
+    expect(search).toContain('Latest text')
+    expect(search).not.toContain('secret@example.com')
+    expect(search).toContain('name="robots" content="noindex"')
+    expect(news).toContain('href="../search.html"')
+  })
+
+  it('keeps markup in search content from becoming a script', async () => {
+    const site = structuredClone(config)
+    site.pages![1].blocks[0].props.body = '</script><script>window.injected=true</script>'
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site, { settings: { siteSearch: 'on' } })).arrayBuffer())
+    const search = await zip.file('search.html')!.async('string')
+    expect(search).not.toContain('</script><script>window.injected=true</script>')
+    expect(search).toContain('\\u003c/script>\\u003cscript>window.injected=true\\u003c/script>')
+  })
+
+  it('rejects page paths that conflict with the optional search page', async () => {
+    const site = structuredClone(config)
+    site.pages![1].path = '/SEARCH'
+    await expect(exportSiteZip(site, { settings: { siteSearch: 'on' } })).rejects.toThrow('conflicts with an exported asset or folder')
+  })
 })
