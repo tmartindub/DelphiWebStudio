@@ -55,7 +55,7 @@ class BlockErrorBoundary extends Component<
 function PlaceholderBlock({ block }: { block: BlockConfig }) {
   return (
     <div className="px-9 py-7 text-center text-text-3 text-sm">
-      {block.type} block (coming soon)
+      Unsupported block: {block.type}. Its data is preserved; it cannot be exported until supported or removed.
     </div>
   )
 }
@@ -87,7 +87,7 @@ const blockRenderers: Record<string, React.ComponentType<{ block: BlockConfig }>
 }
 
 export function RenderBlock({ block }: { block: BlockConfig }): ReactNode {
-  const Renderer = blockRenderers[block.type] || PlaceholderBlock
+  const Renderer = Object.hasOwn(blockRenderers, block.type) ? blockRenderers[block.type] : PlaceholderBlock
   return (
     <BlockErrorBoundary blockType={block.type}>
       <Renderer block={block} />

@@ -633,7 +633,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function PropertiesPanel({ block }: { block: BlockConfig }) {
   const [showJson, setShowJson] = useState(false)
-  const schema = blockFields[block.type]
+  const schema = Object.hasOwn(blockFields, block.type) ? blockFields[block.type] : undefined
 
   return (
     <>

@@ -48,6 +48,8 @@ Unknown document/config/page/block fields and block types are retained through f
 
 Validation rejects duplicate page/block IDs, duplicate paths (including case collisions), traversal/encoded/nonportable Windows paths, missing Home, malformed blocks, prototype-polluting keys, active/privileged URL protocols, invalid known theme values, non-JSON editor values and unsupported format versions. Invalid input is reported before opening a replacement project. Validation does not execute scripts, access files, contact AI or publish.
 
+Unsupported block types appear as labeled placeholders; their project data is retained, and website export stops rather than silently dropping them. An isolated browser test opened, selected, saved and reopened unsupported blocks including names that match JavaScript object properties, and confirmed their data remained intact. Export remained blocked until unsupported blocks are removed or supported.
+
 Current files cover SiteConfig content/theme, non-secret site settings and extension data. Deployment credentials are excluded from saves and rejected in imported files. Assets are not yet integrated. Existing IDs are preserved; newly added pages and duplicated blocks use UUIDs. Page changes and the active-page selection participate in undo/redo.
 
 With the feature enabled, Export produces a ZIP containing a separate HTML file for every page and relative page navigation. Unknown block types cause a clear error rather than being silently omitted. The output currently relies on online fonts and Tailwind; fully self-contained export remains later work. Publishing is disabled in this mode until destination review and verification are implemented.
