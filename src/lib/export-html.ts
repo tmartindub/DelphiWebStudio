@@ -1417,9 +1417,9 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     const page = pages[index]
     const depth = paths[index].split('/').length - 1
     const prefix = '../'.repeat(depth)
-    const nav = pages.map((target, targetIndex) => `<a href="${escapeHtml(prefix + encodeURI(paths[targetIndex]))}"${target.id === page.id ? ' aria-current="page"' : ''}>${escapeHtml(target.name)}</a>`).join(' ')
+    const nav = pages.map((target, targetIndex) => `<a href="${escapeHtml(prefix + encodeURI(paths[targetIndex]))}"${target.id === page.id ? ' aria-current="page"' : ''} class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(target.name)}</a>`).join(' ')
     const html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, options)
-      .replace('<body>', `<body>\n<nav aria-label="Site pages">${nav}</nav>`)
+      .replace('<body>', `<body>\n<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav}</nav>`)
       .replace(/\b(src|href|data)="assets\//g, `$1="${prefix}assets/`)
     zip.file(paths[index], html, { date: new Date('1980-01-01T00:00:00Z') })
   }

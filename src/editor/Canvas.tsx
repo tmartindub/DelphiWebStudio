@@ -17,6 +17,9 @@ export function Canvas() {
     return page.blocks
   })
   const theme = useConfigStore((s) => s.config.theme)
+  const pages = useConfigStore((s) => s.config.pages)
+  const activePageId = useConfigStore((s) => s.activePageId)
+  const setActivePage = useConfigStore((s) => s.setActivePage)
   const { selectedBlockId, selectBlock, viewport, activeProjectId } = useEditorStore()
   const revision = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.mediaRevision ?? 0)
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
@@ -41,7 +44,7 @@ export function Canvas() {
 
   const maxWidth = viewport === 'desktop' ? '1200px' : viewport === 'tablet' ? '768px' : '375px'
 
-  const canvasContent = blocks.length === 0 ? <CanvasEmpty /> : (
+  const canvasContent = (
     <div
       className="@container outline outline-1 rounded-xl min-h-[400px] relative z-[1] overflow-hidden transition-all duration-300 mx-auto"
       style={{ width: '100%', maxWidth, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', outlineColor: 'var(--color-border-default)' } as React.CSSProperties}
@@ -51,7 +54,10 @@ export function Canvas() {
       role="region"
       aria-label={`Site preview, ${blocks.length} blocks, ${viewport} viewport`}
     >
-      {blocks.map((block) => (
+      {pages && <nav aria-label="Site pages" className="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">
+        {pages.map(page => <a key={page.id} href={page.path} aria-current={page.id === activePageId ? 'page' : undefined} className="min-w-0 [overflow-wrap:anywhere] hover:text-text-0" onClick={event => { event.preventDefault(); setActivePage(page.id); selectBlock(null) }}>{page.name}</a>)}
+      </nav>}
+      {blocks.length === 0 ? <div className="bg-[#dce8f3] min-h-[400px] flex"><CanvasEmpty /></div> : blocks.map((block) => (
         <BlockWrapper
           key={block.id}
           block={block}
