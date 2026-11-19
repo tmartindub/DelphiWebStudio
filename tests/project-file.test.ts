@@ -104,6 +104,10 @@ describe('portable project files', () => {
     const mismatched = structuredClone(config)
     mismatched.blocks[0].props.src = 'assets/two-image.png'
     expect(() => validateProjectMedia(mismatched, assets)).toThrow('do not match')
+    mismatched.blocks[0].props.src = 'https://example.com/photo.png'
+    expect(() => validateProjectMedia(mismatched, assets)).toThrow('do not match')
+    delete mismatched.blocks[0].props.src
+    expect(() => validateProjectMedia(mismatched, assets)).toThrow('do not match')
   })
 
   it('retains unknown block data without interpreting plugin-specific media references', () => {
