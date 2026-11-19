@@ -40,6 +40,23 @@ describe('local site checks', () => {
     expect(issues[1].message).toContain('disabled')
   })
 
+  it('finds unconfigured media and image placeholders without flagging unused image fields', () => {
+    const copy = structuredClone(config)
+    copy.pages![0].blocks.push(
+      { id: 'image', type: 'image', variant: 'hero-image', props: {} },
+      { id: 'grid', type: 'image', variant: 'grid', props: { images: [{ src: '', alt: '' }, { src: 'https://example.test/photo.png', alt: 'Photo' }] } },
+      { id: 'gallery', type: 'gallery', variant: 'grid', props: {} },
+      { id: 'pdf', type: 'pdfViewer', variant: 'default', props: {} },
+      { id: 'video', type: 'video', variant: 'youtube', props: { url: '' } },
+    )
+    copy.blocks = copy.pages![0].blocks
+    const issues = checkSite(copy)
+    expect(issues.map(issue => issue.blockId)).toEqual(['image', 'grid', 'gallery', 'pdf', 'video'])
+    expect(issues.find(issue => issue.blockId === 'grid')?.message).toContain('Image 1')
+    copy.pages![0].blocks[5].props.url = 'https://www.youtube.com/watch?v=abcdefghijk'
+    expect(checkSite(copy).some(issue => issue.blockId === 'video')).toBe(false)
+  })
+
   it('does not claim to verify external links or anchors', () => {
     const copy = structuredClone(config)
     copy.pages![0].blocks[0].props.primaryCtaUrl = 'https://example.test/'
