@@ -22,6 +22,17 @@ object MainForm: TMainForm
       Width = 200
       Height = 15
       Caption = 'Starting local editor...'
+      ShowHint = True
+    end
+    object RecoverStageButton: TButton
+      Left = 1040
+      Top = 0
+      Width = 160
+      Height = 32
+      Align = alRight
+      Caption = 'Recover staged file...'
+      TabOrder = 0
+      OnClick = RecoverStageButtonClick
     end
   end
   object EditorBrowser: TEdgeBrowser
@@ -44,6 +55,20 @@ object MainForm: TMainForm
     Options = [ofOverwritePrompt, ofHideReadOnly, ofNoChangeDir, ofPathMustExist, ofEnableSizing]
     Title = 'Save downloaded file'
     Left = 296
+    Top = 48
+  end
+  object RecoveryOpenDialog: TOpenDialog
+    Filter = 'WebStudio staged files|.webstudio-download-*.tmp'
+    Options = [ofHideReadOnly, ofNoChangeDir, ofFileMustExist, ofPathMustExist, ofEnableSizing]
+    Title = 'Choose a staged file (it may be incomplete)'
+    Left = 360
+    Top = 48
+  end
+  object RecoverySaveDialog: TSaveDialog
+    Filter = 'WebStudio projects|*.json;*.zip'
+    Options = [ofHideReadOnly, ofNoChangeDir, ofPathMustExist, ofEnableSizing]
+    Title = 'Save a recovered file; open it to verify'
+    Left = 424
     Top = 48
   end
 end

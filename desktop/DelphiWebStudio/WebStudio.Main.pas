@@ -11,8 +11,11 @@ type
   TMainForm = class(TForm)
     StatusPanel: TPanel;
     StatusLabel: TLabel;
+    RecoverStageButton: TButton;
     EditorBrowser: TEdgeBrowser;
     SaveDownloadDialog: TSaveDialog;
+    RecoveryOpenDialog: TOpenDialog;
+    RecoverySaveDialog: TSaveDialog;
     procedure FormCreate(Sender: TObject);
     procedure EditorBrowserCreateWebViewCompleted(Sender: TCustomEdgeBrowser; AResult: HResult);
     procedure EditorBrowserNavigationStarting(Sender: TCustomEdgeBrowser; Args: TNavigationStartingEventArgs);
@@ -21,6 +24,7 @@ type
     procedure EditorBrowserNewWindowRequested(Sender: TCustomEdgeBrowser; Args: TNewWindowRequestedEventArgs);
     procedure EditorBrowserPermissionRequested(Sender: TCustomEdgeBrowser; Args: TPermissionRequestedEventArgs);
     procedure EditorBrowserDownloadStarting(Sender: TCustomEdgeBrowser; Args: TDownloadStartingEventArgs);
+    procedure RecoverStageButtonClick(Sender: TObject);
   private
     FDownloadPending: Boolean;
   end;
@@ -68,14 +72,24 @@ begin
       try
         CommitStagedProjectFile(FStagedPath, FTargetPath);
       except
+        if Assigned(FOwner.RecoveryOpenDialog) then FOwner.RecoveryOpenDialog.InitialDir := TPath.GetDirectoryName(FStagedPath);
+        FOwner.StatusLabel.Hint := FStagedPath;
         FOwner.StatusLabel.Caption := 'Project not saved. Check staged file: ' + FStagedPath;
         Exit;
       end;
     end;
+    FOwner.StatusLabel.Hint := '';
     FOwner.StatusLabel.Caption := 'Download completed: ' + FFileName;
   end else if State = COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED then begin
-    if FStagedPath <> '' then FOwner.StatusLabel.Caption := 'Project download interrupted. Check staged file: ' + FStagedPath
-    else FOwner.StatusLabel.Caption := 'Download interrupted: ' + FFileName + '. Try saving again.';
+    if FStagedPath <> '' then begin
+      if Assigned(FOwner.RecoveryOpenDialog) then FOwner.RecoveryOpenDialog.InitialDir := TPath.GetDirectoryName(FStagedPath);
+      FOwner.StatusLabel.Hint := FStagedPath;
+      FOwner.StatusLabel.Caption := 'Project download interrupted. Check staged file: ' + FStagedPath;
+    end
+    else begin
+      FOwner.StatusLabel.Hint := '';
+      FOwner.StatusLabel.Caption := 'Download interrupted: ' + FFileName + '. Try saving again.';
+    end;
   end;
 end;
 
@@ -159,6 +173,44 @@ begin
   else begin
     Args.ArgsInterface.Set_State(COREWEBVIEW2_PERMISSION_STATE_DENY);
     if Allowed then StatusLabel.Caption := 'Update the WebView2 Runtime to permit another download.';
+  end;
+end;
+
+procedure TMainForm.RecoverStageButtonClick(Sender: TObject);
+var
+  StagedPath, Name, Extension, TargetPath: string;
+  Stream: TFileStream;
+  Header: array[0..3] of Byte;
+  Count: Integer;
+begin
+  if not RecoveryOpenDialog.Execute then Exit;
+  StagedPath := RecoveryOpenDialog.FileName;
+  Name := ExtractFileName(StagedPath);
+  if not LowerCase(Name).StartsWith('.webstudio-download-') or not SameText(TPath.GetExtension(Name), '.tmp') then begin
+    StatusLabel.Caption := 'Select a WebStudio staged file.';
+    Exit;
+  end;
+  try
+    Stream := TFileStream.Create(StagedPath, fmOpenRead or fmShareDenyWrite);
+    try Count := Stream.Read(Header, SizeOf(Header)) finally Stream.Free end;
+    if (Count >= 4) and (Header[0] = $50) and (Header[1] = $4B) and (Header[2] = $03) and (Header[3] = $04) then Extension := '.zip'
+    else if (Count >= 1) and (Header[0] = Ord('{')) then Extension := '.json'
+    else begin
+      StatusLabel.Caption := 'The staged file is incomplete or unrecognized; it was kept.';
+      Exit;
+    end;
+    RecoverySaveDialog.InitialDir := TPath.GetDirectoryName(StagedPath);
+    RecoverySaveDialog.FileName := 'Recovered.webstudio' + Extension;
+    if not RecoverySaveDialog.Execute then Exit;
+    TargetPath := RecoverySaveDialog.FileName;
+    if not SameText(TPath.GetExtension(TargetPath), Extension) then begin
+      StatusLabel.Caption := 'Recovery requires the ' + Extension + ' extension; the staged file was kept.';
+      Exit;
+    end;
+    CommitStagedProjectFile(StagedPath, TargetPath);
+    StatusLabel.Caption := 'Recovered file may be incomplete. Open it to verify: ' + ExtractFileName(TargetPath);
+  except
+    StatusLabel.Caption := 'Recovery failed. The staged file was kept; choose a new name in the same folder.';
   end;
 end;
 
