@@ -84,7 +84,7 @@ function generateResponse(input: string, blocks: { id: string; type: string; var
     const meta = blockMetadata.find((b) => b.type === blockType || b.label.toLowerCase().includes(blockType))
     if (meta) {
       const block: BlockConfig = {
-        id: `block-${Date.now()}`,
+        id: `block-${crypto.randomUUID()}`,
         type: meta.type,
         variant: meta.variants[0],
         props: { ...meta.defaultProps },

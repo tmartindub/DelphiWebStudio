@@ -1,0 +1,15 @@
+{
+  "format": "webstudio",
+  "schemaVersion": 2,
+  "projectId": "sample-five-page",
+  "config": {
+    "name": "Community Sample",
+    "pages": [
+      { "id": "home", "name": "Home", "path": "/", "blocks": [{ "id": "home-text", "type": "content", "variant": "prose", "props": { "body": "## Welcome\nA community website you can edit." } }] },
+      { "id": "about", "name": "About", "path": "/about", "blocks": [{ "id": "about-text", "type": "content", "variant": "prose", "props": { "body": "## About us\nDescribe your organization here." } }] },
+      { "id": "news", "name": "News", "path": "/news", "blocks": [{ "id": "news-text", "type": "content", "variant": "prose", "props": { "body": "## News\nAdd your latest announcements." } }] },
+      { "id": "documents", "name": "Documents", "path": "/documents", "blocks": [] },
+      { "id": "contact", "name": "Contact", "path": "/contact", "blocks": [{ "id": "contact-text", "type": "content", "variant": "prose", "props": { "body": "## Contact\nAdd public contact information you want to share." } }] }
+    ]
+  }
+}

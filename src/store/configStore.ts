@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { produce } from 'immer'
 import type { BlockConfig, SiteConfig, ThemeConfig, PageConfig } from '@/blocks/types'
+import { validateProjectConfig } from '@/project/project-file'
 
 function ensurePages(config: SiteConfig): PageConfig[] {
   if (config.pages && config.pages.length > 0) return config.pages
@@ -20,6 +21,7 @@ interface UndoEntry {
   theme?: Partial<ThemeConfig>
   label: string
   timestamp: number
+  activePageId: string
 }
 
 interface ConfigState {
@@ -114,11 +116,12 @@ export const defaultConfig: SiteConfig = {
   blocks: defaultBlocks,
 }
 
-function snapshot(state: ConfigState): { pages?: PageConfig[]; blocks: BlockConfig[]; theme?: Partial<ThemeConfig> } {
+function snapshot(state: ConfigState): { pages?: PageConfig[]; blocks: BlockConfig[]; theme?: Partial<ThemeConfig>; activePageId: string } {
   return {
     pages: state.config.pages ? JSON.parse(JSON.stringify(state.config.pages)) : undefined,
     blocks: JSON.parse(JSON.stringify(state.config.blocks)),
     theme: state.config.theme ? JSON.parse(JSON.stringify(state.config.theme)) : undefined,
+    activePageId: state.activePageId,
   }
 }
 
@@ -146,9 +149,8 @@ function mutateActivePageBlocks(
   const newPages = pages.map((p) =>
     p.id === activePageId ? { ...p, blocks: mutator([...p.blocks]) } : p,
   )
-  // Keep top-level blocks synced with first page for backward compat
-  const activeBlocks = newPages.find((p) => p.id === activePageId)?.blocks ?? []
-  return { ...config, pages: newPages, blocks: activeBlocks }
+  const homeBlocks = (newPages.find((page) => page.path === '/') ?? newPages[0])?.blocks ?? []
+  return { ...config, pages: newPages, blocks: homeBlocks }
 }
 
 export const useConfigStore = create<ConfigState>()(
@@ -164,7 +166,7 @@ export const useConfigStore = create<ConfigState>()(
         set({ config: { ...config, pages }, activePageId: pages[0]?.id ?? 'page-home', undoStack: [], redoStack: [] })
       },
 
-      setActivePage: (id) => set({ activePageId: id }),
+      setActivePage: (id) => set((state) => ensurePages(state.config).some(page => page.id === id) ? { activePageId: id } : state),
 
       getActivePageBlocks: () => {
         const state = get()
@@ -179,7 +181,7 @@ export const useConfigStore = create<ConfigState>()(
             if (!page) return
             const block = page.blocks.find((b) => b.id === id)
             if (block) Object.assign(block, updates)
-            draft.blocks = page.blocks
+            draft.blocks = (draft.pages!.find(p => p.path === '/') ?? draft.pages![0]).blocks
           }),
         })),
 
@@ -191,7 +193,7 @@ export const useConfigStore = create<ConfigState>()(
             if (!page) return
             const block = page.blocks.find((b) => b.id === id)
             if (block) Object.assign(block.props, props)
-            draft.blocks = page.blocks
+            draft.blocks = (draft.pages!.find(p => p.path === '/') ?? draft.pages![0]).blocks
           }),
         })),
 
@@ -224,7 +226,7 @@ export const useConfigStore = create<ConfigState>()(
           const original = blocks[idx]
           const clone: BlockConfig = {
             ...JSON.parse(JSON.stringify(original)),
-            id: `block-${Date.now()}`,
+            id: `block-${crypto.randomUUID()}`,
           }
           return {
             ...pushUndo(state, 'Duplicate block'),
@@ -246,32 +248,31 @@ export const useConfigStore = create<ConfigState>()(
         })),
 
       addPage: (name, path) => {
-        const id = `page-${Date.now()}`
-        set((state) => ({
-          ...pushUndo(state, 'Add page'),
-          config: produce(withPages(state.config), (draft) => {
-            draft.pages!.push({ id, name, path, blocks: [] })
-          }),
-          activePageId: id,
-        }))
+        const id = `page-${crypto.randomUUID()}`
+        set((state) => {
+          const pages = [...ensurePages(state.config), { id, name, path, blocks: [] }]
+          const config = validateProjectConfig({ ...state.config, pages })
+          return { ...pushUndo(state, 'Add page'), config, activePageId: id }
+        })
         return id
       },
 
       removePage: (id) =>
         set((state) => {
           const pages = ensurePages(state.config)
-          if (pages.length <= 1) return state
+          if (pages.length <= 1 || pages.find(page => page.id === id)?.path === '/' || !pages.some(page => page.id === id)) return state
           const newPages = pages.filter((p) => p.id !== id)
           const newActiveId = state.activePageId === id ? newPages[0].id : state.activePageId
           return {
             ...pushUndo(state, 'Remove page'),
-            config: { ...state.config, pages: newPages, blocks: newPages[0].blocks },
+            config: { ...state.config, pages: newPages, blocks: (newPages.find(page => page.path === '/') ?? newPages[0]).blocks },
             activePageId: newActiveId,
           }
         }),
 
       renamePage: (id, name) =>
         set((state) => ({
+          ...pushUndo(state, 'Rename page'),
           config: produce(withPages(state.config), (draft) => {
             const page = draft.pages!.find((p) => p.id === id)
             if (page) page.name = name
@@ -304,6 +305,7 @@ export const useConfigStore = create<ConfigState>()(
             undoStack: state.undoStack.slice(0, -1),
             redoStack: [...state.redoStack, { ...snap, label: prev.label, timestamp: Date.now() }],
             config: { ...state.config, pages: prev.pages, blocks: prev.blocks, theme: prev.theme },
+            activePageId: prev.activePageId,
           }
         }),
 
@@ -316,6 +318,7 @@ export const useConfigStore = create<ConfigState>()(
             redoStack: state.redoStack.slice(0, -1),
             undoStack: [...state.undoStack, { ...snap, label: next.label, timestamp: Date.now() }],
             config: { ...state.config, pages: next.pages, blocks: next.blocks, theme: next.theme },
+            activePageId: next.activePageId,
           }
         }),
 

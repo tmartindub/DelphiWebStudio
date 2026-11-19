@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { SiteConfig } from '@/blocks/types'
+import type { SiteProjectFile } from '@/project/project-file'
 
 export interface Project {
   id: string
@@ -13,6 +14,7 @@ export interface Project {
   deployUrl?: string
   deploymentId?: string
   lastDeployedAt?: string
+  projectFile?: SiteProjectFile
 }
 
 export interface ProjectSettings {
@@ -31,7 +33,8 @@ export interface ProjectSettings {
 
 interface ProjectsState {
   projects: Project[]
-  addProject: (name: string) => string
+  addProject: (name: string, projectFile?: SiteProjectFile) => string
+  saveProjectFile: (id: string, projectFile: SiteProjectFile) => void
   duplicateProject: (id: string) => string | null
   deleteProject: (id: string) => void
   renameProject: (id: string, name: string) => void
@@ -44,8 +47,8 @@ export const useProjectsStore = create<ProjectsState>()(
   persist(
     (set) => ({
       projects: [],
-      addProject: (name) => {
-        const id = `proj-${Date.now()}`
+      addProject: (name, projectFile) => {
+        const id = `proj-${crypto.randomUUID()}`
         set((state) => ({
           projects: [
             {
@@ -54,23 +57,41 @@ export const useProjectsStore = create<ProjectsState>()(
               status: 'draft' as const,
               updatedAt: 'Just now',
               blockCount: 0,
+              ...(projectFile ? {
+                config: structuredClone(projectFile.config),
+                projectFile: structuredClone(projectFile),
+                ...(projectFile.settings ? { settings: structuredClone(projectFile.settings) as ProjectSettings } : {}),
+                blockCount: projectFile.config.pages?.reduce((sum, page) => sum + page.blocks.length, 0) ?? projectFile.config.blocks.length,
+              } : {}),
             },
             ...state.projects,
           ],
         }))
         return id
       },
+      saveProjectFile: (id, projectFile) => set(state => ({
+        projects: state.projects.map(project => project.id === id ? {
+          ...project,
+          config: structuredClone(projectFile.config),
+          projectFile: structuredClone(projectFile),
+          blockCount: projectFile.config.pages?.reduce((sum, page) => sum + page.blocks.length, 0) ?? projectFile.config.blocks.length,
+          updatedAt: 'Just now',
+        } : project),
+      })),
       duplicateProject: (id) => {
         const state = useProjectsStore.getState()
         const original = state.projects.find((p) => p.id === id)
         if (!original) return null
-        const newId = `proj-${Date.now()}`
+        const newId = `proj-${crypto.randomUUID()}`
         const clone: Project = {
           ...JSON.parse(JSON.stringify(original)),
           id: newId,
           name: `${original.name} (Copy)`,
           status: 'draft' as const,
           updatedAt: 'Just now',
+          ...(original.projectFile ? {
+            projectFile: { ...structuredClone(original.projectFile), projectId: crypto.randomUUID() },
+          } : {}),
         }
         set((s) => ({ projects: [clone, ...s.projects] }))
         return newId

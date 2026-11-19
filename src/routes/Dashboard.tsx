@@ -8,6 +8,8 @@ import { useConfigStore, defaultConfig } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
 import { hexToRgb } from '@/lib/theme-presets'
 import { templateMeta, buildTemplate } from '@/lib/templates'
+import { ProjectFileCommands } from '@/project/ProjectFileCommands'
+import { portableProjectsEnabled } from '@/project/project-file'
 
 const templateIcons: Record<string, typeof Briefcase> = {
   Briefcase, UtensilsCrossed, Building2, BookOpen,
@@ -392,6 +394,7 @@ export function Dashboard() {
 
   return (
     <div className="h-full overflow-y-auto">
+      {portableProjectsEnabled && <div className="px-4 md:px-12 pt-4"><ProjectFileCommands /></div>}
       <PromptSection />
 
       {/* Projects section */}

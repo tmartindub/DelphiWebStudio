@@ -1,5 +1,10 @@
 import type { SiteConfig, BlockConfig } from '@/blocks/types'
 import { resolveTheme } from '@/lib/theme-presets'
+import { validateProjectConfig } from '@/project/project-file'
+import { RenderBlock } from '@/blocks/registry'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import JSZip from 'jszip'
 
 export interface ExportSiteSettings {
   siteName?: string
@@ -1178,6 +1183,13 @@ function renderBlock(block: BlockConfig): string {
       return renderNewsletter(block)
     case 'logocloud':
       return renderLogoCloud(block)
+    case 'divider':
+    case 'banner':
+    case 'content':
+    case 'image':
+    case 'video':
+    case 'gallery':
+      return renderToStaticMarkup(createElement(RenderBlock, { block }))
     default:
       return `  <!-- Unknown block type: ${escapeHtml(block.type)} -->`
   }
@@ -1393,8 +1405,34 @@ export async function exportToHTML(
   return exportSiteToHTML(config, options)
 }
 
-export function downloadHTML(html: string, filename: string): void {
-  const blob = new Blob([html], { type: 'text/html' })
+export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOptions): Promise<Blob> {
+  const validated = validateProjectConfig(config)
+  const pages = validated.pages!
+  const knownTypes = new Set(['navbar', 'hero', 'features', 'pricing', 'cta', 'footer', 'testimonials', 'stats', 'faq', 'team', 'contact', 'newsletter', 'logocloud', 'divider', 'banner', 'content', 'image', 'video', 'gallery'])
+  for (const page of pages) {
+    const unknown = page.blocks.find(block => !knownTypes.has(block.type))
+    if (unknown) throw new Error(`Page ${page.name} contains unsupported block ${unknown.type}; it cannot be exported safely.`)
+  }
+  const paths = pages.map(page => page.path === '/' ? 'index.html' : `${page.path.slice(1)}.html`)
+  if (new Set(paths.map(path => path.toLowerCase())).size !== paths.length) throw new Error('Page paths produce duplicate export filenames.')
+  if (paths.some((path, index) => paths.some((other, otherIndex) => index !== otherIndex && other.toLowerCase().startsWith(`${path.toLowerCase()}/`)))) {
+    throw new Error('Page paths produce conflicting file and folder names.')
+  }
+  const zip = new JSZip()
+  for (let index = 0; index < pages.length; index++) {
+    const page = pages[index]
+    const depth = paths[index].split('/').length - 1
+    const prefix = '../'.repeat(depth)
+    const nav = pages.map((target, targetIndex) => `<a href="${escapeHtml(prefix + encodeURI(paths[targetIndex]))}"${target.id === page.id ? ' aria-current="page"' : ''}>${escapeHtml(target.name)}</a>`).join(' ')
+    const html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, options)
+      .replace('<body>', `<body>\n<nav aria-label="Site pages">${nav}</nav>`)
+    zip.file(paths[index], html, { date: new Date('1980-01-01T00:00:00Z') })
+  }
+  return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
+}
+
+export function downloadHTML(html: string | Blob, filename: string): void {
+  const blob = typeof html === 'string' ? new Blob([html], { type: 'text/html' }) : html
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

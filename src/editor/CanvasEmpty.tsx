@@ -12,7 +12,7 @@ export function CanvasEmpty() {
   function handleAddBlock() {
     const heroMeta = blockMetadata.find((b) => b.type === 'hero')!
     const block: BlockConfig = {
-      id: `block-${Date.now()}`,
+      id: `block-${crypto.randomUUID()}`,
       type: heroMeta.type,
       variant: heroMeta.variants[0],
       props: { ...heroMeta.defaultProps },

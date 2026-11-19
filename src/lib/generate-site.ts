@@ -124,7 +124,7 @@ function validateBlock(raw: Record<string, unknown>, index: number): BlockConfig
   const props = typeof raw.props === 'object' && raw.props ? { ...defaultProps, ...raw.props } : defaultProps
 
   return {
-    id: typeof raw.id === 'string' && raw.id ? raw.id : `block-${type}-${index}-${Date.now()}`,
+    id: typeof raw.id === 'string' && raw.id ? raw.id : `block-${type}-${index}-${crypto.randomUUID()}`,
     type: type as BlockConfig['type'],
     variant,
     props: props as Record<string, unknown>,
@@ -158,7 +158,7 @@ export function validateSiteConfig(raw: unknown, prompt?: string): SiteConfig {
       const pageBlocks = Array.isArray(p.blocks) ? validatePageBlocks(p.blocks) : []
       if (pageBlocks.length > 0) {
         pages.push({
-          id: typeof p.id === 'string' ? p.id : `page-${Date.now()}-${pages.length}`,
+          id: typeof p.id === 'string' ? p.id : `page-${crypto.randomUUID()}`,
           name: typeof p.name === 'string' ? p.name : `Page ${pages.length + 1}`,
           path: typeof p.path === 'string' ? p.path : `/${pages.length === 0 ? '' : `page-${pages.length}`}`,
           blocks: pageBlocks,
