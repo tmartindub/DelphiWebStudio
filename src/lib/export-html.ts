@@ -1345,6 +1345,7 @@ ${ogDescriptionMeta}${ogImageMeta}${faviconLink}
 
     body {
       margin: 0;
+      overflow-wrap: anywhere;
       background-color: ${theme.bg0};
       color: ${theme.text0};
       font-family: "${theme.fontSans}", -apple-system, system-ui, sans-serif;
