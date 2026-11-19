@@ -16,6 +16,11 @@ procedure SaveNewProjectFile(const TargetPath: string; const Contents: TBytes);
 procedure SaveProjectRecoveryZip(const SourcePath, RecoveryZipPath: string;
   MaximumSourceBytes: UInt64);
 
+{ Restores one ZIP entry to a new caller-selected file. Existing files are
+  never replaced. The caller validates project contents before opening them. }
+procedure RestoreProjectRecoveryZip(const RecoveryZipPath, NewTargetPath: string;
+  MaximumArchiveBytes, MaximumProjectBytes: UInt64);
+
 implementation
 
 uses Winapi.Windows, System.IOUtils, System.Classes, System.Zip, WebStudio.ProjectOpen;
@@ -112,5 +117,65 @@ begin
   finally
     Buffer.Free;
   end;
+end;
+
+procedure RestoreProjectRecoveryZip(const RecoveryZipPath, NewTargetPath: string;
+  MaximumArchiveBytes, MaximumProjectBytes: UInt64);
+var
+  ArchiveBytes, ProjectBytes, VerifiedBytes: TBytes;
+  Buffer: TBytesStream;
+  EntryStream: TStream;
+  Archive: TZipFile;
+  Header, LocalHeader: TZipHeader;
+  EntryName: string;
+  Offset: NativeInt;
+  ChunkSize: Integer;
+  ExtraByte: Byte;
+begin
+  if not SameText(TPath.GetExtension(RecoveryZipPath), '.zip') then
+    raise EArgumentException.Create('The recovery file must have a .zip extension.');
+  ArchiveBytes := ReadProjectFile(RecoveryZipPath, MaximumArchiveBytes);
+  Buffer := TBytesStream.Create(ArchiveBytes);
+  try
+    Archive := TZipFile.Create;
+    try
+      Archive.Open(Buffer, zmRead);
+      if Archive.FileCount <> 1 then raise EArgumentException.Create('Recovery ZIP must contain exactly one project file.');
+      EntryName := Archive.FileName[0];
+      if (EntryName = '') or (EntryName = '.') or (EntryName = '..') or
+        (Pos('/', EntryName) > 0) or (Pos('\', EntryName) > 0) then
+        raise EArgumentException.Create('Recovery ZIP contains an invalid filename.');
+      Header := Archive.FileInfo[0];
+      if Header.IsEncrypted or (Header.UncompressedSize64 > MaximumProjectBytes) or
+        (Header.UncompressedSize64 > UInt64(High(NativeInt))) then
+        raise EArgumentException.Create('Recovery project is encrypted or exceeds the allowed size.');
+      Archive.Read(0, EntryStream, LocalHeader, True);
+      try
+        if LocalHeader.UncompressedSize64 <> Header.UncompressedSize64 then
+          raise EArgumentException.Create('Recovery ZIP entry sizes do not match.');
+        SetLength(ProjectBytes, NativeInt(Header.UncompressedSize64));
+        Offset := 0;
+        while Offset < Length(ProjectBytes) do begin
+          if Length(ProjectBytes) - Offset > 1048576 then ChunkSize := 1048576
+          else ChunkSize := Integer(Length(ProjectBytes) - Offset);
+          EntryStream.ReadBuffer(ProjectBytes[Offset], ChunkSize);
+          Inc(Offset, ChunkSize);
+        end;
+        if EntryStream.Read(ExtraByte, 1) <> 0 then
+          raise EArgumentException.Create('Recovery ZIP contains unexpected project data.');
+      finally
+        EntryStream.Free;
+      end;
+    finally
+      Archive.Free;
+    end;
+  finally
+    Buffer.Free;
+  end;
+  SaveNewProjectFile(NewTargetPath, ProjectBytes);
+  VerifiedBytes := ReadProjectFile(NewTargetPath, MaximumProjectBytes);
+  if (Length(VerifiedBytes) <> Length(ProjectBytes)) or
+    ((Length(ProjectBytes) > 0) and not CompareMem(@VerifiedBytes[0], @ProjectBytes[0], Length(ProjectBytes))) then
+    raise EWriteError.CreateFmt('Recovered project could not be verified: %s. The recovery ZIP was not changed.', [NewTargetPath]);
 end;
 end.
