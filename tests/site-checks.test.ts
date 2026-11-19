@@ -48,4 +48,19 @@ describe('local site checks', () => {
     copy.pages![0].blocks[0].props.primaryCtaUrl = '#section'
     expect(checkSite(copy)).toEqual([])
   })
+
+  it('warns about nonfunctional legacy navigation without altering it', () => {
+    const copy = structuredClone(config)
+    copy.pages![0].blocks.push({ id: 'nav', type: 'navbar', variant: 'default', props: { links: ['About'], ctaText: 'Join' } })
+    copy.pages![0].blocks.push({ id: 'footer', type: 'footer', variant: 'multi-column', props: { links: [], columns: [{ title: 'Pages', links: ['Contact'] }] } })
+    copy.blocks = copy.pages![0].blocks
+    const before = structuredClone(copy)
+    const issues = checkSite(copy)
+    expect(issues.filter(issue => issue.blockId === 'nav')).toHaveLength(2)
+    expect(issues.filter(issue => issue.blockId === 'footer')).toHaveLength(1)
+    expect(copy).toEqual(before)
+    copy.pages![0].blocks[1].props = { links: [], ctaText: '' }
+    copy.pages![0].blocks[2].props = { links: [], columns: [{ title: 'Pages', links: [] }] }
+    expect(checkSite(copy)).toEqual([])
+  })
 })
