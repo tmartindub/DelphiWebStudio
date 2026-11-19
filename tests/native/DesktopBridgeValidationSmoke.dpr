@@ -12,7 +12,7 @@ begin
   except on E: EArgumentException do Rejected := True end;
   if not Rejected then raise Exception.Create('Invalid desktop request was accepted.');
 end;
-var Request: TDesktopRequest; Session: TDesktopSession; Rejected: Boolean; AcceptedCount, RejectedCount, Index: Integer;
+var Request: TDesktopRequest; Session: TDesktopSession; Rejected: Boolean; AcceptedCount, RejectedCount, Index: Integer; SessionRaw, FirstSessionId: string;
 begin
   Request := ValidateDesktopRequest(Valid, Source, 'session-1', 'project-1', [dcProjectSave]);
   if (Request.RequestId <> 'request-1') or (Request.Capability <> dcProjectSave) then raise Exception.Create('Valid request was not retained.');
@@ -34,44 +34,53 @@ begin
   Reject(StringReplace(Valid, '"projectId":"project-1"', '"projectId":null', []), Source, 'session-1', '', [dcProjectSave]);
   Request := ValidateDesktopRequest(StringReplace(StringReplace(Valid, '"projectId":"project-1"', '"projectId":null', []), 'project.save', 'project.open', []), Source, 'session-1', '', [dcProjectOpen]);
   if Request.Capability <> dcProjectOpen then raise Exception.Create('Open request was not retained.');
-  Session := TDesktopSession.Create('session-1', 'project-1', [dcProjectSave]);
+  Session := TDesktopSession.Create('project-1', [dcProjectSave]);
   try
+    if Length(Session.SessionId) <> 64 then raise Exception.Create('Session ID has an unexpected length.');
+    FirstSessionId := Session.SessionId;
+    SessionRaw := StringReplace(Valid, 'session-1', Session.SessionId, []);
     Rejected := False;
-    try Session.ValidateAndClaim(Valid, 'https://untrusted.local/editor');
+    try Session.ValidateAndClaim(SessionRaw, 'https://untrusted.local/editor');
     except on E: EArgumentException do Rejected := True end;
     if not Rejected then raise Exception.Create('Untrusted request was accepted.');
-    Session.ValidateAndClaim(Valid, Source);
+    Session.ValidateAndClaim(SessionRaw, Source);
     Rejected := False;
-    try Session.ValidateAndClaim(Valid, Source);
+    try Session.ValidateAndClaim(SessionRaw, Source);
     except on E: EInvalidOpException do Rejected := True end;
     if not Rejected then raise Exception.Create('Replayed request was accepted.');
     AcceptedCount := 0; RejectedCount := 0;
     TParallel.For(1, 2, procedure(Index: Integer)
       begin
         try
-          Session.ValidateAndClaim(StringReplace(Valid, 'request-1', 'request-3', []), Source);
+          Session.ValidateAndClaim(StringReplace(SessionRaw, 'request-1', 'request-3', []), Source);
           InterlockedIncrement(AcceptedCount);
         except on E: EInvalidOpException do InterlockedIncrement(RejectedCount) end;
       end);
     if (AcceptedCount <> 1) or (RejectedCount <> 1) then raise Exception.Create('Concurrent replay was not rejected.');
     Session.Revoke;
     Rejected := False;
-    try Session.ValidateAndClaim(StringReplace(Valid, 'request-1', 'request-2', []), Source);
+    try Session.ValidateAndClaim(StringReplace(SessionRaw, 'request-1', 'request-2', []), Source);
     except on E: EInvalidOpException do Rejected := True end;
     if not Rejected then raise Exception.Create('Revoked session was accepted.');
   finally
     Session.Free;
   end;
-  Session := TDesktopSession.Create('session-1', 'project-1', [dcProjectSave]);
+  Session := TDesktopSession.Create('project-1', [dcProjectSave]);
   try
-    for Index := 1 to 4096 do
-      Session.ValidateAndClaim(StringReplace(Valid, 'request-1', 'r' + IntToStr(Index), []), Source);
+    if Session.SessionId = FirstSessionId then raise Exception.Create('Session ID was reused.');
+    SessionRaw := StringReplace(Valid, 'session-1', Session.SessionId, []);
     Rejected := False;
-    try Session.ValidateAndClaim(StringReplace(Valid, 'request-1', 'overflow', []), Source);
+    try Session.ValidateAndClaim(StringReplace(Valid, 'session-1', FirstSessionId, []), Source);
+    except on E: EArgumentException do Rejected := True end;
+    if not Rejected then raise Exception.Create('Previous session ID was accepted.');
+    for Index := 1 to 4096 do
+      Session.ValidateAndClaim(StringReplace(SessionRaw, 'request-1', 'r' + IntToStr(Index), []), Source);
+    Rejected := False;
+    try Session.ValidateAndClaim(StringReplace(SessionRaw, 'request-1', 'overflow', []), Source);
     except on E: EInvalidOpException do Rejected := True end;
     if not Rejected then raise Exception.Create('Full session accepted another request.');
     Rejected := False;
-    try Session.ValidateAndClaim(StringReplace(Valid, 'request-1', 'r1', []), Source);
+    try Session.ValidateAndClaim(StringReplace(SessionRaw, 'request-1', 'r1', []), Source);
     except on E: EInvalidOpException do Rejected := True end;
     if not Rejected then raise Exception.Create('Full session forgot a previous request.');
   finally

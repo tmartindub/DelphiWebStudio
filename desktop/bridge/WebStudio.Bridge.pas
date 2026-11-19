@@ -14,7 +14,7 @@ type
     Capability: TDesktopCapability;
   end;
 
-  { Native owner creates a fresh session with its own unpredictable ID.
+  { Each native session generates a fresh unpredictable ID.
     Once revoked or full, create a new session rather than recycling IDs. }
   TDesktopSession = class
   private
@@ -24,10 +24,11 @@ type
     FSeenRequests: TDictionary<string, Byte>;
     FRevoked: Boolean;
   public
-    constructor Create(const SessionId, ProjectId: string; Grants: TDesktopCapabilities);
+    constructor Create(const ProjectId: string; Grants: TDesktopCapabilities);
     destructor Destroy; override;
     function ValidateAndClaim(const RawJSON, SenderURL: string): TDesktopRequest;
     procedure Revoke;
+    property SessionId: string read FSessionId;
   end;
 
 { Validates an envelope only. SenderURL must be obtained from the WebView
@@ -40,11 +41,21 @@ implementation
 
 uses System.JSON, System.Classes;
 
-constructor TDesktopSession.Create(const SessionId, ProjectId: string; Grants: TDesktopCapabilities);
+function BCryptGenRandom(Algorithm: Pointer; Buffer: PByte; BufferSize, Flags: Cardinal): LongInt; stdcall; external 'bcrypt.dll';
+
+constructor TDesktopSession.Create(const ProjectId: string; Grants: TDesktopCapabilities);
+const HexDigits = '0123456789abcdef'; UseSystemPreferredRng = 2;
+var RandomBytes: array[0..31] of Byte; Index: Integer;
 begin
   inherited Create;
-  if SessionId = '' then raise EArgumentException.Create('A native session ID is required.');
-  FSessionId := SessionId;
+  if BCryptGenRandom(nil, @RandomBytes[0], SizeOf(RandomBytes), UseSystemPreferredRng) <> 0 then
+    raise EInvalidOpException.Create('Could not generate a secure desktop session ID.');
+  SetLength(FSessionId, 64);
+  for Index := 0 to High(RandomBytes) do begin
+    FSessionId[Index * 2 + 1] := HexDigits[(RandomBytes[Index] shr 4) + 1];
+    FSessionId[Index * 2 + 2] := HexDigits[(RandomBytes[Index] and $F) + 1];
+  end;
+  FillChar(RandomBytes, SizeOf(RandomBytes), 0);
   FProjectId := ProjectId;
   FGrants := Grants;
   FSeenRequests := TDictionary<string, Byte>.Create;
