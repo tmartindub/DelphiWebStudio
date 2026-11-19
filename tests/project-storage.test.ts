@@ -56,6 +56,26 @@ describe('portable project storage', () => {
     expect(await library.list(first)).toHaveLength(1)
   })
 
+  it('does not copy deployment credentials or publication history', async () => {
+    const first = useProjectsStore.getState().addProject('Original', {
+      ...document,
+      settings: { deployAccessKey: 'secret', siteName: 'Example' },
+    })
+    useProjectsStore.getState().updateProjectSettings(first, { deployAccessKey: 'secret', siteName: 'Example' })
+    useProjectsStore.getState().setDeployInfo(first, 'https://example.test', 'deployment-id')
+    const second = await useProjectsStore.getState().duplicateProject(first)
+    const original = useProjectsStore.getState().projects.find(project => project.id === first)!
+    const copy = useProjectsStore.getState().projects.find(project => project.id === second)!
+    expect(copy.status).toBe('draft')
+    expect(copy.deployUrl).toBeUndefined()
+    expect(copy.deploymentId).toBeUndefined()
+    expect(copy.lastDeployedAt).toBeUndefined()
+    expect(copy.settings).toEqual({ siteName: 'Example' })
+    expect(copy.projectFile?.settings).toEqual({ siteName: 'Example' })
+    expect(original.settings?.deployAccessKey).toBe('secret')
+    expect(original.status).toBe('published')
+  })
+
   it('saves only the targeted local project and serializes its portable document to storage', () => {
     const first = useProjectsStore.getState().addProject('Original', document)
     const second = useProjectsStore.getState().addProject('Other', document)

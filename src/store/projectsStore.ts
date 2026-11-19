@@ -101,6 +101,11 @@ export const useProjectsStore = create<ProjectsState>()(
             projectFile: { ...structuredClone(original.projectFile), projectId: crypto.randomUUID() },
           } : {}),
         }
+        delete clone.deployUrl
+        delete clone.deploymentId
+        delete clone.lastDeployedAt
+        if (clone.settings) delete clone.settings.deployAccessKey
+        if (clone.projectFile?.settings) delete clone.projectFile.settings.deployAccessKey
         await new ProjectMediaLibrary().copyProject(id, newId)
         set((s) => ({ projects: [clone, ...s.projects] }))
         return newId
