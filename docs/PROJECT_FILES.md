@@ -105,3 +105,5 @@ An isolated browser test saved and reopened the setting, searched a nested page,
 Article pages use optional `webstudioArticle` metadata on ordinary pages. Drafts stay in project saves but are omitted from website exports and generated search/sitemaps; see ARTICLE_PAGES.md for operation and limitations.
 
 For Hero, CTA, Banner and Navbar buttons rendered by the HTML exporter, unsupported link schemes, protocol-relative URLs, backslashes and control characters are exported as text rather than active links. **Check site** reports destinations it can inspect; project validation may reject some invalid URLs earlier. This check does not cover every URL field or plugin and is not a complete security audit.
+
+In the experimental Delphi desktop shell, Save project and Export prompt for a destination using a Windows Save dialog. Cancelling the dialog cancels the download; choosing an existing file invokes the dialog's overwrite confirmation. The dialog test used an isolated profile and legacy-dialog automation; normal interactive and clean-machine testing remain open. This is still a browser-download snapshot, not a completed native atomic project save.

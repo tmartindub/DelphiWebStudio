@@ -37,5 +37,13 @@ object MainForm: TMainForm
     OnNavigationCompleted = EditorBrowserNavigationCompleted
     OnNewWindowRequested = EditorBrowserNewWindowRequested
     OnPermissionRequested = EditorBrowserPermissionRequested
+    OnDownloadStarting = EditorBrowserDownloadStarting
+  end
+  object SaveDownloadDialog: TSaveDialog
+    Filter = 'Project and website files|*.json;*.zip|All files|*.*'
+    Options = [ofOverwritePrompt, ofHideReadOnly, ofNoChangeDir, ofPathMustExist, ofEnableSizing]
+    Title = 'Save downloaded file'
+    Left = 296
+    Top = 48
   end
 end
