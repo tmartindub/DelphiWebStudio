@@ -58,4 +58,12 @@ describe('exportSiteToHTML', () => {
     expect(html).not.toMatch(/googletagmanager/)
     expect(html).not.toMatch(/posthog\.init/)
   })
+
+  it('uses the editor root size and container breakpoints for a centered hero', () => {
+    const html = exportSiteToHTML(baseConfig)
+    expect(html).toContain('html { font-size: 14px; }')
+    expect(html).toContain('class="@container"')
+    expect(html).toContain('@md:text-5xl')
+    expect(html).toContain('@md:py-28')
+  })
 })

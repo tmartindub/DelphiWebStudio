@@ -43,8 +43,8 @@ export function Canvas() {
 
   const canvasContent = blocks.length === 0 ? <CanvasEmpty /> : (
     <div
-      className="@container border rounded-xl min-h-[400px] relative z-[1] overflow-hidden transition-all duration-300"
-      style={{ width: '100%', maxWidth, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', borderColor: 'var(--color-border-default)' } as React.CSSProperties}
+      className="@container outline outline-1 rounded-xl min-h-[400px] relative z-[1] overflow-hidden transition-all duration-300 mx-auto"
+      style={{ width: '100%', maxWidth, ...cssVars, color: 'var(--color-text-0)', backgroundColor: 'var(--color-bg-1)', outlineColor: 'var(--color-border-default)' } as React.CSSProperties}
       onClick={(e) => {
         if (e.target === e.currentTarget) selectBlock(null)
       }}
@@ -67,7 +67,7 @@ export function Canvas() {
   )
 
   return (
-    <div className="flex-1 flex items-start justify-center p-6 overflow-auto relative bg-[#dce8f3]" onDragOver={event => {
+    <div className="flex-1 flex items-start justify-start p-6 overflow-auto relative bg-[#dce8f3]" onDragOver={event => {
       if (event.dataTransfer.types.includes('application/x-webstudio-asset')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy' }
     }} onDrop={event => {
       const assetId = event.dataTransfer.getData('application/x-webstudio-asset')
@@ -93,7 +93,7 @@ export function Canvas() {
       />
 
       {viewport === 'tablet' ? (
-        <div className="relative z-[1]">
+        <div className="relative z-[1] shrink-0 mx-auto w-[792px]">
           {/* Tablet frame */}
           <div className="border-[12px] border-bg-4 rounded-2xl bg-bg-4 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
             <div className="rounded-lg overflow-hidden">
@@ -102,7 +102,7 @@ export function Canvas() {
           </div>
         </div>
       ) : viewport === 'mobile' ? (
-        <div className="relative z-[1]">
+        <div className="relative z-[1] shrink-0 mx-auto w-[395px]">
           {/* Phone frame */}
           <div className="border-[10px] border-bg-4 rounded-[2rem] bg-bg-4 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
             {/* Notch */}
