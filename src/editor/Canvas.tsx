@@ -23,7 +23,10 @@ export function Canvas() {
   const { selectedBlockId, selectBlock, viewport, activeProjectId } = useEditorStore()
   const revision = useProjectsStore(state => state.projects.find(project => project.id === activeProjectId)?.mediaRevision ?? 0)
   const [assetUrls, setAssetUrls] = useState<Record<string, string>>({})
-  const referencedAssets = blocks.map(block => typeof block.props.assetId === 'string' ? block.props.assetId : '').filter(Boolean).join(',')
+  const referencedAssets = JSON.stringify([...new Set([
+    ...blocks.map(block => typeof block.props.assetId === 'string' ? block.props.assetId : '').filter(Boolean),
+    ...(JSON.stringify(blocks).match(/assets\/[a-zA-Z0-9._-]+/g) ?? []),
+  ])].sort())
 
   useEffect(() => {
     if (!activeProjectId) return
@@ -32,8 +35,13 @@ export function Canvas() {
     new ProjectMediaLibrary().list(activeProjectId).then(assets => {
       if (!active) return
       const mapped: Record<string, string> = {}
-      const referenced = new Set(referencedAssets.split(','))
-      for (const asset of assets) if (referenced.has(asset.id)) { mapped[asset.id] = URL.createObjectURL(asset.content); urls.push(mapped[asset.id]) }
+      const referenced = new Set<string>(JSON.parse(referencedAssets))
+      for (const asset of assets) if (referenced.has(asset.id) || referenced.has(asset.path)) {
+        const url = URL.createObjectURL(asset.content)
+        mapped[asset.id] = url
+        mapped[asset.path] = url
+        urls.push(url)
+      }
       setAssetUrls(mapped)
     }).catch(() => { if (active) setAssetUrls({}) })
     return () => { active = false; urls.forEach(url => URL.revokeObjectURL(url)) }
@@ -57,18 +65,26 @@ export function Canvas() {
       {pages && <nav aria-label="Site pages" className="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">
         {pages.map(page => <a key={page.id} href={page.path} aria-current={page.id === activePageId ? 'page' : undefined} className="min-w-0 [overflow-wrap:anywhere] hover:text-text-0" onClick={event => { event.preventDefault(); setActivePage(page.id); selectBlock(null) }}>{page.name}</a>)}
       </nav>}
-      {blocks.length === 0 ? <div className="bg-[#dce8f3] min-h-[400px] flex"><CanvasEmpty /></div> : blocks.map((block) => (
+      {blocks.length === 0 ? <div className="bg-[#dce8f3] min-h-[400px] flex"><CanvasEmpty /></div> : blocks.map((block) => {
+        const props = Object.fromEntries(Object.entries(block.props).map(([key, value]) => {
+          if (typeof value === 'string' && /^(src|image|logoImage|heroImage|avatar|url)$/i.test(key)) return [key, assetUrls[value] ?? value]
+          if (Array.isArray(value)) return [key, value.map(item => item && typeof item === 'object' && !Array.isArray(item)
+            ? Object.fromEntries(Object.entries(item).map(([itemKey, itemValue]) => [itemKey, typeof itemValue === 'string' && /^(src|image|logoImage|heroImage|avatar|url)$/i.test(itemKey) ? assetUrls[itemValue] ?? itemValue : itemValue]))
+            : item)]
+          return [key, value]
+        }))
+        if (typeof block.props.assetId === 'string' && assetUrls[block.props.assetId]) props.src = assetUrls[block.props.assetId]
+        return (
         <BlockWrapper
           key={block.id}
           block={block}
           isSelected={selectedBlockId === block.id}
           onSelect={() => selectBlock(block.id)}
         >
-          <RenderBlock block={typeof block.props.assetId === 'string' && assetUrls[block.props.assetId]
-            ? { ...block, props: { ...block.props, src: assetUrls[block.props.assetId] } }
-            : block} />
+          <RenderBlock block={{ ...block, props }} />
         </BlockWrapper>
-      ))}
+        )
+      })}
     </div>
   )
 
