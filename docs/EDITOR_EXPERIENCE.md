@@ -16,7 +16,7 @@ Desktop preview can expand to 1,200 pixels; tablet and phone previews use 768 an
 
 Other component types and variants still have separate preview and export renderers. Navigation and arbitrary user content have not all been verified for matching layout or overflow. These checks do not guarantee every page, device, browser, or screen size.
 
-The centered, split, gradient, and minimal hero layouts were compared at 375, 768 and 1,200 pixels. Their tested heading sizes and widths matched, as did the split layout direction; this does not cover every feature or arbitrary content. Contact and newsletter blocks now identify themselves as unconnected and disable their controls until a backend is implemented. No successful submission is simulated.
+The centered, split, gradient, and minimal hero layouts were compared at 375, 768 and 1,200 pixels. Their tested heading sizes and widths matched, as did the split layout direction; this does not cover every feature or arbitrary content. Unconfigured contact and newsletter blocks identify themselves as unconnected. A contact block can optionally open the visitor email application with a draft; the visitor sends it there. No successful submission is simulated.
 
 Feature grid, list and alternating examples were also checked at 375, 768 and 1,200 pixels. Export now retains images in alternating feature sections; a nested-page media ZIP test covers their paths. Remaining blocks and varied user content still need checks.
 
