@@ -21,6 +21,17 @@ beforeEach(() => {
 })
 
 describe('portable project storage', () => {
+  it('keeps staged import media out of the project list until the draft is ready', async () => {
+    const stagedId = `proj-${crypto.randomUUID()}`
+    const library = new ProjectMediaLibrary()
+    await library.import(stagedId, new File(['original'], 'note.txt'))
+    expect(useProjectsStore.getState().projects.some(project => project.id === stagedId)).toBe(false)
+    expect(JSON.parse(storedValues.get('openpage-projects') ?? '{"state":{"projects":[]}}').state.projects.some((project: { id: string }) => project.id === stagedId)).toBe(false)
+    expect(useProjectsStore.getState().addProject('Imported', document, stagedId)).toBe(stagedId)
+    expect(await (await library.list(stagedId))[0].content.text()).toBe('original')
+    expect(() => useProjectsStore.getState().addProject('Collision', document, stagedId)).toThrow('already in use')
+    expect(useProjectsStore.getState().projects.filter(project => project.id === stagedId)).toHaveLength(1)
+  })
   it('restores a removed project without replacing a project with the same ID', async () => {
     const id = useProjectsStore.getState().addProject('Original', document)
     const library = new ProjectMediaLibrary()
