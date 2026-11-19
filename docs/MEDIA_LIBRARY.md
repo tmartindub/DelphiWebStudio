@@ -4,7 +4,7 @@ Last changed: 2026-10-29. Experimental M3 increment; enable `VITE_WEBSTUDIO_PROJ
 
 Import individual files or folders in the Media tab. Files are copied into the browser's project-specific IndexedDB database; originals are not modified. Imports validate supported file types, reject unsafe SVG content, deduplicate by SHA-256 within the project, and report individual failures. ZIP import requires explicit opt-in. Imports can be cancelled. Search, filter and sort the library, rename displayed items with undo, or replace an item with one-level undo. Add media to a page or drag it onto the canvas.
 
-After importing an image, select a Hero, Image, Navbar or Footer block and use its image chooser in Properties to select an image from this project's Media library. The URL field remains available for an external image address. Hero images are shown in the split Hero layout. Gallery items and other nested image fields do not yet have this chooser.
+After importing an image, select a Hero, Image, Navbar or Footer block and use its image chooser in Properties to select an image from this project's Media library. For a Gallery or Image grid, add image items and choose a Media image for each item. URL fields remain available for external image addresses. Hero images are shown in the split Hero layout; other nested image fields do not yet have this chooser.
 
 Navbar logos appear in the editor and exported site. Footer logos are used in the simple and multi-column layouts; the minimal footer does not display a logo.
 
