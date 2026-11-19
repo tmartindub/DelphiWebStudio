@@ -191,6 +191,19 @@ describe('multi-page export', () => {
     expect(zip.file('feed.xml')).toBeNull()
   })
 
+  it('provides keyboard skip links and reduced motion support on every generated page', async () => {
+    const site = structuredClone(config)
+    site.pages![2].webstudioArticle = { status: 'ready', author: '', summary: '', createdAt: '', modifiedAt: '' }
+    const zip = await JSZip.loadAsync(await (await exportSiteZip(site, { settings: { siteSearch: 'on' } })).arrayBuffer())
+    for (const path of ['index.html', 'community/news.html', 'articles/index.html', 'search.html']) {
+      const html = await zip.file(path)!.async('string')
+      expect(html).toContain('href="#main-content">Skip to main content</a>')
+      expect(html).toContain('<main id="main-content" tabindex="-1"')
+      expect(html.indexOf('Skip to main content')).toBeLessThan(html.indexOf('aria-label="Site pages"'))
+      expect(html).toContain('prefers-reduced-motion: reduce')
+    }
+  })
+
   it('rejects a page whose output would overwrite the article index', async () => {
     const site = structuredClone(config)
     site.pages![1].path = '/articles/index'

@@ -1228,7 +1228,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
   const hasFaq = config.blocks.some((b) => b.type === 'faq')
   const hasContact = config.blocks.some((b) => b.type === 'contact')
 
-  const blocksHtml = `<main class="@container">${config.blocks.map((b) => renderBlock(b)).join('\n\n')}</main>`
+  const blocksHtml = `<main id="main-content" tabindex="-1" class="@container">${config.blocks.map((b) => renderBlock(b)).join('\n\n')}</main>`
 
   const pageTitle = (settings?.seoTitle || settings?.siteName || config.name || 'Website').trim()
   const pageDescription = (settings?.seoDescription || settings?.siteDescription || '').trim()
@@ -1361,6 +1361,10 @@ ${ogDescriptionMeta}${ogImageMeta}${faviconLink}
 
     html { font-size: 14px; }
     *, *::before, *::after { box-sizing: border-box; }
+    .skip-to-content { position: fixed; top: -100px; left: 8px; z-index: 9999; padding: 10px 14px; background: #fff; color: #000; border: 2px solid #000; }
+    .skip-to-content:focus { top: 8px; }
+    :focus-visible { outline: 3px solid #f28a25; outline-offset: 3px; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 
     body {
       margin: 0;
@@ -1388,6 +1392,8 @@ ${gaScript}
 ${posthogScript}
 </head>
 <body>
+<a class="skip-to-content" href="#main-content">Skip to main content</a>
+<!-- WEBSTUDIO_PAGE_NAV -->
 
 ${blocksHtml}
 ${faqScript}
@@ -1454,11 +1460,11 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
   if (articles.length) {
     const nav = pages.map((page, index) => `<a href="../${escapeHtml(encodeURI(paths[index]))}" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(page.name)}</a>`).join(' ')
     const cards = articles.map(article => `<article class="p-4 rounded-lg border border-border-default"><h2 class="text-xl font-semibold"><a href="../${escapeHtml(encodeURI(paths[pages.indexOf(article)]))}" class="text-green hover:underline">${escapeHtml(article.name)}</a></h2>${article.webstudioArticle!.author ? `<p class="text-sm">By ${escapeHtml(article.webstudioArticle!.author)}</p>` : ''}${article.webstudioArticle!.summary ? `<p class="text-sm">${escapeHtml(article.webstudioArticle!.summary)}</p>` : ''}</article>`).join('')
-    const content = `<main class="@container"><div class="max-w-3xl mx-auto px-6 py-12"><h1 class="text-3xl font-bold mb-4">Articles</h1><div class="space-y-4">${cards}</div>${siteBaseUrl ? '<p class="mt-4"><a href="../feed.xml" class="text-green hover:underline">RSS feed</a></p>' : ''}</div></main>`
+    const content = `<main id="main-content" tabindex="-1" class="@container"><div class="max-w-3xl mx-auto px-6 py-12"><h1 class="text-3xl font-bold mb-4">Articles</h1><div class="space-y-4">${cards}</div>${siteBaseUrl ? '<p class="mt-4"><a href="../feed.xml" class="text-green hover:underline">RSS feed</a></p>' : ''}</div></main>`
     const searchNav = options?.settings?.siteSearch === 'on' ? ' <a href="../search.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a>' : ''
     const archive = exportSiteToHTML({ ...validated, name: 'Articles', blocks: [] }, { settings: { ...options?.settings, seoTitle: 'Articles' } })
-      .replace('<body>', `<body>\n<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav} <a href="index.html" aria-current="page" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Articles</a>${searchNav}</nav>`)
-      .replace('<main class="@container"></main>', content)
+      .replace('<!-- WEBSTUDIO_PAGE_NAV -->', `<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav} <a href="index.html" aria-current="page" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Articles</a>${searchNav}</nav>`)
+      .replace('<main id="main-content" tabindex="-1" class="@container"></main>', content)
     zip.file('articles/index.html', archive, { date: new Date('1980-01-01T00:00:00Z') })
   }
   if (options?.settings?.siteSearch === 'on') {
@@ -1477,7 +1483,7 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     })
     const searchData = JSON.stringify(searchIndex).replace(/</g, '\\u003c')
     const nav = pages.map((page, index) => `<a href="${escapeHtml(encodeURI(paths[index]))}" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(page.name)}</a>`).join(' ') + (articles.length ? ' <a href="articles/index.html" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Articles</a>' : '')
-    const searchContent = `<main class="@container"><div class="max-w-3xl mx-auto px-6 py-12"><h1 class="text-3xl font-bold mb-4">Search</h1><form id="site-search-form"><label for="site-search-query" class="block mb-2">Search this site</label><input id="site-search-query" type="search" maxlength="200" class="w-full px-3 py-2 rounded-lg border border-border-default bg-bg-2 text-text-0" /><button type="submit" class="mt-3 px-4 py-2 rounded-lg bg-green text-black font-semibold">Search</button></form><p id="site-search-status" role="status" class="mt-4"></p><ul id="site-search-results" class="mt-4 space-y-2"></ul><noscript>JavaScript is required for site search.</noscript></div></main>`
+    const searchContent = `<main id="main-content" tabindex="-1" class="@container"><div class="max-w-3xl mx-auto px-6 py-12"><h1 class="text-3xl font-bold mb-4">Search</h1><form id="site-search-form"><label for="site-search-query" class="block mb-2">Search this site</label><input id="site-search-query" type="search" maxlength="200" class="w-full px-3 py-2 rounded-lg border border-border-default bg-bg-2 text-text-0" /><button type="submit" class="mt-3 px-4 py-2 rounded-lg bg-green text-black font-semibold">Search</button></form><p id="site-search-status" role="status" class="mt-4"></p><ul id="site-search-results" class="mt-4 space-y-2"></ul><noscript>JavaScript is required for site search.</noscript></div></main>`
     const searchScript = `<script type="application/json" id="site-search-data">${searchData}</script><script>
       document.getElementById('site-search-form').addEventListener('submit', function(event) {
         event.preventDefault();
@@ -1495,8 +1501,8 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     </script>`
     const searchPage = exportSiteToHTML({ ...validated, name: 'Search', blocks: [] }, { settings: { ...options.settings, seoTitle: 'Search' } })
       .replace('</head>', '<meta name="robots" content="noindex" />\n</head>')
-      .replace('<body>', `<body>\n<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav} <a href="search.html" aria-current="page" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a></nav>`)
-      .replace('<main class="@container"></main>', searchContent)
+      .replace('<!-- WEBSTUDIO_PAGE_NAV -->', `<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav} <a href="search.html" aria-current="page" class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">Search</a></nav>`)
+      .replace('<main id="main-content" tabindex="-1" class="@container"></main>', searchContent)
       .replace('</body>', `${searchScript}\n</body>`)
     zip.file('search.html', searchPage, { date: new Date('1980-01-01T00:00:00Z') })
   }
@@ -1533,8 +1539,8 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
     const articleHeader = article && (article.author || article.summary) ? `<header class="px-6 py-3 text-text-1">${article.author ? `<p class="text-sm">By ${escapeHtml(article.author)}</p>` : ''}${article.summary ? `<p class="text-sm">${escapeHtml(article.summary)}</p>` : ''}</header>` : ''
     const pageSettings = { ...options?.settings, ...(page.webstudioSeo?.title?.trim() ? { seoTitle: page.webstudioSeo.title } : {}), ...(page.webstudioSeo?.description?.trim() ? { seoDescription: page.webstudioSeo.description } : {}) }
     const html = exportSiteToHTML({ ...validated, name: page.name, blocks: page.blocks }, { settings: pageSettings })
-      .replace('<body>', `<body>\n<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav}</nav>`)
-      .replace('<main class="@container">', `<main class="@container">${articleHeader}`)
+      .replace('<!-- WEBSTUDIO_PAGE_NAV -->', `<nav aria-label="Site pages" class="flex flex-wrap gap-x-4 gap-y-2 px-6 py-3 bg-bg-1 text-text-1">${nav}</nav>`)
+      .replace('<main id="main-content" tabindex="-1" class="@container">', `<main id="main-content" tabindex="-1" class="@container">${articleHeader}`)
       .replace(/\b(src|href|data)="assets\//g, `$1="${prefix}assets/`)
       .replace(/(<a\s[^>]*?\bhref=")([^"]*)(")/gi, (match, start: string, href: string, end: string) => {
         const separator = href.search(/[?#]/)
