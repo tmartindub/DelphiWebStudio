@@ -17,7 +17,7 @@ const shortcutGroups = [
     title: 'Editor',
     shortcuts: [
       { keys: ['J'], description: 'Toggle JSON drawer' },
-      { keys: ['H'], description: 'Toggle version history' },
+      { keys: ['H'], description: 'Toggle undo history' },
       { keys: ['P'], description: 'Toggle preview mode' },
       { keys: ['Esc'], description: 'Deselect block' },
       { keys: ['?'], description: 'Show this help' },
