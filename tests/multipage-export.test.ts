@@ -22,6 +22,10 @@ describe('multi-page export', () => {
     expect(news).toContain('href="../index.html"')
     expect(news).toContain('href="../about.html"')
     expect(about).toContain('aria-label="Site pages"')
+    expect(home).not.toContain('cdn.tailwindcss.com')
+    expect(home).not.toContain('fonts.googleapis.com')
+    expect(home).toContain('.text-text-0')
+    expect(home).toContain('.font-display')
   })
 
   it('rejects unsupported blocks instead of silently dropping them', async () => {

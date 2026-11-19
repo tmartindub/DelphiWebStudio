@@ -2,6 +2,8 @@
 
 ## Unreleased — 2026-10-29
 
+- Embed generated site styles and use system font fallbacks in exports, removing the default Tailwind and Google Fonts network dependencies.
+
 - Begin M3 with a project media library, portable media ZIPs, media blocks, and a locally bundled PDF viewer.
 
 - Begin M2 with the WebStudio blue/orange interface, empty new projects, eight noncommercial starter types, and beginner/designer/professional JSON views.
@@ -21,4 +23,4 @@
 - Add CI and correct two inherited React lint failures.
 - Resolve design-time native shell versus embedded React and additive folder layout; defer translation.
 
-Desktop, local AI, native durable project saves and complete offline export remain outstanding.
+Desktop, local AI, native durable project saves, complete offline export and secure publishing remain outstanding.

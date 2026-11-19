@@ -1,0 +1,26 @@
+@import "tailwindcss" source(none);
+@source "../lib/export-html.ts";
+@source "../blocks";
+
+@theme inline {
+  --color-bg-0: var(--color-bg-0);
+  --color-bg-1: var(--color-bg-1);
+  --color-bg-2: var(--color-bg-2);
+  --color-bg-3: var(--color-bg-3);
+  --color-bg-4: var(--color-bg-4);
+  --color-bg-5: var(--color-bg-5);
+  --color-text-0: var(--color-text-0);
+  --color-text-1: var(--color-text-1);
+  --color-text-2: var(--color-text-2);
+  --color-text-3: var(--color-text-3);
+  --color-green: var(--color-green);
+  --color-green-dim: var(--color-green-dim);
+  --color-border-default: var(--color-border-default);
+  --color-border-subtle: var(--color-border-subtle);
+  --color-border-hover: var(--color-border-hover);
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+  --radius-lg: var(--radius-lg);
+}
+

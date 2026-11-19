@@ -10,7 +10,7 @@ The intended application combines a React/TypeScript canvas with an IDE-editable
 
 The experimental browser editor includes portable multi-page projects, page-aware undo, local starter designs, an IndexedDB media library and a bundled PDF viewer. Enable these project features with `VITE_WEBSTUDIO_PROJECTS=true`. See [project files](docs/PROJECT_FILES.md), [editor experience](docs/EDITOR_EXPERIENCE.md), and [media library](docs/MEDIA_LIBRARY.md).
 
-The website export still uses online fonts and Tailwind. Local AI, native safe saves and the Delphi shell are not yet implemented. The inherited dependency audit reports 29 vulnerabilities, including two critical; this is not release-ready software.
+Website export embeds its styles and uses system font fallbacks; user-supplied remote media and optional analytics can still need a network. Secure publishing, local AI, native safe saves and the Delphi shell are not yet implemented. The inherited dependency audit reports 29 vulnerabilities, including two critical; this is not release-ready software.
 See [baseline evidence](docs/UPSTREAM_BASELINE.md), [architecture](docs/WEBSTUDIO_ARCHITECTURE.md), [limitations](docs/KNOWN_LIMITATIONS.md), [compatibility](docs/COMPATIBILITY.md) and [roadmap](docs/ROADMAP.md).
 
 ## Development

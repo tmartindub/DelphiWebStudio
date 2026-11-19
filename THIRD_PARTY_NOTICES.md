@@ -442,3 +442,5 @@ This is declared-license inventory, not a complete redistribution bundle. Before
 | zustand | 5.0.11 | MIT | runtime/optional |
 
 M3 additions: pdfjs-dist 6.4.299 (Apache-2.0, runtime; its license accompanies the exported PDF viewer) and fake-indexeddb 6.2.4 (Apache-2.0, test development dependency).
+
+M6 uses locally generated Tailwind CSS in exported pages. Tailwind CSS is MIT licensed; see the installed package's license and the existing dependency inventory. No additional font files are distributed by this increment.

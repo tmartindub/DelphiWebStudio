@@ -9,6 +9,7 @@ import type { MediaAsset } from '@/media/media-library'
 import pdfViewerHtml from '@/media/viewer.html?raw'
 import pdfViewerScript from '@/media/viewer.js?raw'
 import pdfLicense from 'pdfjs-dist/LICENSE?raw'
+import exportCss from './export.css?inline'
 
 export interface ExportSiteSettings {
   siteName?: string
@@ -46,14 +47,6 @@ function renderLink(text: string, url?: string, className?: string): string {
     return `<a href="${escapeHtml(url)}"${cls}>${escaped}</a>`
   }
   return `<span${cls}>${escaped}</span>`
-}
-
-function googleFontUrl(fonts: string[]): string {
-  const unique = [...new Set(fonts.filter(Boolean))]
-  const families = unique.map(
-    (f) => `family=${f.replace(/ /g, '+')}:wght@300;400;500;600;700`
-  )
-  return `https://fonts.googleapis.com/css2?${families.join('&')}&display=swap`
 }
 
 function initials(name: string): string {
@@ -1216,13 +1209,11 @@ function renderBlock(block: BlockConfig): string {
 
 export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions): string {
   const theme = resolveTheme(config.theme)
-  const fonts = [theme.fontSans, theme.fontDisplay, theme.fontMono]
-  const fontUrl = googleFontUrl(fonts)
   const settings = options?.settings
 
   const hasFaq = config.blocks.some((b) => b.type === 'faq')
 
-  const blocksHtml = config.blocks.map((b) => renderBlock(b)).join('\n\n')
+  const blocksHtml = `<main class="@container">${config.blocks.map((b) => renderBlock(b)).join('\n\n')}</main>`
 
   const pageTitle = (settings?.seoTitle || settings?.siteName || config.name || 'Website').trim()
   const pageDescription = (settings?.seoDescription || settings?.siteDescription || '').trim()
@@ -1310,49 +1301,7 @@ export function exportSiteToHTML(config: SiteConfig, options?: ExportSiteOptions
 ${descriptionMeta}  <meta property="og:title" content="${escapeHtml(ogTitle)}" />
 ${ogDescriptionMeta}${ogImageMeta}${faviconLink}
 
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="${fontUrl}" />
-
-  <!-- Tailwind CSS (Play CDN) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            'bg-0': '${theme.bg0}',
-            'bg-1': '${theme.bg1}',
-            'bg-2': '${theme.bg2}',
-            'bg-3': '${theme.bg3}',
-            'bg-4': '${theme.bg4}',
-            'bg-5': '${theme.bg5}',
-            'text-0': '${theme.text0}',
-            'text-1': '${theme.text1}',
-            'text-2': '${theme.text2}',
-            'text-3': '${theme.text3}',
-            'green': {
-              DEFAULT: '${theme.accent}',
-              dim: '${theme.accentDim}',
-            },
-            'border-default': '${theme.borderDefault}',
-            'border-subtle': '${theme.borderSubtle}',
-            'border-hover': '${theme.borderHover}',
-          },
-          fontFamily: {
-            sans: ['"${theme.fontSans}"', '-apple-system', 'system-ui', 'sans-serif'],
-            display: ['"${theme.fontDisplay}"', 'system-ui', 'sans-serif'],
-            mono: ['"${theme.fontMono}"', 'ui-monospace', 'monospace'],
-          },
-          borderRadius: {
-            DEFAULT: '${theme.radius}px',
-            lg: '${theme.radiusLg}px',
-          },
-        },
-      },
-    }
-  </script>
+  <style>${exportCss}</style>
 
   <!-- Theme CSS Custom Properties -->
   <style>
