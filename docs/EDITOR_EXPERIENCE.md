@@ -21,3 +21,5 @@ The centered, split, gradient, and minimal hero layouts were compared at 375, 76
 Feature grid, list and alternating examples were also checked at 375, 768 and 1,200 pixels. Export now retains images in alternating feature sections; a nested-page media ZIP test covers their paths. Remaining blocks and varied user content still need checks.
 
 The page navigation generated for multi-page ZIP export is also shown in the editor preview, with page links selectable there. Its size and wrapping were compared at 375, 768 and 1,200 pixels in an isolated sample; this does not resolve the separate legacy Navbar block's incomplete link behavior.
+
+CTA simple/split and statistics grid/bar/counter examples were compared at 375, 768 and 1,200 pixels. Tested text sizes, split directions and grid column counts matched, and the samples had no horizontal overflow. The statistics counter export now retains its selected variant. This does not establish full visual parity or verify arbitrary content.
