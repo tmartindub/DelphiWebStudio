@@ -161,6 +161,14 @@ export const useProjectsStore = create<ProjectsState>()(
                 const envelope = stored as Record<string, unknown>
                 if (!envelope.state || typeof envelope.state !== 'object' || Array.isArray(envelope.state) || !Array.isArray((envelope.state as Record<string, unknown>).projects)) throw new Error('Invalid project list.')
                 if (envelope.version !== undefined && envelope.version !== 0) throw new Error('Unsupported project storage version.')
+                const projects = (envelope.state as { projects: unknown[] }).projects
+                const ids = new Set<string>()
+                for (const project of projects) {
+                  if (!project || typeof project !== 'object' || Array.isArray(project)) throw new Error('Invalid project entry.')
+                  const entry = project as Record<string, unknown>
+                  if (typeof entry.id !== 'string' || !entry.id || typeof entry.name !== 'string' || ids.has(entry.id)) throw new Error('Invalid project identity.')
+                  ids.add(entry.id)
+                }
               }
               projectDraftReadFailed = false
               return value
