@@ -108,8 +108,8 @@ function SortableLayer({ block, isSelected, onSelect, onDuplicate, onRemove }: {
 function AddComponentPopover({ onAdd, onClose }: { onAdd: (type: BlockType) => void; onClose: () => void }) {
   const [search, setSearch] = useState('')
   const filtered = blockMetadata.filter((b) =>
-    b.label.toLowerCase().includes(search.toLowerCase()) ||
-    b.category.toLowerCase().includes(search.toLowerCase())
+    b.type !== 'pricing' && (b.label.toLowerCase().includes(search.toLowerCase()) ||
+    b.category.toLowerCase().includes(search.toLowerCase()))
   )
 
   const grouped = filtered.reduce<Record<string, typeof blockMetadata>>((acc, b) => {

@@ -2,6 +2,9 @@
 
 ## Unreleased — 2026-10-29
 
+- Begin M2 with the WebStudio blue/orange interface, empty new projects, eight noncommercial starter types, and beginner/designer/professional JSON views.
+- Hide pricing in creation palettes, create local starters without sending descriptions online, and make JSON edits validated and undoable.
+
 - Add page-aware undo/redo, unique page and block IDs, validated page paths and Home-page protection.
 - Include non-secret site settings in portable files, and export all pages with relative navigation in a ZIP. Disable premature publication in experimental mode.
 

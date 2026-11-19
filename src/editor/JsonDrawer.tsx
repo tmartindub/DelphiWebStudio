@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { useConfigStore } from '@/store/configStore'
 import { useEditorStore } from '@/store/editorStore'
+import { validateProjectConfig } from '@/project/project-file'
 
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -33,7 +34,7 @@ function syntaxHighlight(json: string): string {
 
 export function JsonDrawer() {
   const config = useConfigStore((s) => s.config)
-  const setConfig = useConfigStore((s) => s.setConfig)
+  const replaceConfig = useConfigStore((s) => s.replaceConfig)
   const { jsonDrawerOpen, toggleJsonDrawer } = useEditorStore()
   const [editing, setEditing] = useState(false)
   const [editValue, setEditValue] = useState('')
@@ -55,7 +56,7 @@ export function JsonDrawer() {
         setError('Invalid config: must have "name" and "blocks" or "pages" array')
         return
       }
-      setConfig(parsed)
+      replaceConfig(validateProjectConfig(parsed))
       setEditing(false)
       setError(null)
       toast('Config updated from JSON')

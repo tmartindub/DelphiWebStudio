@@ -81,7 +81,7 @@ function generateResponse(input: string, blocks: { id: string; type: string; var
   const addMatch = lower.match(/add\s+(?:a\s+)?(\w+)/)
   if (addMatch) {
     const blockType = addMatch[1].replace(/s$/, '') // strip trailing s
-    const meta = blockMetadata.find((b) => b.type === blockType || b.label.toLowerCase().includes(blockType))
+    const meta = blockMetadata.find((b) => b.type !== 'pricing' && (b.type === blockType || b.label.toLowerCase().includes(blockType)))
     if (meta) {
       const block: BlockConfig = {
         id: `block-${crypto.randomUUID()}`,
@@ -131,7 +131,7 @@ function generateResponse(input: string, blocks: { id: string; type: string; var
   return {
     id: `msg-${Date.now()}`,
     role: 'agent',
-    text: "I can help with your site. Try:\n- \"Change the headline to 'New Title'\"\n- \"Add a pricing section\"\n- \"Remove the FAQ\"\n- \"Make the hero a split layout\"\n- \"Switch to midnight theme\"",
+    text: "I can help with your site. Try:\n- \"Change the headline to 'New Title'\"\n- \"Add a gallery\"\n- \"Remove the FAQ\"\n- \"Make the hero a split layout\"",
   }
 }
 
@@ -302,7 +302,7 @@ export function AgentPanel() {
           </button>
         </div>
         <div className="flex gap-1 mt-1.5 flex-wrap">
-          {['Change the headline', 'Add a pricing section', 'Make the hero split', 'Switch to midnight theme'].map((hint) => (
+          {['Change the headline', 'Add a gallery', 'Make the hero split', 'Switch to ocean theme'].map((hint) => (
             <span
               key={hint}
               onClick={() => handleHint(hint)}

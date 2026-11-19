@@ -16,9 +16,7 @@ function getPageBlocks(config: SiteConfig, pageId: string): BlockConfig[] {
 }
 
 interface UndoEntry {
-  pages?: PageConfig[]
-  blocks: BlockConfig[]
-  theme?: Partial<ThemeConfig>
+  config: SiteConfig
   label: string
   timestamp: number
   activePageId: string
@@ -30,6 +28,7 @@ interface ConfigState {
   undoStack: UndoEntry[]
   redoStack: UndoEntry[]
   setConfig: (config: SiteConfig) => void
+  replaceConfig: (config: SiteConfig) => void
   setActivePage: (id: string) => void
   getActivePageBlocks: () => BlockConfig[]
   updateBlock: (id: string, updates: Partial<BlockConfig>) => void
@@ -50,65 +49,7 @@ interface ConfigState {
   canRedo: () => boolean
 }
 
-const defaultBlocks: BlockConfig[] = [
-  {
-    id: 'block-navbar',
-    type: 'navbar',
-    variant: 'default',
-    props: {
-      logo: 'Acme Inc',
-      links: ['Features', 'Pricing', 'About', 'Contact'],
-      ctaText: 'Get Started',
-    },
-  },
-  {
-    id: 'block-hero',
-    type: 'hero',
-    variant: 'centered',
-    props: {
-      badge: 'Now in Beta',
-      headline: 'Build websites with JSON',
-      subheadline: 'The visual editor that agents and humans both understand. Structured config, beautiful output.',
-      primaryCta: 'Start Building',
-      secondaryCta: 'View Demo',
-    },
-  },
-  {
-    id: 'block-features',
-    type: 'features',
-    variant: 'grid',
-    props: {
-      label: 'Features',
-      title: 'Everything you need',
-      subtitle: 'Powerful building blocks for your next website',
-      items: [
-        { icon: 'Blocks', title: 'Visual Editor', description: 'Drag and drop blocks to build your layout' },
-        { icon: 'Code', title: 'JSON Config', description: 'Every change is a clean JSON mutation' },
-        { icon: 'Bot', title: 'Agent Ready', description: 'AI agents can read and write your config' },
-      ],
-    },
-  },
-  {
-    id: 'block-cta',
-    type: 'cta',
-    variant: 'simple',
-    props: {
-      headline: 'Ready to get started?',
-      subheadline: 'Create your first site in minutes.',
-      buttonText: 'Start Free',
-    },
-  },
-  {
-    id: 'block-footer',
-    type: 'footer',
-    variant: 'simple',
-    props: {
-      logo: 'OpenPage',
-      copyright: '2026 OpenPage. All rights reserved.',
-      links: ['Privacy', 'Terms', 'Contact'],
-    },
-  },
-]
+const defaultBlocks: BlockConfig[] = []
 
 export const defaultConfig: SiteConfig = {
   name: 'My Website',
@@ -116,11 +57,9 @@ export const defaultConfig: SiteConfig = {
   blocks: defaultBlocks,
 }
 
-function snapshot(state: ConfigState): { pages?: PageConfig[]; blocks: BlockConfig[]; theme?: Partial<ThemeConfig>; activePageId: string } {
+function snapshot(state: ConfigState): { config: SiteConfig; activePageId: string } {
   return {
-    pages: state.config.pages ? JSON.parse(JSON.stringify(state.config.pages)) : undefined,
-    blocks: JSON.parse(JSON.stringify(state.config.blocks)),
-    theme: state.config.theme ? JSON.parse(JSON.stringify(state.config.theme)) : undefined,
+    config: structuredClone(state.config),
     activePageId: state.activePageId,
   }
 }
@@ -165,6 +104,11 @@ export const useConfigStore = create<ConfigState>()(
         const pages = ensurePages(config)
         set({ config: { ...config, pages }, activePageId: pages[0]?.id ?? 'page-home', undoStack: [], redoStack: [] })
       },
+      replaceConfig: (config) => set(state => ({
+        ...pushUndo(state, 'Edit project JSON'),
+        config,
+        activePageId: config.pages?.some(page => page.id === state.activePageId) ? state.activePageId : config.pages?.[0]?.id ?? 'page-home',
+      })),
 
       setActivePage: (id) => set((state) => ensurePages(state.config).some(page => page.id === id) ? { activePageId: id } : state),
 
@@ -304,7 +248,7 @@ export const useConfigStore = create<ConfigState>()(
           return {
             undoStack: state.undoStack.slice(0, -1),
             redoStack: [...state.redoStack, { ...snap, label: prev.label, timestamp: Date.now() }],
-            config: { ...state.config, pages: prev.pages, blocks: prev.blocks, theme: prev.theme },
+            config: prev.config,
             activePageId: prev.activePageId,
           }
         }),
@@ -317,7 +261,7 @@ export const useConfigStore = create<ConfigState>()(
           return {
             redoStack: state.redoStack.slice(0, -1),
             undoStack: [...state.undoStack, { ...snap, label: next.label, timestamp: Date.now() }],
-            config: { ...state.config, pages: next.pages, blocks: next.blocks, theme: next.theme },
+            config: next.config,
             activePageId: next.activePageId,
           }
         }),
