@@ -131,6 +131,7 @@ const blockFields: Partial<Record<BlockType, { sections: { title: string; fields
         fields: [
           { key: 'logo', label: 'Logo Text', type: 'text' },
           { key: 'logoImage', label: 'Logo Image URL', type: 'image' },
+          { key: 'description', label: 'Description', type: 'textarea' },
           { key: 'copyright', label: 'Copyright', type: 'text' },
           { key: 'links', label: 'Links', type: 'array-strings' },
         ],
@@ -601,7 +602,7 @@ export function PropertiesPanel({ block }: { block: BlockConfig }) {
       {/* Property sections */}
       {schema?.sections.map((section) => (
         <Section key={section.title} title={section.title}>
-          {section.fields.map((field) => (
+          {section.fields.filter(field => !(block.type === 'footer' && ((block.variant === 'minimal' && ['logo', 'logoImage'].includes(field.key)) || (block.variant !== 'multi-column' && field.key === 'description')))).map((field) => (
             <PropertyField key={field.key} field={field} block={block} />
           ))}
         </Section>

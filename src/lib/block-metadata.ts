@@ -16,7 +16,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Navigation bar with logo, links, and CTA',
     category: 'Navigation',
     variants: ['default', 'centered'],
-    defaultProps: { logo: 'Brand', links: ['Features', 'Pricing', 'About'], ctaText: 'Get Started' },
+    defaultProps: { logo: 'Brand', links: [], ctaText: '' },
   },
   {
     type: 'hero',
@@ -56,7 +56,7 @@ export const blockMetadata: BlockMeta[] = [
     description: 'Page footer with links and copyright',
     category: 'Navigation',
     variants: ['simple', 'multi-column', 'minimal'],
-    defaultProps: { logo: 'Brand', copyright: '2026 Brand. All rights reserved.', links: ['Privacy', 'Terms'] },
+    defaultProps: { logo: 'Brand', copyright: '', links: [] },
   },
   {
     type: 'testimonials',

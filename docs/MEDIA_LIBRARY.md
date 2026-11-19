@@ -6,6 +6,8 @@ Import individual files or folders in the Media tab. Files are copied into the b
 
 After importing an image, select a Hero, Image, Navbar or Footer block and use its image chooser in Properties to select an image from this project's Media library. The URL field remains available for an external image address. Hero images are shown in the split Hero layout. Gallery items and other nested image fields do not yet have this chooser.
 
+Navbar logos appear in the editor and exported site. Footer logos are used in the simple and multi-column layouts; the minimal footer does not display a logo.
+
 Duplicating a project also copies its media into the new project's library. Media references remain intact, and later changes to the copy do not change the original.
 
 Save downloads a project ZIP with a manifest and the project's media; Open validates it and restores a separate local project. Projects without media can still be saved as JSON. Browser download behavior governs the destination. Previous replacement versions are retained in the browser but are not included in project ZIPs.
