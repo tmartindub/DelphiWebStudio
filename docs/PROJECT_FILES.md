@@ -69,3 +69,5 @@ A Contact block can be configured with **Contact Email** in Properties. The expo
 In Settings → General, set **Site search** to **Include in website ZIP** to add a Search link and a local search page. Search uses an index embedded in the exported page; it does not send queries to a search service. It searches page names and common text fields such as headings, descriptions, captions, questions and answers. It does not extract text from PDFs or search every possible block or plugin field. The index is part of the public website export and should contain only content intended for publication. A page path that would overwrite `search.html` is rejected. The Search link in the editor is a preview; use the exported website to run a search.
 
 An isolated browser test saved and reopened the setting, searched a nested page, followed the result under a subfolder, and blocked external requests. Full CMS and document-text search remain future work.
+
+Article pages use optional `webstudioArticle` metadata on ordinary pages. Drafts stay in project saves but are omitted from website exports and generated search/sitemaps; see ARTICLE_PAGES.md for operation and limitations.
