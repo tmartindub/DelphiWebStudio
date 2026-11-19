@@ -39,7 +39,7 @@ export function Canvas() {
   const resolved = useMemo(() => resolveTheme(theme), [theme])
   const cssVars = useMemo(() => themeToCSS(resolved), [resolved])
 
-  const maxWidth = viewport === 'desktop' ? '880px' : viewport === 'tablet' ? '768px' : '375px'
+  const maxWidth = viewport === 'desktop' ? '1200px' : viewport === 'tablet' ? '768px' : '375px'
 
   const canvasContent = blocks.length === 0 ? <CanvasEmpty /> : (
     <div
@@ -67,7 +67,7 @@ export function Canvas() {
   )
 
   return (
-    <div className="flex-1 flex items-start justify-center p-6 overflow-auto relative" onDragOver={event => {
+    <div className="flex-1 flex items-start justify-center p-6 overflow-auto relative bg-[#dce8f3]" onDragOver={event => {
       if (event.dataTransfer.types.includes('application/x-webstudio-asset')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy' }
     }} onDrop={event => {
       const assetId = event.dataTransfer.getData('application/x-webstudio-asset')
@@ -85,9 +85,9 @@ export function Canvas() {
     }}>
       {/* Dot grid background */}
       <div
-        className="absolute inset-0 opacity-40 pointer-events-none"
+        className="absolute inset-0 opacity-50 pointer-events-none"
         style={{
-          backgroundImage: 'radial-gradient(circle, var(--color-bg-3) 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(circle, #9bb4ca 1px, transparent 1px)',
           backgroundSize: '20px 20px',
         }}
       />
