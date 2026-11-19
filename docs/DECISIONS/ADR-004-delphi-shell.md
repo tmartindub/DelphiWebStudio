@@ -113,3 +113,9 @@ A Win64 isolated test using a separate WebView profile and test-only filenames e
 The current local test folder `bin/DelphiWebStudio-Preview-20261030-2201` stages the rebuilt shell and editor with this dialog flow. It is an experimental preview, not an installer or release; the previous preview remains available with a superseded notice.
 
 A separate isolated Win64 test closed the test shell after a download event queued its Save dialog but before that callback ran. It then executed the queued callback and completed without showing a dialog or creating the test file. This covers one shutdown ordering; it does not replace interactive modern-dialog or overwrite-confirmation testing.
+
+## Desktop editor script policy
+
+When the editor runs at `https://webstudio.local`, its trusted entry module installs a content security policy limiting subsequent scripts to the local origin, disallowing inline, data and blob scripts, restricting workers to the local origin or blobs, and disabling object embeds and base-URL changes. Browser development at other origins and exported websites are not given this policy. The policy is installed by the entry module after its initial imports, so it does not protect that initial boot or replace a trusted installation; it also does not block all network requests or establish complete XSS isolation.
+
+An isolated Win64 WebView test verified the policy blocked synthetic inline, data, blob and external script attempts, then imported, rendered, searched and zoomed the sample PDF and exercised project save, website export, cancellation and another save. The saved and exported ZIPs retained the original PDF and the site viewer. The production shell still disables native web messages; session delivery, trusted installation, other content boundaries, modern-dialog interaction and clean-machine testing remain open.
