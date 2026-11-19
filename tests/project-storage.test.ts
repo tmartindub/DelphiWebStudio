@@ -83,9 +83,23 @@ describe('portable project storage', () => {
     updated.config.name = 'Updated'
     useProjectsStore.getState().saveProjectFile(first, updated)
     const projects = useProjectsStore.getState().projects
-    expect(projects.find(project => project.id === first)?.config?.name).toBe('Updated')
+    expect(projects.find(project => project.id === first)?.projectFile?.config.name).toBe('Updated')
+    expect(projects.find(project => project.id === first)?.config?.name).toBe('Imported site')
     expect(projects.find(project => project.id === second)?.config?.name).toBe('Imported site')
     expect(document.config.name).toBe('Imported site')
     expect(JSON.parse(storedValues.get('openpage-projects')!).state.projects).toHaveLength(2)
+  })
+
+  it('does not replace newer draft changes when an older save finishes', () => {
+    const id = useProjectsStore.getState().addProject('Original', document)
+    const olderSnapshot = structuredClone(document)
+    const blocks = [{ id: 'new', type: 'content' as const, variant: 'prose', props: { body: 'New work' } }]
+    const newerDraft = { ...document.config, name: 'Edited while saving', blocks, pages: [{ id: 'home', name: 'Home', path: '/', blocks }] }
+    useProjectsStore.getState().updateProjectConfig(id, newerDraft)
+    useProjectsStore.getState().saveProjectFile(id, olderSnapshot)
+    const project = useProjectsStore.getState().projects.find(item => item.id === id)!
+    expect(project.config).toEqual(newerDraft)
+    expect(project.blockCount).toBe(1)
+    expect(project.projectFile?.config.name).toBe('Imported site')
   })
 })

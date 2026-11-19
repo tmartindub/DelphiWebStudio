@@ -123,7 +123,10 @@ export function ProjectFileCommands() {
       link.click()
       URL.revokeObjectURL(url)
       useProjectsStore.getState().saveProjectFile(project.id, projectDocument)
-      toast.success('Project file download started.')
+      const currentProject = useProjectsStore.getState().projects.find(item => item.id === project.id)
+      if (useEditorStore.getState().activeProjectId !== project.id || useConfigStore.getState().config !== config || JSON.stringify(currentProject?.settings ?? {}) !== JSON.stringify(project.settings ?? {})) {
+        toast.warning('An earlier snapshot was downloaded. Newer changes remain in the draft; save again to include them.')
+      } else toast.success('Project file download started.')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Project could not be saved.')
     } finally {
