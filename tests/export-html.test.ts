@@ -88,4 +88,14 @@ describe('exportSiteToHTML', () => {
     expect(html.match(/This form is not connected yet\./g)).toHaveLength(2)
     expect(html).not.toContain('Join 2,000+ developers and designers')
   })
+
+  it('preserves responsive feature layouts and alternating images', () => {
+    const feature = { id: 'features', type: 'features' as const, variant: 'grid', props: { title: 'Features', items: [{ title: 'Photo', description: 'Description', image: 'assets/photo.png' }] } }
+    const grid = exportSiteToHTML({ name: 'Test', blocks: [feature] })
+    const alternating = exportSiteToHTML({ name: 'Test', blocks: [{ ...feature, variant: 'alternating' }] })
+    expect(grid).toContain('@lg:grid-cols-2 @3xl:grid-cols-3')
+    expect(alternating).toContain('@lg:flex-row')
+    expect(alternating).toContain('src="assets/photo.png"')
+    expect(alternating).toContain('alt="Photo"')
+  })
 })
