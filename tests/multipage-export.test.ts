@@ -76,4 +76,13 @@ describe('multi-page export', () => {
     expect(home).toContain('href="https://example.com/about"')
     expect(news).toContain('href="../index.html#welcome"')
   })
+
+  it.each(['/assets/pdfjs/viewer', '/assets/PDFJS/viewer', '/assets/pdfjs/viewer.html/nested'])('rejects a page that conflicts with the bundled PDF viewer at %s', async path => {
+    const site = structuredClone(config)
+    site.pages![0].blocks = [{ id: 'pdf', type: 'pdfViewer', variant: 'default', props: { src: 'assets/example.pdf' } }]
+    site.blocks = site.pages![0].blocks
+    site.pages![1].path = path
+    const media = [{ id: 'example', projectId: 'p', name: 'bulletin.pdf', path: 'assets/example.pdf', mime: 'application/pdf', size: 9, sha256: 'x', content: new Blob(['%PDF-test'], { type: 'application/pdf' }) }]
+    await expect(exportSiteZip(site, undefined, media)).rejects.toThrow('conflicts with an exported asset or folder')
+  })
 })

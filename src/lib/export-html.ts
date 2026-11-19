@@ -1418,6 +1418,11 @@ export async function exportSiteZip(config: SiteConfig, options?: ExportSiteOpti
   }
   for (let index = 0; index < pages.length; index++) {
     const page = pages[index]
+    const outputPath = paths[index].toLowerCase()
+    if (Object.values(zip.files).some(entry => {
+      const existingPath = entry.name.replace(/\/$/, '').toLowerCase()
+      return existingPath === outputPath || existingPath.startsWith(`${outputPath}/`) || (!entry.dir && outputPath.startsWith(`${existingPath}/`))
+    })) throw new Error(`Page ${page.name} conflicts with an exported asset or folder: ${paths[index]}.`)
     const depth = paths[index].split('/').length - 1
     const prefix = '../'.repeat(depth)
     const nav = pages.map((target, targetIndex) => `<a href="${escapeHtml(prefix + encodeURI(paths[targetIndex]))}"${target.id === page.id ? ' aria-current="page"' : ''} class="min-w-0 [overflow-wrap:anywhere] hover:text-text-0">${escapeHtml(target.name)}</a>`).join(' ')
