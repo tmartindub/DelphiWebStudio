@@ -13,6 +13,20 @@ beforeEach(() => {
 })
 
 describe('page history', () => {
+  it('ignores invalid block moves without changing content or undo history', () => {
+    useConfigStore.getState().addBlock({ id: 'first', type: 'hero', variant: 'centered', props: { headline: 'First' } })
+    useConfigStore.getState().addBlock({ id: 'second', type: 'hero', variant: 'centered', props: { headline: 'Second' } })
+    const before = useConfigStore.getState()
+    for (const [from, to] of [[-1, 0], [2, 0], [0, -1], [0, 2], [0.5, 1], [NaN, 1], [1, 1]]) {
+      useConfigStore.getState().moveBlock(from, to)
+      expect(useConfigStore.getState().config).toEqual(before.config)
+      expect(useConfigStore.getState().undoStack).toEqual(before.undoStack)
+    }
+    useConfigStore.getState().moveBlock(0, 1)
+    expect(useConfigStore.getState().getActivePageBlocks().map(block => block.id)).toEqual(['second', 'first'])
+    useConfigStore.getState().undo()
+    expect(useConfigStore.getState().getActivePageBlocks().map(block => block.id)).toEqual(['first', 'second'])
+  })
   it.each(['{"state":{"config":null},"version":2}', '{"state":{"config":{"name":"Future","blocks":[]}},"version":99}'])('protects incompatible editor storage %s', async (stored) => {
     storage.set('openpage-config', stored)
     try {
