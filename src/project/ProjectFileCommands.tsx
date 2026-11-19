@@ -26,6 +26,8 @@ export function ProjectFileCommands() {
     const file = input.files?.[0]
     if (!file) return
     if (useEditorStore.getState().mediaImporting) return
+    const originalProjectId = useEditorStore.getState().activeProjectId
+    const originalConfig = useConfigStore.getState().config
     setOpening(true)
     useEditorStore.getState().setMediaImporting(true)
     let stagedProjectId: string | undefined
@@ -74,6 +76,9 @@ export function ProjectFileCommands() {
           if (restored.asset.mime !== metadata.mime || restored.asset.size !== metadata.size) throw new Error(`Invalid media type or size: ${metadata.name}.`)
         }
         if (Object.values(zip.files).some(entry => !entry.dir && !allowedPaths.has(entry.name))) throw new Error('The project ZIP contains unexpected files.')
+      }
+      if (useEditorStore.getState().activeProjectId !== originalProjectId || useConfigStore.getState().config !== originalConfig) {
+        throw new Error('The current project changed while opening. Your edits remain in the editor; save them and open the other project again.')
       }
       useProjectsStore.getState().addProject(projectName, project, id)
       createdProjectId = id

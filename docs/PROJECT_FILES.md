@@ -10,6 +10,8 @@ Open accepts unversioned OpenPage SiteConfig JSON or WebStudio schema 2. Each op
 
 Media from a project ZIP is staged before its new draft appears in the project list. If an import fails, the app attempts to remove the media it staged and leaves the selected project unchanged. If the app is interrupted during import, staged media may remain in local storage without a visible draft; the original project ZIP remains available to open again. This is not a complete crash-recovery system. An isolated browser round trip opened, saved and reopened a five-page project containing a PDF, then exported it with the PDF and links intact.
 
+If the current project or its content changes while a project file is opening, the import is stopped before switching projects. The current edit remains in the editor; save it and open the other file again. An isolated browser test paused a two-asset import, edited the current page, and verified the edit remained while staged media was removed.
+
 Use the pencil button on a dashboard project card to rename the project. Saving includes that project name, so reopening the file retains it. The website's own name remains separate. Older files without a project name continue to open using their site name. An isolated browser test renamed the five-page sample, saved and reopened it, and checked both names.
 
 After confirming removal of a dashboard project, use **Undo** in the notification within 15 seconds to restore its project entry and existing media references. An isolated browser test restored a five-page project and its PDF. This undo is temporary and does not replace a separate project file; the current implementation leaves the removed project's media in local storage.
