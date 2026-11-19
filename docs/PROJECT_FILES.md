@@ -30,6 +30,8 @@ If a local draft cannot be read, contains malformed JSON, has an incompatible ba
 
 The basic checks also reject malformed project entries, missing project identities or names, and duplicate local project IDs. Automated storage tests verify that the original stored text is not overwritten in these cases; the checks do not validate every field in a draft.
 
+For version 2 editor drafts, the startup checks also protect the stored text when the site name, block list or basic page structure is malformed. An automated test confirms that a legacy single-page draft still migrates. These checks do not repair the stored draft or validate every block field.
+
 Save downloads the snapshot captured when the command starts. If the project changes while that snapshot is prepared, newer edits stay in the browser draft and a notice asks you to save again to include them.
 
 ## Format and preservation

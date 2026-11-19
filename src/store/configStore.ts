@@ -343,6 +343,14 @@ export const useConfigStore = create<ConfigState>()(
                 const config = (envelope.state as Record<string, unknown>).config
                 if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('Invalid draft config.')
                 if (envelope.version !== undefined && (!Number.isInteger(envelope.version) || (envelope.version as number) < 0 || (envelope.version as number) > 2)) throw new Error('Unsupported draft version.')
+                if (envelope.version === 2) {
+                  const draft = config as Record<string, unknown>
+                  if (typeof draft.name !== 'string' || !Array.isArray(draft.blocks)) throw new Error('Invalid editor draft.')
+                  if (draft.pages !== undefined && (!Array.isArray(draft.pages) || draft.pages.some(page =>
+                    !page || typeof page !== 'object' || Array.isArray(page) || typeof page.id !== 'string' ||
+                    typeof page.name !== 'string' || typeof page.path !== 'string' || !Array.isArray(page.blocks)
+                  ))) throw new Error('Invalid editor draft pages.')
+                }
               }
               configDraftReadFailed = false
               return value
