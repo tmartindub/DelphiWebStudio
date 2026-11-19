@@ -229,10 +229,10 @@ function renderHeroSplit(block: BlockConfig): string {
     : `          <div class="absolute inset-0 bg-gradient-to-br from-green/5 to-transparent"></div>
           <div class="absolute inset-6 border border-dashed border-border-default rounded-lg flex items-center justify-center text-text-3 text-sm">Preview</div>`
 
-  return `  <section class="px-6 md:px-10 py-16 md:py-24 flex flex-col lg:flex-row items-center gap-10">
+  return `  <section class="px-6 @md:px-10 py-16 @md:py-24 flex flex-col @2xl:flex-row items-center gap-10">
       <div class="flex-1">
 ${badgeHtml}
-        <h1 class="text-3xl md:text-5xl font-bold tracking-tight leading-[1.1] mb-4">${headline}</h1>
+        <h1 class="text-3xl @md:text-5xl font-bold tracking-tight leading-[1.1] mb-4">${headline}</h1>
         <p class="text-text-2 text-base leading-relaxed mb-6 max-w-lg">${subheadline}</p>
         <div class="flex flex-wrap items-center gap-3">
           ${renderLink(primaryCta, primaryCtaUrl, 'px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all inline-flex items-center gap-2')}
@@ -267,13 +267,13 @@ function renderHeroGradient(block: BlockConfig): string {
     ? `          ${renderLink(secondaryCta, secondaryCtaUrl, 'px-6 py-3 rounded-lg bg-bg-3 text-text-0 text-sm font-medium border border-border-default hover:bg-bg-4 transition-all inline-block')}`
     : ''
 
-  return `  <section class="px-6 md:px-10 py-20 md:py-32 text-center relative overflow-hidden">
+  return `  <section class="px-6 @md:px-10 py-20 @md:py-32 text-center relative overflow-hidden">
       <div class="absolute inset-0 bg-gradient-to-b from-green/5 via-transparent to-transparent pointer-events-none"></div>
       <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-green/[0.08] rounded-full blur-[100px] pointer-events-none"></div>
       <div class="relative z-10">
 ${badgeHtml}
-        <h1 class="text-4xl md:text-5xl font-bold tracking-tight leading-[1.1] mb-4 max-w-3xl mx-auto text-text-0">${headline}</h1>
-        <p class="text-text-2 text-base md:text-lg leading-relaxed max-w-xl mx-auto mb-8">${subheadline}</p>
+        <h1 class="text-4xl @md:text-5xl font-bold tracking-tight leading-[1.1] mb-4 max-w-3xl mx-auto text-text-0">${headline}</h1>
+        <p class="text-text-2 text-base @md:text-lg leading-relaxed max-w-xl mx-auto mb-8">${subheadline}</p>
         <div class="flex flex-wrap items-center justify-center gap-3">
           ${renderLink(primaryCta, primaryCtaUrl, 'px-6 py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all inline-flex items-center gap-2')}
 ${secondaryHtml}
@@ -288,6 +288,14 @@ function renderHero(block: BlockConfig): string {
       return renderHeroSplit(block)
     case 'gradient':
       return renderHeroGradient(block)
+    case 'minimal': {
+      const headline = escapeHtml(prop(block.props, 'headline', ''))
+      const subheadline = escapeHtml(prop(block.props, 'subheadline', ''))
+      const primaryCta = prop<string>(block.props, 'primaryCta', '')
+      const primaryCtaUrl = prop<string>(block.props, 'primaryCtaUrl', '')
+      const action = primaryCta ? `<div>${renderLink(primaryCta, primaryCtaUrl, 'px-8 py-4 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all inline-flex items-center gap-2 mx-auto')}</div>` : ''
+      return `<section class="px-6 @md:px-10 py-24 @md:py-36 text-center"><h1 class="text-5xl @md:text-7xl font-bold tracking-tighter leading-[1.05] mb-6 max-w-4xl mx-auto">${headline}</h1><p class="text-text-2 text-lg @md:text-xl leading-relaxed max-w-lg mx-auto mb-10">${subheadline}</p>${action}</section>`
+    }
     default:
       return renderHeroCentered(block)
   }
@@ -1042,14 +1050,14 @@ function renderContact(block: BlockConfig): string {
     ? `          <p class="text-text-2 text-sm">${escapeHtml(subtitle)}</p>`
     : ''
 
-  return `  <section class="px-6 md:px-10 py-16 md:py-20">
+  return `  <section class="px-6 @md:px-10 py-16 @md:py-20">
       <div class="max-w-lg mx-auto">
         <div class="text-center mb-8">
-          <h2 class="text-2xl md:text-3xl font-bold tracking-tight mb-2">${title}</h2>
+          <h2 class="text-2xl @md:text-3xl font-bold tracking-tight mb-2">${title}</h2>
 ${subtitleHtml}
         </div>
-        <form onsubmit="return false" class="space-y-4">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <form onsubmit="return false"><fieldset disabled class="space-y-4">
+          <div class="grid grid-cols-1 @sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-[11.5px] text-text-2 mb-1.5 font-medium">Name</label>
               <input type="text" placeholder="Your name" class="w-full px-3 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 transition-colors" />
@@ -1067,7 +1075,8 @@ ${subtitleHtml}
             ${SVG_SEND}
             Send Message
           </button>
-        </form>
+        </fieldset></form>
+        <p class="text-text-1 text-sm mt-3">This form is not connected yet.</p>
       </div>
   </section>`
 }
@@ -1092,22 +1101,21 @@ function renderNewsletter(block: BlockConfig): string {
   )
   const socialProof = prop<string>(block.props, 'socialProof', '')
 
-  const proofText = socialProof
-    ? escapeHtml(socialProof)
-    : 'Join 2,000+ developers and designers'
+  const proofText = socialProof ? `<p class="text-[11px] text-text-3 mt-3">${escapeHtml(socialProof)}</p>` : ''
 
-  return `  <section class="px-6 md:px-10 py-12 md:py-16">
+  return `  <section class="px-6 @md:px-10 py-12 @md:py-16">
       <div class="max-w-xl mx-auto text-center">
         <div class="w-12 h-12 rounded-xl bg-green/10 border border-green/20 flex items-center justify-center text-green mx-auto mb-4">
           ${SVG_MAIL}
         </div>
-        <h2 class="text-xl md:text-2xl font-bold tracking-tight mb-2">${title}</h2>
+        <h2 class="text-xl @md:text-2xl font-bold tracking-tight mb-2">${title}</h2>
         <p class="text-text-2 text-sm mb-6">${subtitle}</p>
-        <form onsubmit="return false" class="flex gap-2 max-w-sm mx-auto">
-          <input type="email" placeholder="you@example.com" class="flex-1 px-4 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 transition-colors" />
+        <form onsubmit="return false"><fieldset disabled class="flex gap-2 max-w-sm mx-auto">
+          <input type="email" placeholder="you@example.com" class="min-w-0 flex-1 px-4 py-2.5 rounded-lg border border-border-default bg-bg-2 text-text-0 text-[13px] outline-none focus:border-green placeholder:text-text-3 transition-colors" />
           <button type="submit" class="px-5 py-2.5 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all shrink-0">${buttonText}</button>
-        </form>
-        <p class="text-[11px] text-text-3 mt-3">${proofText}</p>
+        </fieldset></form>
+        <p class="text-text-1 text-sm mt-3">This form is not connected yet.</p>
+        ${proofText}
       </div>
   </section>`
 }

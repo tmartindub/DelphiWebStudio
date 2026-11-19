@@ -1,4 +1,3 @@
-import { toast } from 'sonner'
 import type { BlockConfig } from '../types'
 import { Send } from 'lucide-react'
 
@@ -22,7 +21,7 @@ export function ContactBlock({ block }: { block: BlockConfig }) {
           )}
         </div>
 
-        <div className="reveal-fade-up reveal-d2 space-y-4">
+        <fieldset disabled className="reveal-fade-up reveal-d2 space-y-4">
           <div className="grid grid-cols-1 @sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11.5px] text-text-2 mb-1.5 font-medium">Name</label>
@@ -50,13 +49,13 @@ export function ContactBlock({ block }: { block: BlockConfig }) {
             />
           </div>
           <button
-            onClick={() => toast("Message sent! We'll be in touch soon.")}
             className="w-full py-3 rounded-lg bg-green text-black text-sm font-semibold hover:bg-green-dim transition-all hover:accent-glow-lg flex items-center justify-center gap-2"
           >
             <Send size={14} />
             Send Message
           </button>
-        </div>
+        </fieldset>
+        <p className="text-text-1 text-sm mt-3">This form is not connected yet.</p>
       </div>
     </section>
   )

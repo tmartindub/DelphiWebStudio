@@ -66,4 +66,26 @@ describe('exportSiteToHTML', () => {
     expect(html).toContain('@md:text-5xl')
     expect(html).toContain('@md:py-28')
   })
+
+  it('exports all hero layouts with their responsive container breakpoints', () => {
+    const hero = baseConfig.blocks[0]
+    const split = exportSiteToHTML({ ...baseConfig, blocks: [{ ...hero, variant: 'split' }] })
+    const gradient = exportSiteToHTML({ ...baseConfig, blocks: [{ ...hero, variant: 'gradient' }] })
+    const minimal = exportSiteToHTML({ ...baseConfig, blocks: [{ ...hero, variant: 'minimal', props: { ...hero.props, primaryCtaUrl: '/about' } }] })
+    expect(split).toContain('@2xl:flex-row')
+    expect(split).toContain('@md:text-5xl')
+    expect(gradient).toContain('@md:py-32')
+    expect(minimal).toContain('@md:text-7xl')
+    expect(minimal).toContain('href="/about"')
+  })
+
+  it('clearly disables forms that have no submission backend', () => {
+    const html = exportSiteToHTML({ name: 'Forms', blocks: [
+      { id: 'contact', type: 'contact', variant: 'default', props: {} },
+      { id: 'newsletter', type: 'newsletter', variant: 'default', props: {} },
+    ] })
+    expect(html.match(/<fieldset disabled/g)).toHaveLength(2)
+    expect(html.match(/This form is not connected yet\./g)).toHaveLength(2)
+    expect(html).not.toContain('Join 2,000+ developers and designers')
+  })
 })

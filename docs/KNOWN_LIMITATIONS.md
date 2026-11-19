@@ -29,3 +29,5 @@ The experimental project workflow now saves media in project ZIPs and includes r
 ## M6 export styling increment
 
 Exports embed generated styling and fall back to system fonts; no Tailwind or Google Fonts network request is needed. User-supplied remote media and optional analytics may still require a network. Other M6 publishing and validation requirements remain outstanding.
+
+Unconfigured contact and newsletter forms are disabled and labeled in both editor and exported pages. Configurable form backends and end-to-end submissions remain future work.
