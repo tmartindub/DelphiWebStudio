@@ -9,6 +9,12 @@ const config: SiteConfig = { name: 'Community', pages: [
 ], blocks: [hero] }
 
 describe('local site checks', () => {
+  it('warns when a button uses an unsupported destination', () => {
+    const copy = structuredClone(config)
+    copy.pages![0].blocks[0].props.primaryCtaUrl = '//example.com/path'
+    copy.blocks = copy.pages![0].blocks
+    expect(checkSite(copy).some(issue => issue.message.includes('unsupported link address'))).toBe(true)
+  })
   it('accepts a known page link with a query and anchor without changing the project', () => {
     const before = structuredClone(config)
     expect(checkSite(config)).toEqual([])

@@ -19,6 +19,18 @@ const baseConfig: SiteConfig = {
 }
 
 describe('exportSiteToHTML', () => {
+  it('renders unsafe button destinations as text while retaining supported links', () => {
+    const hero = baseConfig.blocks[0]
+    for (const url of ['javascript:alert(1)', 'JaVaScRiPt:alert(1)', 'data:text/html,test', '//evil.example', '/\\evil.example', 'java\nscript:alert(1)']) {
+      const html = exportSiteToHTML({ ...baseConfig, blocks: [{ ...hero, props: { ...hero.props, primaryCtaUrl: url } }] })
+      expect(html).not.toContain(`href="${url}"`)
+      expect(html).toMatch(/<span[^>]*>Start<\/span>/)
+    }
+    for (const url of ['/about', '#section', 'https://example.com', 'mailto:info@example.com', 'tel:+123456']) {
+      const html = exportSiteToHTML({ ...baseConfig, blocks: [{ ...hero, props: { ...hero.props, primaryCtaUrl: url } }] })
+      expect(html).toContain(`href="${url}"`)
+    }
+  })
   it('includes SEO metadata and language settings', () => {
     const html = exportSiteToHTML(baseConfig, {
       settings: {
