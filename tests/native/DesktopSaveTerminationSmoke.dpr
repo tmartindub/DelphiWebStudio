@@ -1,5 +1,7 @@
 program DesktopSaveTerminationSmoke;
 {$APPTYPE CONSOLE}
+{ Run only in an isolated test folder and profile, with the sample PDF staged
+  as editor\proof.pdf. This test intentionally terminates its own process. }
 uses
   Winapi.Windows, Winapi.Messages, Winapi.WebView2, Winapi.CommDlg, Winapi.Dlgs,
   System.Classes, System.SysUtils, System.IOUtils, Vcl.Forms, Vcl.Edge, Vcl.Dialogs,
@@ -73,6 +75,20 @@ begin
     Value := MainForm.EditorBrowser.ExecuteScript('!!localStorage.getItem("openpage-projects")?.includes("Draft survives forced termination")', '');
   until (Value = 'true') or (GetTickCount64 >= Deadline);
   if Value <> 'true' then raise Exception.Create('Test edit did not reach local draft storage.');
+  MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Media").click()');
+  Deadline := GetTickCount64 + 15000;
+  repeat
+    CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+    Value := MainForm.EditorBrowser.ExecuteScript('!!document.querySelector("input[aria-label=\"Import media files\"]")', '');
+  until (Value = 'true') or (GetTickCount64 >= Deadline);
+  if Value <> 'true' then raise Exception.Create('Media import control was not found.');
+  MainForm.EditorBrowser.ExecuteScript('fetch("/proof.pdf").then(r=>r.blob()).then(b=>{const i=document.querySelector("input[aria-label=\"Import media files\"]"),d=new DataTransfer();d.items.add(new File([b],"proof.pdf",{type:"application/pdf"}));i.files=d.files;i.dispatchEvent(new Event("change",{bubbles:true}));})');
+  Deadline := GetTickCount64 + 30000;
+  repeat
+    CheckSynchronize(0); Application.ProcessMessages; Sleep(50);
+    Value := MainForm.EditorBrowser.ExecuteScript('!!Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Preview PDF")', '');
+  until (Value = 'true') or (GetTickCount64 >= Deadline);
+  if Value <> 'true' then raise Exception.Create('Sample PDF was not imported before termination.');
   MainForm.SaveDownloadDialog.InitialDir := Folder;
   MainForm.SaveDownloadDialog.OnShow := Observer.SaveShown;
   MainForm.EditorBrowser.OnDownloadStarting := Observer.DownloadStarting;
