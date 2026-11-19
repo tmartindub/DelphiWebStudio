@@ -233,6 +233,13 @@ export const useConfigStore = create<ConfigState>()(
         const changed = produce(withPages(state.config), draft => {
           draft.pages!.find(item => item.id === id)!.path = path
           if (updateLinks) for (const item of draft.pages!) for (const block of item.blocks) {
+            if (block.type === 'content' && typeof block.props.body === 'string') {
+              block.props.body = block.props.body.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, (match, label: string, destination: string) => {
+                const split = destination.search(/[?#]/)
+                const originalPath = (split < 0 ? destination : destination.slice(0, split)).replace(/\/$/, '') || '/'
+                return originalPath === page.path || originalPath === encodeURI(page.path) ? `[${label}](${path}${split < 0 ? '' : destination.slice(split)})` : match
+              })
+            }
             const keys = block.type === 'hero' ? ['primaryCtaUrl', 'secondaryCtaUrl'] : block.type === 'cta' ? ['buttonUrl'] : block.type === 'banner' ? ['linkUrl'] : block.type === 'navbar' ? ['ctaUrl'] : []
             for (const key of keys) {
               const value = block.props[key]

@@ -36,6 +36,19 @@ export function checkSite(config: SiteConfig): SiteIssue[] {
         if (!target) add(`${url}: does not match a site page; it may point to a separate file or host resource.`)
         else if (target.webstudioArticle?.status === 'draft') add(`${url}: points to a draft article that is omitted from export.`)
       }
+      if (block.type === 'content' && typeof block.props.body === 'string') {
+        for (const match of block.props.body.matchAll(/\[([^\]\n]+)\]\(([^)\s]+)\)/g)) {
+          const url = match[2]
+          if (/[\\\p{Cc}]/u.test(url) || url.startsWith('//') || (/^[a-z][a-z\d+.-]*:/i.test(url) && !/^(https?:|mailto:|tel:)/i.test(url))) {
+            add(`${match[1]}: unsupported link address; it will be shown as text.`)
+          } else if (url.startsWith('/')) {
+            const path = url.split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
+            const target = pages.find(item => item.path === path || encodeURI(item.path) === path)
+            if (!target) add(`${url}: does not match a site page; it may point to a separate file or host resource.`)
+            else if (target.webstudioArticle?.status === 'draft') add(`${url}: points to a draft article that is omitted from export.`)
+          }
+        }
+      }
       if (block.type === 'image' && block.variant !== 'grid' && !(typeof block.props.src === 'string' && block.props.src.trim())) add('Image has no source and will show a placeholder. Choose an image from Media or enter an image URL.')
       if (block.type === 'image' && block.variant !== 'grid' && typeof block.props.src === 'string' && block.props.src && !String(block.props.alt ?? '').trim()) {
         add('Image has no alternative text. Add a description or confirm that it is decorative.')

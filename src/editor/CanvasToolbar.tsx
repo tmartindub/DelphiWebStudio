@@ -190,7 +190,7 @@ function EditPagePathDialog({ page, onCancel, onSave }: { page: PageConfig; onCa
     <p className="mt-2 text-sm text-text-2">External bookmarks and links in unsupported content may stop working. You can undo this change.</p>
     <label htmlFor="page-path" className="mt-4 block text-sm">Page address</label>
     <input id="page-path" value={path} onChange={event => { setPath(event.target.value); setError('') }} className="mt-1 w-full rounded border border-border-default bg-bg-2 px-3 py-2 text-sm" />
-    <label className="mt-3 flex items-start gap-2 text-sm"><input type="checkbox" checked={updateLinks} onChange={event => setUpdateLinks(event.target.checked)} /> Update known Hero, CTA, Banner and Navbar button links to this page.</label>
+    <label className="mt-3 flex items-start gap-2 text-sm"><input type="checkbox" checked={updateLinks} onChange={event => setUpdateLinks(event.target.checked)} /> Update Content text links and known Hero, CTA, Banner and Navbar button links to this page.</label>
     {error && <p role="alert" className="mt-2 text-sm text-status-red">{error}</p>}
     <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onCancel} className="rounded border border-border-default px-3 py-2 text-sm">Cancel</button><button type="button" onClick={() => { try { onSave(path.trim(), updateLinks) } catch (cause) { setError(cause instanceof Error ? cause.message : 'Address could not be changed.') } }} className="rounded bg-green px-3 py-2 text-sm font-semibold text-black">Save address</button></div>
   </dialog>
@@ -213,7 +213,7 @@ function DeletePageDialog({ page, linkedPages, onCancel, onConfirm }: {
       <h2 id="delete-page-title" className="text-lg font-semibold">Delete {page.name}?</h2>
       <p className="mt-2 text-sm text-text-2">This removes the page and its contents. You can restore it with Undo.</p>
       {linkedPages.length > 0 && <div className="mt-3 rounded border border-status-red/40 p-3 text-sm" role="status">
-        <p>These pages have button or banner link settings pointing to {page.path}. Those links will no longer reach this page:</p>
+        <p>These pages have known text or button links pointing to {page.path}. Those links will no longer reach this page:</p>
         <ul className="mt-2 list-disc pl-5">{linkedPages.map(linked => <li key={linked.id}>{linked.name}</li>)}</ul>
       </div>}
       <p className="mt-3 text-xs text-text-2">Other links, including links in unsupported or custom content, are not checked.</p>
@@ -256,6 +256,10 @@ export function CanvasToolbar() {
   const pageToEditPath = pages.find(page => page.id === editingPath?.id && editingPath.projectId === activeProjectId)
   const pageToEditSeo = pages.find(page => page.id === editingSeo?.id && editingSeo.projectId === activeProjectId)
   const linkedPages = pageToDelete ? pages.filter(page => page.id !== pageToDelete.id && page.blocks.some(block => {
+    if (block.type === 'content' && typeof block.props.body === 'string' && [...block.props.body.matchAll(/\[([^\]\n]+)\]\(([^)\s]+)\)/g)].some(match => {
+      const path = match[2].split(/[?#]/, 1)[0].replace(/\/$/, '') || '/'
+      return path === pageToDelete.path || path === encodeURI(pageToDelete.path)
+    })) return true
     const keys = block.type === 'hero' ? ['primaryCtaUrl', 'secondaryCtaUrl'] : block.type === 'cta' ? ['buttonUrl'] : block.type === 'banner' ? ['linkUrl'] : block.type === 'navbar' ? ['ctaUrl'] : []
     return keys.some(key => {
       const value = block.props[key]
