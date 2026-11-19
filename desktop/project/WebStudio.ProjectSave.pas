@@ -66,7 +66,7 @@ end;
 procedure SaveProjectRecoveryZip(const SourcePath, RecoveryZipPath: string;
   MaximumSourceBytes: UInt64);
 var
-  ProjectBytes, ZipBytes: TBytes;
+  ProjectBytes, ZipBytes, VerifiedBytes: TBytes;
   Archive: TZipFile;
   Buffer: TMemoryStream;
 begin
@@ -88,6 +88,14 @@ begin
     SetLength(ZipBytes, NativeInt(Buffer.Size));
     if Length(ZipBytes) > 0 then Move(Buffer.Memory^, ZipBytes[0], Length(ZipBytes));
     SaveNewProjectFile(RecoveryZipPath, ZipBytes);
+    VerifiedBytes := ReadProjectFile(RecoveryZipPath, UInt64(Length(ZipBytes)));
+    if (Length(VerifiedBytes) <> Length(ZipBytes)) or
+      ((Length(ZipBytes) > 0) and not CompareMem(@VerifiedBytes[0], @ZipBytes[0], Length(ZipBytes))) then
+      raise EWriteError.CreateFmt('Recovery ZIP could not be verified: %s. The project was not changed.', [RecoveryZipPath]);
+    VerifiedBytes := ReadProjectFile(SourcePath, MaximumSourceBytes);
+    if (Length(VerifiedBytes) <> Length(ProjectBytes)) or
+      ((Length(ProjectBytes) > 0) and not CompareMem(@VerifiedBytes[0], @ProjectBytes[0], Length(ProjectBytes))) then
+      raise EWriteError.CreateFmt('The project changed during recovery creation. The earlier ZIP remains at %s.', [RecoveryZipPath]);
   finally
     Buffer.Free;
   end;
