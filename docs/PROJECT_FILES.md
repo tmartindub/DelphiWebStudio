@@ -43,3 +43,7 @@ Projects with imported media now save as `.webstudio.zip` files, containing the 
 ## M6 export styling increment
 
 New exports embed generated Tailwind styles and use installed system font fallbacks, rather than loading Tailwind and Google Fonts. Theme colors are retained. Sites can still request external resources explicitly supplied by the user, including image URLs, favicon, Open Graph images and optional analytics. Those references are not copied or converted. Complete self-contained export, SEO checks, and secure publishing remain unfinished.
+
+## Media integrity check
+
+Before opening or saving, known block media IDs and local `assets/` paths are checked against the project media list, including references inside nested items. Missing or mismatched media and duplicate IDs or case-colliding paths produce an error rather than a portable file with silently broken references. An unsuccessful open leaves the current project selected; an unsuccessful save leaves the editing state intact. Unknown block types are preserved and their plugin-specific references are not interpreted. Restoring missing files and native crash-safe saving remain future work.
