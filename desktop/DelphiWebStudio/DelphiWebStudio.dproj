@@ -15,6 +15,7 @@
     <DCC_Namespace>Winapi;System.Win;System;Xml;Data;Datasnap;Web;Soap;Vcl;$(DCC_Namespace)</DCC_Namespace>
     <DCC_ExeOutput>..\..\bin</DCC_ExeOutput>
     <DCC_DcuOutput>..\..\dcu</DCC_DcuOutput>
+    <DCC_UnitSearchPath>..\project;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
   </PropertyGroup>
   <ItemGroup>
     <DelphiCompile Include="$(MainSource)"><MainSource>MainSource</MainSource></DelphiCompile>

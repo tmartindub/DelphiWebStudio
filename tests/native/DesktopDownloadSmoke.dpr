@@ -15,8 +15,11 @@ begin
   else if Count = 3 then Target := ExtractFilePath(ParamStr(0)) + 'cancelled-project.zip'
   else if Count = 4 then Target := ExtractFilePath(ParamStr(0)) + 'saved-again.zip'
   else if Count = 5 then Target := ExtractFilePath(ParamStr(0)) + 'interrupted-test.zip'
+  else if Count = 6 then Target := ExtractFilePath(ParamStr(0)) + 'saved-project.zip'
+  else if Count = 7 then Target := ExtractFilePath(ParamStr(0)) + 'save-after-collision.zip'
+  else if Count = 8 then Target := ExtractFilePath(ParamStr(0)) + 'interrupted-project.zip'
   else raise Exception.Create('Unexpected dialog.');
-  if TFile.Exists(Target) then raise Exception.Create('Test output already exists.');
+  if (Count <> 6) and TFile.Exists(Target) then raise Exception.Create('Test output already exists.');
   Window := GetParent(TSaveDialog(Sender).Handle);
   Writeln('Dialog displayed; handle=', TSaveDialog(Sender).Handle, ' parent=', Window);
   if Count = 3 then PostMessage(Window, WM_COMMAND, IDCANCEL, 0)
@@ -35,13 +38,13 @@ begin
   finally CoTaskMemFree(Address) end;
   Inc(Count);
   MainForm.EditorBrowserDownloadStarting(Sender, Args);
-  if Count = 5 then TThread.ForceQueue(nil,
+  if (Count = 5) or (Count = 8) then TThread.ForceQueue(nil,
     procedure
     begin
       if Operation <> nil then Operation.Cancel;
     end);
 end;
-var Deadline: UInt64; Value: string; Observer: TDownloadObserver; DownloadState: COREWEBVIEW2_DOWNLOAD_STATE;
+var Deadline: UInt64; Value: string; Observer: TDownloadObserver; DownloadState: COREWEBVIEW2_DOWNLOAD_STATE; BeforeBytes, AfterBytes: TBytes;
 begin
   Application.Initialize;
   Application.ShowMainForm := False;
@@ -212,6 +215,34 @@ begin
     Deadline := GetTickCount64 + 30000;
     while (MainForm.StatusLabel.Caption <> 'Download interrupted: interrupted-test.zip. Try saving again.') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
     if MainForm.StatusLabel.Caption <> 'Download interrupted: interrupted-test.zip. Try saving again.' then raise Exception.Create('Interrupted download was not reported.');
+    BeforeBytes := TFile.ReadAllBytes(ExtractFilePath(ParamStr(0)) + 'saved-project.zip');
+    MainForm.SaveDownloadDialog.Options := MainForm.SaveDownloadDialog.Options - [ofOverwritePrompt];
+    Observer.Operation := nil;
+    MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Save project").click()');
+    Deadline := GetTickCount64 + 30000;
+    while (Observer.Count < 6) and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if Observer.Count <> 6 then raise Exception.Create('Collision test did not start.');
+    Deadline := GetTickCount64 + 30000;
+    while (MainForm.StatusLabel.Caption <> 'Existing project was not replaced. Save using a new filename.') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if MainForm.StatusLabel.Caption <> 'Existing project was not replaced. Save using a new filename.' then raise Exception.Create('Existing project collision was not reported.');
+    AfterBytes := TFile.ReadAllBytes(ExtractFilePath(ParamStr(0)) + 'saved-project.zip');
+    if (Length(BeforeBytes) <> Length(AfterBytes)) or ((Length(BeforeBytes) > 0) and not CompareMem(@BeforeBytes[0], @AfterBytes[0], Length(BeforeBytes))) then raise Exception.Create('Existing project changed during collision.');
+    Observer.Operation := nil;
+    MainForm.EditorBrowser.ExecuteScript('Array.from(document.querySelectorAll("button")).find(b=>b.textContent.trim()==="Save project").click()');
+    Deadline := GetTickCount64 + 30000;
+    while (Observer.Count < 7) and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if Observer.Count <> 7 then raise Exception.Create('Save after collision did not start.');
+    Deadline := GetTickCount64 + 30000;
+    while (MainForm.StatusLabel.Caption <> 'Download completed: save-after-collision.zip') and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if MainForm.StatusLabel.Caption <> 'Download completed: save-after-collision.zip' then raise Exception.Create('Save after collision did not complete.');
+    Observer.Operation := nil;
+    MainForm.EditorBrowser.ExecuteScript('(()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([new Uint8Array(128*1024*1024)]));a.download="interrupted.webstudio.zip";a.click()})()');
+    Deadline := GetTickCount64 + 30000;
+    while (Observer.Count < 8) and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if Observer.Count <> 8 then raise Exception.Create('Interrupted project save did not start.');
+    Deadline := GetTickCount64 + 30000;
+    while (Pos('Project download interrupted.', MainForm.StatusLabel.Caption) <> 1) and (GetTickCount64 < Deadline) do begin CheckSynchronize(0); Application.ProcessMessages; Sleep(20) end;
+    if (Pos('Project download interrupted.', MainForm.StatusLabel.Caption) <> 1) or TFile.Exists(ExtractFilePath(ParamStr(0)) + 'interrupted-project.zip') then raise Exception.Create('Interrupted project produced a final file or was not reported.');
     Writeln('Desktop project save and site export downloads completed.');
     Writeln('Desktop editor imported and rendered a sample PDF in the preview and page.');
   finally
