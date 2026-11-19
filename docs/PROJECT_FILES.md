@@ -46,6 +46,8 @@ Native safe save/recovery and portable assets remain outstanding. Existing foote
 
 The Win64 `tests/native/ProjectSaveSmoke.dpr` test compiled and ran with RAD Studio 37.0. It checked a multi-chunk file, an empty file, failure to overwrite an existing file, relative and missing-directory rejection, and temporary-file cleanup. The implementation relies on Windows file APIs; see Microsoft's [MoveFileEx documentation](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw) for platform semantics. This is an initial native storage increment, not a completed save or recovery workflow.
 
+`desktop/project/WebStudio.ProjectOpen.pas` adds a read-only operation for a native-caller-selected absolute drive path. The caller sets a maximum byte count before allocation, and the read denies concurrent write access while the file is open. The native smoke test checks a multi-chunk round trip, empty input, size limits, relative-path rejection and an exclusively locked file. The operation does not parse or validate projects, resolve hostile filesystem paths, show a dialog or connect to the editor; those remain the host's responsibility.
+
 ## M3 update
 
 Projects with imported media now save as `.webstudio.zip` files, containing the manifest and media; projects without media save as JSON. Opening a ZIP validates and restores its media into a separate browser project. See MEDIA_LIBRARY.md for details and limitations. The earlier statement that assets are not integrated describes M1 only.
