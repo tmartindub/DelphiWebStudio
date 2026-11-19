@@ -32,6 +32,7 @@ export function ProjectFileCommands() {
     const restoredIds: string[] = []
     let library: ProjectMediaLibrary | undefined
     try {
+      if (!file.name.toLowerCase().endsWith('.zip') && file.size > 100 * 1024 * 1024) throw new Error('The project file is too large to open safely (maximum 100 MiB).')
       const zip = file.name.toLowerCase().endsWith('.zip') ? await JSZip.loadAsync(await file.arrayBuffer()) : undefined
       if (zip && Object.values(zip.files).some(entry => !entry.dir && entry.unsafeOriginalName !== entry.name)) {
         throw new Error('The project ZIP contains unsafe file paths.')
@@ -39,13 +40,15 @@ export function ProjectFileCommands() {
       const manifest = zip?.file('project.webstudio.json')
       if (zip && !manifest) throw new Error('The project ZIP has no project.webstudio.json file.')
       const manifestSize = (manifest as (JSZip.JSZipObject & { _data?: { uncompressedSize?: number } }) | null | undefined)?._data?.uncompressedSize
-      if (manifest && (!Number.isSafeInteger(manifestSize) || (manifestSize! > 100 * 1024 * 1024 && manifestSize! > file.size * 1000))) throw new Error('The project ZIP manifest is too large to open safely.')
+      if (manifest && (!Number.isSafeInteger(manifestSize) || manifestSize! < 0 || manifestSize! > 100 * 1024 * 1024)) throw new Error('The project ZIP manifest is too large to open safely (maximum 100 MiB).')
       const { project, migrated } = parseProjectFile(manifest ? await manifest.async('string') : await file.text())
       const assetMetadata = project.assets === undefined ? [] : project.assets
       if (!Array.isArray(assetMetadata)) throw new Error('The project media list is invalid.')
       if (assetMetadata.length && !zip) throw new Error('This project references media files; open its ZIP package instead.')
       validateProjectMedia(project.config, assetMetadata)
-      const id = useProjectsStore.getState().addProject(project.config.name, project)
+      const projectName = typeof project.webstudioProjectName === 'string' && project.webstudioProjectName.trim()
+        ? project.webstudioProjectName : project.config.name
+      const id = useProjectsStore.getState().addProject(projectName, project)
       createdProjectId = id
       if (zip) {
         const allowedPaths = new Set(['project.webstudio.json'])
@@ -96,14 +99,22 @@ export function ProjectFileCommands() {
       delete portableSettings.deployAccessKey
       const assets = await new ProjectMediaLibrary().list(project.id)
       validateProjectMedia(config, assets)
+      const previousAssets = Array.isArray(project.projectFile?.assets) ? project.projectFile.assets : []
       const projectDocument = {
         ...project.projectFile,
         ...createProjectFile(config, project.projectFile?.projectId ?? project.id),
+        webstudioProjectName: project.name,
         settings: portableSettings,
-        assets: assets.map(({ id, name, path, mime, size, sha256, importedAt, folder, width, height }) => ({ id, name, path, mime, size, sha256, importedAt, folder, width, height })),
+        assets: assets.map(({ id, name, path, mime, size, sha256, importedAt, folder, width, height }) => ({
+          ...previousAssets.find(item => item && typeof item === 'object' && item.id === id),
+          id, name, path, mime, size, sha256, importedAt, folder, width, height,
+        })),
       }
       const contents = serializeProjectFile(projectDocument)
-      const basename = project.name.replace(/[<>:"/\\|?*\p{Cc}]/gu, '-').trim().slice(0, 100) || 'site'
+      const manifestBlob = new Blob([contents], { type: 'application/json' })
+      if (manifestBlob.size > 100 * 1024 * 1024) throw new Error('The project manifest exceeds the 100 MiB opening limit. Reduce project text or split the project before saving.')
+      let basename = Array.from(project.name.replace(/[<>:"/\\|?*\p{Cc}]/gu, '-').trim()).slice(0, 100).join('').replace(/[. ]+$/, '') || 'site'
+      if (/^(con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/i.test(basename)) basename = `_${basename}`
       let download: Blob
       let filename: string
       if (assets.length) {
@@ -119,7 +130,7 @@ export function ProjectFileCommands() {
         download = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
         filename = `${basename}.webstudio.zip`
       } else {
-        download = new Blob([contents], { type: 'application/json' })
+        download = manifestBlob
         filename = `${basename}.webstudio.json`
       }
       const url = URL.createObjectURL(download)
@@ -130,7 +141,7 @@ export function ProjectFileCommands() {
       URL.revokeObjectURL(url)
       useProjectsStore.getState().saveProjectFile(project.id, projectDocument)
       const currentProject = useProjectsStore.getState().projects.find(item => item.id === project.id)
-      if (useEditorStore.getState().activeProjectId !== project.id || useConfigStore.getState().config !== config || JSON.stringify(currentProject?.settings ?? {}) !== JSON.stringify(project.settings ?? {})) {
+      if (useEditorStore.getState().activeProjectId !== project.id || useConfigStore.getState().config !== config || currentProject?.name !== project.name || JSON.stringify(currentProject?.settings ?? {}) !== JSON.stringify(project.settings ?? {})) {
         toast.warning('An earlier snapshot was downloaded. Newer changes remain in the draft; save again to include them.')
       } else toast('Project file download requested. Choose a destination if prompted.')
     } catch (error) {

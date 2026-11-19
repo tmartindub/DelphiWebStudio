@@ -2,12 +2,12 @@ import { Play } from 'lucide-react'
 import type { BlockConfig } from '../types'
 
 function extractYouTubeId(url: string): string | null {
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([a-zA-Z0-9_-]{11})/)
+  const match = url.trim().match(/^(?:https?:\/\/)?(?:(?:www\.|m\.)?youtube\.com\/(?:watch\?(?:[^#]*&)?v=|(?:embed|v|shorts|live)\/)|(?:www\.)?youtu\.be\/)([a-zA-Z0-9_-]{11})(?=[?&#/]|$)/i)
   return match?.[1] || null
 }
 
 function extractVimeoId(url: string): string | null {
-  const match = url.match(/vimeo\.com\/(\d+)/)
+  const match = url.trim().match(/^(?:https?:\/\/)?(?:(?:www\.)?vimeo\.com\/|player\.vimeo\.com\/video\/)(\d+)(?=[/?#]|$)/i)
   return match?.[1] || null
 }
 

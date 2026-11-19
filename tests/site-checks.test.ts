@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { checkSite } from '../src/project/site-checks'
 import type { BlockConfig, SiteConfig } from '../src/blocks/types'
+import { exportSiteToHTML } from '../src/lib/export-html'
 
 const hero: BlockConfig = { id: 'hero', type: 'hero', variant: 'minimal', props: { headline: 'Welcome', primaryCta: 'News', primaryCtaUrl: '/news?source=home#top' } }
 const config: SiteConfig = { name: 'Community', pages: [
@@ -9,6 +10,30 @@ const config: SiteConfig = { name: 'Community', pages: [
 ], blocks: [hero] }
 
 describe('local site checks', () => {
+  it('recognizes common video links consistently in checks and export', () => {
+    const cases = [
+      ['youtube', 'https://m.youtube.com/watch?feature=share&v=abcdefghijk', 'https://www.youtube-nocookie.com/embed/abcdefghijk'],
+      ['youtube', 'https://youtube.com/shorts/abcdefghijk?feature=share', 'https://www.youtube-nocookie.com/embed/abcdefghijk'],
+      ['youtube', 'https://youtu.be/abcdefghijk?t=1', 'https://www.youtube-nocookie.com/embed/abcdefghijk'],
+      ['vimeo', 'https://player.vimeo.com/video/12345', 'https://player.vimeo.com/video/12345'],
+    ]
+    for (const [variant, url, expected] of cases) {
+      const copy = structuredClone(config)
+      copy.pages![0].blocks.push({ id: 'video', type: 'video', variant, props: { url } })
+      copy.blocks = copy.pages![0].blocks
+      expect(checkSite(copy).some(issue => issue.blockId === 'video')).toBe(false)
+      expect(exportSiteToHTML({ name: 'Video', blocks: [copy.blocks[1]] })).toContain(expected)
+    }
+    for (const url of ['https://notyoutube.com/watch?v=abcdefghijk', 'https://youtube.com.evil.test/watch?v=abcdefghijk', 'https://vimeo.com.evil.test/12345']) {
+      const variant = url.includes('vimeo') ? 'vimeo' : 'youtube'
+      const video: BlockConfig = { id: 'video', type: 'video', variant, props: { url } }
+      const copy = structuredClone(config)
+      copy.pages![0].blocks.push(video)
+      copy.blocks = copy.pages![0].blocks
+      expect(checkSite(copy).some(issue => issue.blockId === 'video')).toBe(true)
+      expect(exportSiteToHTML({ name: 'Video', blocks: [video] })).not.toContain('<iframe')
+    }
+  })
   it('warns when a button uses an unsupported destination', () => {
     const copy = structuredClone(config)
     copy.pages![0].blocks[0].props.primaryCtaUrl = '//example.com/path'

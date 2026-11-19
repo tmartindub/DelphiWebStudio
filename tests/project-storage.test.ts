@@ -21,6 +21,64 @@ beforeEach(() => {
 })
 
 describe('portable project storage', () => {
+  it('restores a removed project without replacing a project with the same ID', async () => {
+    const id = useProjectsStore.getState().addProject('Original', document)
+    const library = new ProjectMediaLibrary()
+    await library.import(id, new File(['original'], 'note.txt'))
+    const original = structuredClone(useProjectsStore.getState().projects.find(project => project.id === id)!)
+    useProjectsStore.getState().deleteProject(id)
+    expect(useProjectsStore.getState().projects.find(project => project.id === id)).toBeUndefined()
+    useProjectsStore.getState().restoreProject(original)
+    expect(useProjectsStore.getState().projects.find(project => project.id === id)).toEqual(original)
+    expect(await (await library.list(id))[0].content.text()).toBe('original')
+    useProjectsStore.getState().renameProject(id, 'New name')
+    useProjectsStore.getState().restoreProject(original)
+    expect(useProjectsStore.getState().projects.filter(project => project.id === id)).toHaveLength(1)
+    expect(useProjectsStore.getState().projects.find(project => project.id === id)?.name).toBe('New name')
+  })
+  it('does not overwrite an unreadable project list', async () => {
+    useProjectsStore.getState().addProject('Existing', document)
+    const before = storedValues.get('openpage-projects')
+    const read = vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => { throw new Error('storage unavailable') })
+    try {
+      await useProjectsStore.persist.rehydrate()
+      read.mockRestore()
+      useProjectsStore.getState().addProject('New in memory', document)
+      expect(storedValues.get('openpage-projects')).toBe(before)
+    } finally {
+      read.mockRestore()
+      await useProjectsStore.persist.rehydrate()
+    }
+  })
+  it('does not overwrite a malformed stored project list', async () => {
+    storedValues.set('openpage-projects', '{damaged')
+    try {
+      await useProjectsStore.persist.rehydrate()
+      useProjectsStore.getState().addProject('New in memory', document)
+      expect(storedValues.get('openpage-projects')).toBe('{damaged')
+    } finally {
+      storedValues.delete('openpage-projects')
+      await useProjectsStore.persist.rehydrate()
+    }
+  })
+  it.each(['{"state":{"projects":"invalid"},"version":0}', '{"state":{"projects":[]},"version":99}'])('protects incompatible project storage %s', async (stored) => {
+    storedValues.set('openpage-projects', stored)
+    try {
+      await useProjectsStore.persist.rehydrate()
+      useProjectsStore.getState().addProject('New in memory', document)
+      expect(storedValues.get('openpage-projects')).toBe(stored)
+    } finally {
+      storedValues.delete('openpage-projects')
+      await useProjectsStore.persist.rehydrate()
+    }
+  })
+  it('retains the in-memory project when local draft storage fails', () => {
+    const write = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => { throw new Error('storage full') })
+    try {
+      const id = useProjectsStore.getState().addProject('Original', document)
+      expect(useProjectsStore.getState().projects.find(project => project.id === id)?.config?.name).toBe('Imported site')
+    } finally { write.mockRestore() }
+  })
   it('opens repeated imports as independent local drafts without overwriting the original identity', () => {
     const first = useProjectsStore.getState().addProject('First', document)
     const second = useProjectsStore.getState().addProject('Second', document)

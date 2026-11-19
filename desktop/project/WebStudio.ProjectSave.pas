@@ -10,9 +10,15 @@ uses System.SysUtils;
   user confirmation, session checks, and the in-memory project snapshot. }
 procedure SaveNewProjectFile(const TargetPath: string; const Contents: TBytes);
 
+{ Creates a ZIP containing the current source file at a new, caller-selected
+  recovery path. This does not replace the project or grant permission to do
+  so. The caller must choose paths, a byte limit and a recovery policy. }
+procedure SaveProjectRecoveryZip(const SourcePath, RecoveryZipPath: string;
+  MaximumSourceBytes: UInt64);
+
 implementation
 
-uses Winapi.Windows, System.IOUtils, System.Classes;
+uses Winapi.Windows, System.IOUtils, System.Classes, System.Zip, WebStudio.ProjectOpen;
 
 procedure SaveNewProjectFile(const TargetPath: string; const Contents: TBytes);
 var
@@ -54,6 +60,36 @@ begin
     TemporaryCreated := False;
   finally
     if TemporaryCreated then Winapi.Windows.DeleteFile(PChar(TemporaryPath));
+  end;
+end;
+
+procedure SaveProjectRecoveryZip(const SourcePath, RecoveryZipPath: string;
+  MaximumSourceBytes: UInt64);
+var
+  ProjectBytes, ZipBytes: TBytes;
+  Archive: TZipFile;
+  Buffer: TMemoryStream;
+begin
+  if not SameText(TPath.GetExtension(RecoveryZipPath), '.zip') then
+    raise EArgumentException.Create('The recovery file must have a .zip extension.');
+  ProjectBytes := ReadProjectFile(SourcePath, MaximumSourceBytes);
+  Buffer := TMemoryStream.Create;
+  try
+    Archive := TZipFile.Create;
+    try
+      Archive.Open(Buffer, zmWrite);
+      Archive.Add(ProjectBytes, TPath.GetFileName(SourcePath));
+      Archive.Close;
+    finally
+      Archive.Free;
+    end;
+    if UInt64(Buffer.Size) > UInt64(High(NativeInt)) then
+      raise EArgumentException.Create('Recovery ZIP is too large.');
+    SetLength(ZipBytes, NativeInt(Buffer.Size));
+    if Length(ZipBytes) > 0 then Move(Buffer.Memory^, ZipBytes[0], Length(ZipBytes));
+    SaveNewProjectFile(RecoveryZipPath, ZipBytes);
+  finally
+    Buffer.Free;
   end;
 end;
 end.

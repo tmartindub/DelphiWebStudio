@@ -29,3 +29,5 @@ Long unbroken text now wraps within the editor's page preview and exported page 
 ## New content blocks
 
 New Features, Testimonials, Stats, FAQ, Team and Logo Cloud blocks start without made-up entries. Add your own entries in Properties. Existing project data is retained. Check site identifies explicitly empty blocks before export.
+
+Video blocks accept common YouTube watch, short, live and share links and Vimeo page or player links. The preview and exported page use the corresponding provider's embedded player, so playback requires an internet connection and remains subject to the provider's availability and settings. Check site flags unsupported addresses; it does not verify that a video exists or can be played.

@@ -196,6 +196,7 @@ function ProjectCard({ project }: { project: Project }) {
   const navigate = useNavigate()
   const renameProject = useProjectsStore((s) => s.renameProject)
   const deleteProject = useProjectsStore((s) => s.deleteProject)
+  const restoreProject = useProjectsStore((s) => s.restoreProject)
   const duplicateProject = useProjectsStore((s) => s.duplicateProject)
   const setConfig = useConfigStore((s) => s.setConfig)
   const setActiveProject = useEditorStore((s) => s.setActiveProject)
@@ -233,6 +234,7 @@ function ProjectCard({ project }: { project: Project }) {
     e.stopPropagation()
     if (confirming) {
       deleteProject(project.id)
+      toast('Project removed.', { duration: 15000, action: { label: 'Undo', onClick: () => restoreProject(project) } })
     } else {
       setConfirming(true)
       confirmTimer.current = setTimeout(() => setConfirming(false), 2000)
@@ -338,11 +340,11 @@ function ProjectCard({ project }: { project: Project }) {
         ) : (
           <div
             className="text-[13px] font-semibold mb-1 transition-colors text-text-0 flex items-center gap-1.5 group/name"
-            onDoubleClick={(e) => { e.stopPropagation(); setEditing(true) }}
-            title="Double-click to rename"
           >
             <span className="truncate">{project.name}</span>
-            <Pencil size={10} className="text-text-3 opacity-0 group-hover:opacity-100 group-hover/name:opacity-60 transition-opacity shrink-0" />
+            <button type="button" aria-label={`Rename ${project.name}`} onClick={(event) => { event.stopPropagation(); setName(project.name); setEditing(true) }} className="text-text-3 hover:text-green focus-visible:text-green shrink-0">
+              <Pencil size={10} />
+            </button>
           </div>
         )}
         <div className="text-[10.5px] text-text-2 flex items-center gap-2">

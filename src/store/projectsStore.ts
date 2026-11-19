@@ -1,8 +1,11 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
+import { toast } from 'sonner'
 import type { SiteConfig } from '@/blocks/types'
 import type { SiteProjectFile } from '@/project/project-file'
 import { ProjectMediaLibrary } from '@/media/media-library'
+
+export let projectDraftReadFailed = false
 
 export interface Project {
   id: string
@@ -42,6 +45,7 @@ interface ProjectsState {
   mediaChanged: (id: string) => void
   duplicateProject: (id: string) => Promise<string | null>
   deleteProject: (id: string) => void
+  restoreProject: (project: Project) => void
   renameProject: (id: string, name: string) => void
   updateProjectConfig: (id: string, config: SiteConfig) => void
   updateProjectSettings: (id: string, settings: Partial<ProjectSettings>) => void
@@ -111,6 +115,8 @@ export const useProjectsStore = create<ProjectsState>()(
         set((state) => ({
           projects: state.projects.filter((p) => p.id !== id),
         })),
+      restoreProject: (project) => set(state => state.projects.some(item => item.id === project.id)
+        ? state : { projects: [structuredClone(project), ...state.projects] }),
       renameProject: (id, name) =>
         set((state) => ({
           projects: state.projects.map((p) =>
@@ -142,6 +148,37 @@ export const useProjectsStore = create<ProjectsState>()(
           ),
         })),
     }),
-    { name: 'openpage-projects' }
+    {
+      name: 'openpage-projects',
+      storage: createJSONStorage(() => {
+        return {
+          getItem: key => {
+            try {
+              const value = window.localStorage.getItem(key)
+              if (value !== null) {
+                const stored: unknown = JSON.parse(value)
+                if (!stored || typeof stored !== 'object' || Array.isArray(stored)) throw new Error('Invalid project storage.')
+                const envelope = stored as Record<string, unknown>
+                if (!envelope.state || typeof envelope.state !== 'object' || Array.isArray(envelope.state) || !Array.isArray((envelope.state as Record<string, unknown>).projects)) throw new Error('Invalid project list.')
+                if (envelope.version !== undefined && envelope.version !== 0) throw new Error('Unsupported project storage version.')
+              }
+              projectDraftReadFailed = false
+              return value
+            } catch {
+              projectDraftReadFailed = true
+              toast.error('Local drafts could not be read. Existing drafts are protected from overwrite; save any new work to a separate project file and restart to retry.', { id: 'draft-storage-read-failed', duration: Infinity, closeButton: true })
+              return null
+            }
+          },
+          setItem: (key, value) => {
+            if (projectDraftReadFailed) return
+            try { window.localStorage.setItem(key, value) } catch {
+              toast.error('Local draft storage failed. Save a separate project file before closing; recent edits may not survive a restart.', { id: 'draft-storage-failed', duration: Infinity, closeButton: true })
+            }
+          },
+          removeItem: key => { if (!projectDraftReadFailed) window.localStorage.removeItem(key) },
+        }
+      }),
+    }
   )
 )

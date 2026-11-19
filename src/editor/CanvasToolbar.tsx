@@ -277,7 +277,8 @@ export function CanvasToolbar() {
   async function handleExport() {
     setExporting(true)
     try {
-      const filename = (activeProject?.name || config.name || 'site').toLowerCase().replace(/[^a-z0-9-]+/g, '-')
+      let filename = (activeProject?.name || config.name || 'site').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'site'
+      if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(filename)) filename = `_${filename}`
       if (portableProjectsEnabled) {
         const media = activeProjectId ? await new ProjectMediaLibrary().list(activeProjectId) : []
         downloadHTML(await exportSiteZip(config, { settings: activeProject?.settings }, media), `${filename}.zip`)
