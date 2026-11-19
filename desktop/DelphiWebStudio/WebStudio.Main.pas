@@ -110,7 +110,10 @@ begin
   end;
   if Allowed and Supports(Args.ArgsInterface, ICoreWebView2PermissionRequestedEventArgs3, Permission3) and
     Succeeded(Permission3.Set_SavesInProfile(0)) then Args.ArgsInterface.Set_State(COREWEBVIEW2_PERMISSION_STATE_ALLOW)
-  else Args.ArgsInterface.Set_State(COREWEBVIEW2_PERMISSION_STATE_DENY);
+  else begin
+    Args.ArgsInterface.Set_State(COREWEBVIEW2_PERMISSION_STATE_DENY);
+    if Allowed then StatusLabel.Caption := 'Update the WebView2 Runtime to permit another download.';
+  end;
 end;
 
 procedure TMainForm.EditorBrowserDownloadStarting(Sender: TCustomEdgeBrowser; Args: TDownloadStartingEventArgs);
@@ -155,8 +158,14 @@ begin
               SaveDownloadDialog.FileName := SuggestedName;
               if SaveDownloadDialog.Execute then begin
                 if Winapi.Windows.Failed(DownloadArgs.Set_ResultFilePath(PWideChar(SaveDownloadDialog.FileName))) or
-                  Winapi.Windows.Failed(DownloadArgs.Set_Handled(1)) then DownloadArgs.Set_Cancel(1);
-              end else DownloadArgs.Set_Cancel(1);
+                  Winapi.Windows.Failed(DownloadArgs.Set_Handled(1)) then begin
+                  DownloadArgs.Set_Cancel(1);
+                  StatusLabel.Caption := 'The download could not start.';
+                end;
+              end else begin
+                DownloadArgs.Set_Cancel(1);
+                StatusLabel.Caption := 'Download canceled.';
+              end;
             except
               DownloadArgs.Set_Cancel(1);
             end;

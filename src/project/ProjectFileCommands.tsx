@@ -132,7 +132,7 @@ export function ProjectFileCommands() {
       const currentProject = useProjectsStore.getState().projects.find(item => item.id === project.id)
       if (useEditorStore.getState().activeProjectId !== project.id || useConfigStore.getState().config !== config || JSON.stringify(currentProject?.settings ?? {}) !== JSON.stringify(project.settings ?? {})) {
         toast.warning('An earlier snapshot was downloaded. Newer changes remain in the draft; save again to include them.')
-      } else toast.success('Project file download started.')
+      } else toast('Project file download requested. Choose a destination if prompted.')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Project could not be saved.')
     } finally {
