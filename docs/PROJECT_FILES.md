@@ -150,6 +150,8 @@ The current shell source offers **Recover staged file...** in the top bar. Selec
 
 An isolated test recovered both JSON and ZIP copies of the five-page sample, reopened each in the editor, and verified that the website export contained all five pages. This test did not simulate a power failure or recover a damaged media archive.
 
+A separate isolated test recovered a five-page project ZIP containing the sample PDF, reopened it, and exported all five pages with an edited page link and the original PDF bytes intact. The native recovery test used legacy dialogs and a completed staged file; it did not simulate a power failure or establish that an interrupted download is complete.
+
 The desktop status line reports when WebView2 marks a selected download complete or interrupted, including the filename. An isolated legacy-dialog test exercised completed project and website downloads, cancellation, a repeated save and an interrupted download. A completion report is WebView2's outcome, not a guarantee of crash-safe disk durability. Modern-dialog and broader failure testing remain open.
 
 Opening a project rejects a JSON file or ZIP manifest larger than 100 MiB before reading its contents. Saving also stops before downloading a manifest above that limit so the application does not produce a project it cannot reopen. The ZIP may be larger when it contains media. This limit helps prevent excessive manifest allocation; it is not a complete defense against every oversized or malformed archive.
