@@ -67,6 +67,11 @@ export function checkSite(config: SiteConfig): SiteIssue[] {
         const valid = block.variant === 'vimeo' ? /vimeo\.com\/(\d+)/.test(url) : /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([a-zA-Z0-9_-]{11})/.test(url)
         if (!valid) add(`Video has no supported ${block.variant === 'vimeo' ? 'Vimeo' : 'YouTube'} address and will show a placeholder.`)
       }
+      if (['features', 'testimonials', 'stats', 'faq', 'team', 'logocloud'].includes(block.type)) {
+        const key = block.type === 'team' ? 'members' : block.type === 'logocloud' ? 'logos' : 'items'
+        const value = block.props[key]
+        if (Array.isArray(value) && value.length === 0) add('This block has no entries yet. Add your own content in Properties or remove the block.')
+      }
       if (block.type === 'contact') {
         const email = typeof block.props.recipientEmail === 'string' ? block.props.recipientEmail.trim() : ''
         if (!/^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/.test(email)) add('Contact form has no valid contact email and will be disabled in the export.')

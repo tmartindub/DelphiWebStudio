@@ -7,10 +7,24 @@ import { NavbarBlock } from '../src/blocks/navbar/NavbarBlock'
 import { FooterBlock } from '../src/blocks/footer/FooterBlock'
 import { TeamBlock } from '../src/blocks/team/TeamBlock'
 import { ContentBlock } from '../src/blocks/content/ContentBlock'
+import { RenderBlock } from '../src/blocks/registry'
+import { blockMetadata } from '../src/lib/block-metadata'
 import { exportToHTML } from '../src/lib/export-html'
 import type { BlockConfig } from '../src/blocks/types'
 
 describe('preview link and image fidelity', () => {
+  it.each([
+    ['features', 'grid', 'Enterprise-grade security'],
+    ['testimonials', 'cards', 'Sarah Chen'],
+    ['stats', 'grid', '99.9%'],
+    ['faq', 'accordion', 'Pro and Team plans'],
+    ['logocloud', 'default', 'Vercel'],
+    ['banner', 'ribbon', 'launched v2.0'],
+  ] as const)('does not invent claims in a new %s block', async (type, variant, fabricated) => {
+    const block: BlockConfig = { id: 'new', type, variant, props: structuredClone(blockMetadata.find(meta => meta.type === type)!.defaultProps) }
+    expect(renderToStaticMarkup(createElement(RenderBlock, { block }))).not.toContain(fabricated)
+    expect(await exportToHTML({ name: 'Site', blocks: [block] })).not.toContain(fabricated)
+  })
   it('renders safe text links without turning unsafe protocols into links', async () => {
     const block: BlockConfig = { id: 'text', type: 'content', variant: 'prose', props: { body: '[News](/news) [Site](https://example.com) [Bad](javascript:alert)' } }
     const preview = renderToStaticMarkup(createElement(ContentBlock, { block }))
